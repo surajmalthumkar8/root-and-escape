@@ -52,6 +52,7 @@
     </section>
 
     <div class="notes" id="notes" hidden></div>
+    <section class="verdict" id="verdict" aria-live="polite"></section>
 
     <div class="board" id="board">
       <article class="cell span2" id="c-d2">
@@ -117,6 +118,13 @@
             <button class="btn ghost small" id="reset-btn" type="button">Reset my approvals</button>
           </div>
         </div>
+      </article>
+
+      <article class="cell span3" id="c-report">
+        <span class="dtag">8D DRAFT</span>
+        <div class="report-head"><h3>The report your customer receives</h3>
+          <div class="btn-row" role="group" aria-label="Language"><button type="button" class="btn small" id="lang-en" aria-pressed="true">English</button><button type="button" class="btn small ghost" id="lang-ja" aria-pressed="false">日本語</button></div></div>
+        <dl class="report" id="report"></dl>
       </article>
 
       <article class="cell span3" id="c-ev">

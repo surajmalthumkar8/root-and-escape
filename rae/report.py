@@ -28,39 +28,56 @@ def mechanism(pe: dict | None) -> dict:
                 "text": (f"the resin dryer on press {press} failed: dew point averaged {d['test_mean']} °C against a normal "
                          f"{d['control_mean']} °C ({d['shift_sigma']}σ) from {_when(d['first_out'])} to {_when(d['last_out'])}, "
                          f"so the resin was wet and the parts became brittle"),
-                "action": f"Fit a dew-point interlock on the press {press} dryer (stop resin feed above -35 °C) and repair the dryer"}
+                "text_ja": (f"プレス {press} の樹脂乾燥機が故障し、露点が平常 {d['control_mean']} °C に対し平均 {d['test_mean']} °C"
+                            f"（{d['shift_sigma']}σ）となった（{_when(d['first_out'])}〜{_when(d['last_out'])}）。樹脂が吸湿し、成形品が脆くなった"),
+                "action": f"Fit a dew-point interlock on the press {press} dryer (stop resin feed above -35 °C) and repair the dryer",
+                "action_ja": f"プレス {press} の乾燥機に露点インターロックを設置し（-35 °C 超で樹脂供給を停止）、乾燥機を修理する"}
     if "mold_shots_since_pm" in flagged:
         pm = pe["data"]["pm"]
         return {"kind": "mould_wear", "keywords": ["pm", "wear", "cavity", "parting"],
                 "text": (f"the press {press} mould ran past its {pm['limit']:,}-shot maintenance limit from "
                          f"{_when(pm['first_over_limit'])} (up to {pm['max_shots']:,} shots), so the cavity wore and flashed"),
-                "action": f"Repair the worn cavity, then add a maintenance interlock that stops press {press} at {pm['limit']:,} shots"}
+                "text_ja": (f"プレス {press} の金型が {_when(pm['first_over_limit'])} から保全上限 {pm['limit']:,} ショットを超えて稼働し"
+                            f"（最大 {pm['max_shots']:,} ショット）、キャビティが摩耗してバリが発生した"),
+                "action": f"Repair the worn cavity, then add a maintenance interlock that stops press {press} at {pm['limit']:,} shots",
+                "action_ja": f"摩耗したキャビティを修理し、プレス {press} を {pm['limit']:,} ショットで停止する保全インターロックを追加する"}
     for p in pe["data"]["params"]:
         if p["flag"]:
             return {"kind": "param", "keywords": [p["param"].split("_")[0]],
                     "text": f"{p['label']} on press {press} moved {p['shift_sigma']}σ from normal",
-                    "action": f"Restore {p['label']} on press {press} to its validated window and add an alarm"}
+                    "text_ja": f"プレス {press} の {p['label']} が平常から {p['shift_sigma']}σ 変動した",
+                    "action": f"Restore {p['label']} on press {press} to its validated window and add an alarm",
+                    "action_ja": f"プレス {press} の {p['label']} を検証済みの範囲に戻し、アラームを追加する"}
     return {"kind": "unknown", "keywords": [],
             "text": f"no process parameter on press {press} moved, so the mechanism is not yet confirmed",
-            "action": "Collect more data on the segment (material, maintenance logs, tooling) before closing D4"}
+            "text_ja": f"プレス {press} の工程パラメータに変動はなく、発生メカニズムは未確定",
+            "action": "Collect more data on the segment (material, maintenance logs, tooling) before closing D4",
+            "action_ja": "D4 を閉じる前に、該当範囲の材料・保全記録・金型のデータを追加収集する"}
 
 
 def escape_text(ic: dict | None) -> dict:
     if not ic:
-        return {"text": "", "action": ""}
+        return {"text": "", "text_ja": "", "action": "", "action_ja": ""}
     d = ic["data"]
     press = d["press"]
     if d["sampling_changes"]:
         c = d["sampling_changes"][-1]
         return {"text": (f"inspection sampling on press {press} was cut from {c['sampling_from']}/h to {c['sampling_to']}/h on "
                          f"{c['date']} (control plan rev {c['rev_from']} → {c['rev_to']}), so the rising defect rate was not caught"),
-                "action": f"Restore sampling to {c['sampling_from']}/h on press {press} and require quality sign-off on control-plan changes"}
+                "text_ja": (f"プレス {press} の検査抜き取り頻度が {c['date']} に {c['sampling_from']}/h から {c['sampling_to']}/h に削減され"
+                            f"（管理計画 Rev {c['rev_from']} → {c['rev_to']}）、不良率の上昇を検出できなかった"),
+                "action": f"Restore sampling to {c['sampling_from']}/h on press {press} and require quality sign-off on control-plan changes",
+                "action_ja": f"プレス {press} の抜き取りを {c['sampling_from']}/h に戻し、管理計画の変更に品質承認を必須とする"}
     if d["gauge_overdue"]:
         g = d["gauge_overdue"]
         return {"text": (f"gauge {g['gauge_id']} on press {press} was overdue for calibration since {g['cal_due']}, "
                          f"so out-of-spec parts passed inspection"),
-                "action": f"Calibrate {g['gauge_id']} now and add a calibration-due lockout to the inspection station"}
-    return {"text": "", "action": "Review why final inspection did not detect the defect (no change found in sampling or gauges)"}
+                "text_ja": f"プレス {press} のゲージ {g['gauge_id']} は {g['cal_due']} から校正期限切れで、規格外品が検査を通過した",
+                "action": f"Calibrate {g['gauge_id']} now and add a calibration-due lockout to the inspection station",
+                "action_ja": f"{g['gauge_id']} を直ちに校正し、校正期限切れで検査を止めるロックアウトを追加する"}
+    return {"text": "", "text_ja": "",
+            "action": "Review why final inspection did not detect the defect (no change found in sampling or gauges)",
+            "action_ja": "最終検査で検出できなかった理由を確認する（抜き取り・ゲージに変更なし）"}
 
 
 def scripted_investigation(tb: Toolbox) -> dict:
@@ -95,6 +112,8 @@ def scripted_investigation(tb: Toolbox) -> dict:
     top = next((s for s in full.get("top_segments", []) if s["filters"] == seg), None)
     rate_txt = (f" The {tb.defect} rate on {A.seg_label(seg)} was {A.pct(top['rate_test'])} in the complaint date codes "
                 f"against {A.pct(top['rate_control'])} before.") if top else ""
+    rate_ja = (f"{A.seg_label(seg)} の不良率は日付コード範囲で {A.pct(top['rate_test'])}、それ以前は {A.pct(top['rate_control'])}。"
+               if top else "")
     cont = tb.containment(seg)
     occ_text = (f"Occurrence: {mech['text']}.{rate_txt}" if mech["text"] else
                 f"Occurrence: the defect is concentrated on {A.seg_label(seg)}.{rate_txt}")
@@ -104,6 +123,9 @@ def scripted_investigation(tb: Toolbox) -> dict:
                        "evidence": [is_id] + ([pe["id"]] if pe else [])},
         "escape": {"statement": f"Escape: {esc['text']}." if esc["text"] else "",
                    "evidence": [ic["id"]] if ic else []},
+        "occurrence_ja": f"発生原因：{mech.get('text_ja', '')}。{rate_ja}",
+        "escape_ja": f"流出原因：{esc['text_ja']}。" if esc.get("text_ja") else "流出原因：未特定。",
+        "actions_ja": [a for a in (mech.get("action_ja"), esc.get("action_ja")) if a],
         "actions": [a for a in (mech["action"], esc["action"]) if a],
         "containment_evidence": cont["evidence_id"],
         "hypotheses": hyps,

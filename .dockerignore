@@ -1,0 +1,12 @@
+.git
+.venv
+.venv-deploy
+var
+var-*
+__pycache__
+*.pyc
+.pytest_cache
+tests
+docs
+deploy
+scripts

@@ -81,7 +81,7 @@
     $("#img-defect").alt = c.photo ? "Defect photo" : "No photo supplied";
     $("#img-golden").src = photoUrl(c.golden);
     $("#complaint").textContent = c.complaint;
-    if (!r) { $("#board").style.opacity = 0.5; return; }
+    if (!r) { $("#board").style.opacity = 0.5; renderVerdict(null); return; }
     $("#board").style.opacity = 1;
     const it = r.intake || {};
     $("#translation").textContent = it.translation_en ? "English: " + it.translation_en : "";
@@ -99,6 +99,8 @@
     $("#w5").innerHTML = ["what", "where", "when", "how_many"].map((k) => d2[k] ? `<dt>${esc(k.replace("_", " "))}</dt><dd>${esc(d2[k])}</dd>` : "").join("");
 
     renderIsNot(r.analysis);
+    renderVerdict(r);
+    renderReport(r);
     renderHyps(r.hypotheses || []);
     renderD4(r.draft, r);
     renderD3(r.containment, r.draft);
@@ -138,16 +140,73 @@
     $("#isnot-h").textContent = a.significant ? `IS: ${a.primary_label}` : "No segment stands out";
     $("#isnot-text").textContent = `${a.defect} rate ${pct(o.rate_test)} in the complaint window vs ${pct(o.rate_control)} in the 28 days before (×${o.ratio}). Cells: % defective by ${hm.row_dim} × ${hm.col_dim}, complaint window.`;
     $("#isnot-method").textContent = "Method: " + a.method + (a.bqml_error ? " (BigQuery ML unavailable for this run)" : "");
+    const bq = (a.bqml_insights || []).filter((x) => x.segment !== "all").slice(0, 4);
+    if (bq.length) {
+      const fmt = (x) => (x == null ? "–" : Number(x).toFixed(2));
+      $("#isnot-method").insertAdjacentHTML("beforeend", `<br><b>BigQuery ML top contributors:</b> ` +
+        bq.map((x) => `${esc(x.segment)} (test/control ×${fmt(x.test_over_control)}, support ${fmt(x.apriori_support)})`).join("; "));
+    }
   }
 
   function renderHyps(h) {
     const ul = $("#hyps");
     if (!h.length) { ul.innerHTML = `<li class="small muted">No hypothesis passed the significance test.</li>`; return; }
     const cls = { SUPPORTED: "ok", REJECTED: "", EXPLAINED: "neutral", OPEN: "warn" };
-    ul.innerHTML = h.map((x) => `<li><div class="h"><b>${esc(x.hypothesis)}</b><span class="stamp ${cls[x.ruling] || ""}">${esc(x.ruling)}</span></div>
+    const order = { SUPPORTED: 0, REJECTED: 1, OPEN: 2, EXPLAINED: 3 };
+    const main = h.filter((x) => x.ruling !== "EXPLAINED").sort((a, b) => order[a.ruling] - order[b.ruling]);
+    const expl = h.filter((x) => x.ruling === "EXPLAINED");
+    ul.innerHTML = main.map((x) => `<li><div class="h"><b>${esc(x.hypothesis)}</b><span class="stamp ${cls[x.ruling] || ""}">${esc(x.ruling)}</span></div>
       <span class="small muted">looks ${esc(x.looks)}</span><span class="small">${esc(x.reason)}</span>
-      <span class="chips">${(x.evidence || []).filter(Boolean).map(chip).join("")}</span></li>`).join("");
+      <span class="chips">${(x.evidence || []).filter(Boolean).map(chip).join("")}</span></li>`).join("") +
+      (expl.length ? `<li class="explained"><b>${expl.length} side effects explained:</b> ${esc(expl.map((x) => x.hypothesis).join(", "))} look elevated only because they include the primary segment.</li>` : "");
   }
+
+  function renderVerdict(r) {
+    const el = $("#verdict");
+    if (!r) { el.innerHTML = ""; return; }
+    const d = r.draft || {}, last = (r.challenger || []).slice(-1)[0] || { rules: [] };
+    const passed = last.rules.filter((x) => x.passed).length;
+    const card = (k, v, cls = "") => `<div class="vcard ${cls}"><span class="k">${esc(k)}</span><span class="v">${esc(v)}</span></div>`;
+    if (d.insufficient_evidence) {
+      el.innerHTML = card("Root cause", "Insufficient evidence: none claimed", "green") +
+        card("Why", "No press, cavity, shift, crew or resin lot stands out") +
+        card("Containment", "No blanket hold; customer sorts stock") +
+        card("Challenger checks", `${passed}/${last.rules.length} passed`, "green");
+      return;
+    }
+    const rejected = (r.hypotheses || []).filter((x) => x.ruling === "REJECTED" && /^(crew|shift)/.test(x.hypothesis));
+    const c = r.containment;
+    el.innerHTML = card("Root cause", `${(r.analysis && r.analysis.primary_label) || ""}: ${firstClause(d.occurrence && d.occurrence.statement)}`) +
+      card("People blamed", rejected.length ? `No. ${rejected.map((x) => x.hypothesis).join(", ")} rejected after splitting by press` : "No", rejected.length ? "red" : "") +
+      card("Containment", c ? `Hold ${c.targeted_lots} lots, not ${c.blanket_lots}` : "–", "green") +
+      card("Challenger checks", `${passed}/${last.rules.length} passed` + ((r.challenger || []).length > 1 ? ` after ${(r.challenger || []).length} rounds` : ""), last.verdict === "REJECTED" ? "red" : "green");
+  }
+
+  function firstClause(s) {
+    s = String(s || "").replace(/^Occurrence:\s*/i, "");
+    const cut = s.split(/[,;:]/)[0];
+    return cut.length > 90 ? cut.slice(0, 88) + "…" : cut;
+  }
+
+  let reportLang = "en";
+  function renderReport(r) {
+    const el = $("#report");
+    const sec = r && r.report && (r.report[reportLang] || r.report.en);
+    if (!sec) { el.innerHTML = ""; return; }
+    const names = reportLang === "ja"
+      ? { D1: "D1 チーム", D2: "D2 問題", D3: "D3 暫定処置", D4: "D4 発生原因", D4_escape: "D4 流出原因", D5: "D5 是正処置", D6: "D6 効果確認", D7: "D7 再発防止", D8: "D8 称賛" }
+      : { D1: "D1 Team", D2: "D2 Problem", D3: "D3 Containment", D4: "D4 Occurrence", D4_escape: "D4 Escape", D5: "D5 Actions", D6: "D6 Verify", D7: "D7 Prevent", D8: "D8 Recognise" };
+    el.className = "report " + reportLang;
+    el.innerHTML = Object.keys(names).filter((k) => sec[k]).map((k) => `<dt>${esc(names[k])}</dt><dd>${esc(sec[k])}</dd>`).join("");
+  }
+  function setLang(l) {
+    reportLang = l;
+    $("#lang-en").className = "btn small" + (l === "en" ? "" : " ghost"); $("#lang-en").setAttribute("aria-pressed", String(l === "en"));
+    $("#lang-ja").className = "btn small" + (l === "ja" ? "" : " ghost"); $("#lang-ja").setAttribute("aria-pressed", String(l === "ja"));
+    renderReport(state.data && state.data.result);
+  }
+  $("#lang-en").addEventListener("click", () => setLang("en"));
+  $("#lang-ja").addEventListener("click", () => setLang("ja"));
 
   function chip(id) { return `<button type="button" class="chip" data-ev="${esc(id)}">${esc(id)}</button>`; }
 
