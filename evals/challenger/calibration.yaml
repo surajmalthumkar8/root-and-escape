@@ -1,0 +1,35 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+# Checks the ruling assertion itself, with canned outputs and no app: expect 2 passes and 2 failures.
+description: Calibrate the Challenger ruling assertion
+
+prompts:
+  - '{{canned}}'
+
+providers:
+  - echo
+
+defaultTest:
+  options:
+    transform: JSON.parse(output)
+  assert:
+    - type: javascript
+      value: |
+        const want = context.vars.expect;
+        if (output.verdict !== want) {
+          return { pass: false, score: 0, reason: `verdict ${output.verdict}, wanted ${want}; failed: ${output.failed.join(', ') || 'none'}` };
+        }
+        const rule = context.vars.rule;
+        if (rule && !output.failed.includes(rule)) {
+          return { pass: false, score: 0, reason: `rejected, but not by ${rule}; failed: ${output.failed.join(', ')}` };
+        }
+        return { pass: true, score: 1, reason: rule ? `rejected by ${rule}` : 'approved' };
+
+tests:
+  - description: should PASS (rejected by the expected rule)
+    vars: {expect: REJECTED, rule: segment_matches_is_is_not, canned: '{"verdict":"REJECTED","failed":["segment_matches_is_is_not"]}'}
+  - description: should PASS (sound claim approved)
+    vars: {expect: APPROVED_FOR_REVIEW, canned: '{"verdict":"APPROVED_FOR_REVIEW","failed":[]}'}
+  - description: should FAIL (an attack that got through)
+    vars: {expect: REJECTED, rule: no_people_blame_without_stratified_effect, canned: '{"verdict":"APPROVED_FOR_REVIEW","failed":[]}'}
+  - description: should FAIL (rejected, but by the wrong rule)
+    vars: {expect: REJECTED, rule: segment_matches_is_is_not, canned: '{"verdict":"REJECTED","failed":["numbers_come_from_evidence"]}'}

@@ -20,12 +20,33 @@ PARAMS = {
     "dryer_dew_point_c": "resin dryer dew point (°C)",
 }
 PM_LIMIT_SHOTS = 250_000
+# Resin maker limits for logged parameters (DuPont Zytel molding guide: dryer dew point -18 °C or drier).
+PARAM_SPEC_MAX = {"dryer_dew_point_c": -18.0}
+
+# Which logged process condition causes which defect in injection moulding (PA66), from resin-maker and moulding
+# troubleshooting guides: Teknor Apex and DuPont Zytel (wet resin -> hydrolysis -> brittle parts), RJG and
+# Plastics Technology (flash from parting-line damage and overpacking; short shots from blocked vents and low melt
+# temperature), Paulson (cracks from hold pressure). Full list in the README, "Engineering knowledge".
+# The scripted engine names a mechanism only when it is "typical" for the defect; a "possible" one is reported as a
+# lead to check first. The Challenger rejects a draft that names a mechanism that is neither.
+MECHANISM_EFFECTS = {
+    "dryer_dew_point_c": {"typical": {"crack"}, "possible": {"burr"}},
+    "mold_shots_since_pm": {"typical": {"burr"}, "possible": {"short_shot", "scratch"}},
+    "melt_temp_c": {"typical": {"crack", "burr", "short_shot"}, "possible": set()},
+    "hold_pressure_bar": {"typical": {"crack", "burr", "scratch"}, "possible": {"short_shot"}},
+    "cycle_time_s": {"typical": set(), "possible": {"crack", "scratch"}},
+}
+MECHANISM_DEFECTS = {k: v["typical"] | v["possible"] for k, v in MECHANISM_EFFECTS.items()}  # plausible at all
+DEFECT_WORDS = {"crack": "cracks", "burr": "burrs", "short_shot": "short shots", "scratch": "scratches"}
+DEFECT_JA = {"crack": "割れ", "burr": "バリ", "short_shot": "ショートショット", "scratch": "キズ"}
 
 # significance thresholds (documented in the README "Guardrails" section)
 Z_MIN = 3.5          # two-proportion z score
 RATIO_MIN = 2.5      # test rate / control rate
 EXCESS_MIN = 10      # extra defects vs control baseline
 MIN_SUPPORT = 0.04   # share of test+control units in the segment
+PAIR_Z_MIN = 4.5     # a two-factor segment found on its own (about 100 pairs tested, so a Bonferroni-style bar)
+PAIR_RATIO_MIN = 3.0
 MIN_CELL_UNITS = 1_500
 
 
@@ -151,7 +172,17 @@ def is_is_not(prod: pd.DataFrame, defect: str, start: date, end: date, control_d
         if best:
             primary, refined_by = dict(best[1]["filters"]), best[2]
 
-    significant = primary is not None and (overall["ratio"] or 0) >= 1.3
+    # A pure interaction: one cavity of one press is bad while neither the press nor the cavity stands out alone.
+    # A pair is one of about 100 combinations tested, so it must clear a stricter bar on its own.
+    interaction = False
+    if not sig_singles:
+        strict = [p for p in pairs if p["z"] >= PAIR_Z_MIN and p["ratio"] >= PAIR_RATIO_MIN
+                  and p["excess_defects"] >= EXCESS_MIN and p["units_test"] >= MIN_CELL_UNITS]
+        if strict:
+            primary, refined_by, interaction = dict(max(strict, key=lambda p: p["z"])["filters"]), "interaction", True
+
+    # a small segment barely moves the plant-wide rate, so the overall-rise gate applies only to single segments
+    significant = primary is not None and (interaction or (overall["ratio"] or 0) >= 1.3)
     ranked = sorted(singles + pairs, key=lambda s: (s["significant"], s["excess_defects"]), reverse=True)
     heat_dims = (list(primary.keys()) if primary and len(primary) == 2 else
                  [list(primary.keys())[0], "shift" if list(primary.keys())[0] != "shift" else "press"] if primary
@@ -238,6 +269,7 @@ def param_excursions(process: pd.DataFrame, press: str, start: date, end: date, 
             "first_out": str(bad.prod_ts.min()) if len(bad) else None,
             "last_out": str(bad.prod_ts.max()) if len(bad) else None,
             "flag": bool(abs(shift) >= 3 or len(bad) / max(len(test), 1) >= 0.25),
+            "spec_max": PARAM_SPEC_MAX.get(col),
         })
     pm = test[test.mold_shots_since_pm >= PM_LIMIT_SHOTS]
     pm_info = {
@@ -281,7 +313,7 @@ def containment(prod: pd.DataFrame, shipments: pd.DataFrame, defect: str, filter
     daily["rate"] = daily.d / daily.n
     hot = daily[(daily.n >= 300) & (daily.rate >= max(3 * base, 0.01))]
     ws = min([*hot.index, start]) if len(hot) else start
-    we = max(hot.index) if len(hot) else end
+    we = max([*hot.index, end]) if len(hot) else end  # always cover the complaint date codes, plus any hot day after
     lot_cols = [k for k in filters if k in ("press", "shift")]
     lots = shipments[(shipments.prod_date >= ws) & (shipments.prod_date <= we)]
     for k in lot_cols:

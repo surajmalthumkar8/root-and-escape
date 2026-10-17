@@ -158,8 +158,10 @@ class Toolbox:
         parts = []
         for p in r["params"]:
             if p["flag"]:
+                spec = (f", above the resin maker's limit of {p['spec_max']}" if p.get("spec_max") is not None
+                        and p["test_mean"] > p["spec_max"] else "")
                 parts.append(f"{p['label']} averaged {p['test_mean']} vs normal {p['control_mean']} ± {p['control_sd']} "
-                             f"({p['shift_sigma']}σ), out of limits from {p['first_out']} to {p['last_out']}")
+                             f"({p['shift_sigma']}σ{spec}), out of limits from {p['first_out']} to {p['last_out']}")
         if r["pm"]["flag"]:
             parts.append(f"mould ran past the {r['pm']['limit']:,}-shot maintenance limit from {r['pm']['first_over_limit']} "
                          f"(max {r['pm']['max_shots']:,} shots)")

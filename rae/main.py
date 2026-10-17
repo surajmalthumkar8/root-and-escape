@@ -475,6 +475,7 @@ class _StoredToolbox:
         self.log = EvidenceLog()
         self.log.items = [dict(i) for i in result.get("evidence", [])]
         a = result.get("analysis")
+        self.defect = (a or {}).get("defect")
         self.last_is_is_not = None if not a else {
             "significant": bool(a.get("significant")), "primary_segment": a.get("primary_segment"),
             "primary_label": a.get("primary_label")}

@@ -12,3 +12,8 @@ credentials*.json
 var-*/
 var-*.json
 .venv-deploy/
+
+# eval run outputs (scores are reported in the README)
+evals/**/results-*.json
+evals/**/calib-out.json
+.deepeval/

@@ -132,17 +132,56 @@ def test_bigquery_ml_is_prefetched_and_waited_for_at_most_once(plant, monkeypatc
 
     def slow_engine(defect, start, end):
         calls.append(defect)
-        time.sleep(0.5)
+        time.sleep(1.5)
         return [{"segment": "press=P4"}]
 
+    def two_runs(tb):
+        t0 = time.monotonic()
+        tb.is_is_not()
+        tb.is_is_not()  # the second call must not wait again or start a second BigQuery job
+        return time.monotonic() - t0
+
+    baseline = two_runs(Toolbox(plant, get_seed("118"), EvidenceLog()))  # the pandas work alone, on this machine
     monkeypatch.setattr(T, "BQML_WAIT_S", 0.1)
     tb = Toolbox(plant, get_seed("118"), EvidenceLog(), slow_engine)
     tb.prefetch_contribution()
-    t0 = time.monotonic()
-    tb.is_is_not()
-    tb.is_is_not()  # the second call must not wait again or start a second BigQuery job
-    assert time.monotonic() - t0 < 0.4 and calls == ["crack"]
+    extra = two_runs(tb) - baseline
+    assert extra < 0.8 and calls == ["crack"]  # waited about 0.1 s once; waiting for the engine would add 1.5 s
     assert "did not answer" in tb.last_is_is_not["bqml_error"]
     fast = Toolbox(plant, get_seed("118"), EvidenceLog(), lambda d, s, e: [{"segment": "press=P4"}])
     fast.is_is_not()
     assert fast.last_is_is_not["bqml_insights"] and "BigQuery ML" in fast.last_is_is_not["method"]
+
+
+def test_mechanism_must_fit_the_defect(plant):
+    tb = toolbox(plant, "118")  # cracks
+    good = scripted_investigation(tb)
+    assert "resin maker's limit" in good["occurrence"]["statement"]
+    for claim, ok in (("Occurrence: the press P4 mould wore past its maintenance limit, so it flashed.", False),
+                      ("Occurrence: the resin dryer on press P4 failed, so the resin was wet.", True),
+                      ("Occurrence: mechanism not yet confirmed on press P4; the mould is worn.", True)):
+        res = check_draft({**good, "occurrence": {**good["occurrence"], "statement": claim}}, tb)
+        rule = [r for r in res if r["rule"] == "mechanism_fits_defect"]
+        assert (not rule or rule[0]["passed"]) == ok, (claim, rule)
+
+
+def test_located_but_unexplained_cause_is_reported_as_open_not_invented():
+    from rae.data.generator import Planted
+    start, end = date(2026, 10, 1), date(2026, 10, 8)
+    p = generate(seed=100, planted_story=False, extra=[Planted("crack", {"press": "P3"}, start, end, 0.035)])
+    case = {**get_seed("118"), "case_id": "T-1", "date_code_start": "2026-10-01", "date_code_end": "2026-10-08"}
+    tb = Toolbox(p, case, EvidenceLog())
+    d = scripted_investigation(tb)
+    assert d["occurrence"]["segment"] == {"press": "P3"}
+    assert "not yet confirmed" in d["occurrence"]["statement"] and "not yet identified" in d["escape"]["statement"]
+    assert d["open_points"] == ["Mechanism not yet confirmed", "Escape point not yet identified"]
+    assert verdict(check_draft(d, tb)) == "APPROVED_FOR_REVIEW"
+
+
+def test_pure_interaction_is_found_with_a_stricter_bar():
+    from rae.data.generator import Planted
+    start, end = date(2026, 10, 3), date(2026, 10, 12)
+    seg = {"press": "P1", "cavity": "C4"}
+    p = generate(seed=113, planted_story=False, extra=[Planted("scratch", seg, start, end, 0.012)])
+    r = A.is_is_not(p.production, "scratch", start, end)
+    assert r["significant"] and r["primary_segment"] == seg and r["refined_by"] == "interaction"

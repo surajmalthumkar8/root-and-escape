@@ -1,0 +1,22 @@
+# Sound claims that name the analysed segment, a mechanism that fits the defect, and a detection weakness.
+# Each must be APPROVED_FOR_REVIEW: the Challenger is only useful if it does not reject good engineering.
+- description: dryer and sampling cut on press P4
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'Occurrence: the resin dryer on press P4 failed, so the resin was wet and the clips became brittle.',
+         escape: 'Escape: inspection sampling on press P4 was cut from 5/h to 1/h, so the rise was not caught.'}
+- description: quotes a percentage that is in the evidence
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'Occurrence: the resin dryer on press P4 failed; the crack rate on press P4 was 4.33%.',
+         escape: 'Escape: inspection sampling on press P4 was cut, so the rise was not caught.'}
+- description: the same claim in Japanese
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW,
+         occurrence: '発生原因：プレス P4 の樹脂乾燥機が故障し、樹脂が吸湿した。',
+         escape: '流出原因：プレス P4 の検査抜き取りが削減され、不良を検出できなかった。'}
+- description: worn mould and overdue gauge on press P2 cavity C3
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'Occurrence: the press P2 mould ran past its maintenance limit, and cavity C3 wore and flashed.',
+         escape: 'Escape: gauge G-02 was overdue for calibration, so inspection passed out-of-spec parts.'}
+- description: honest about what is not yet confirmed
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'Occurrence: mechanism not yet confirmed on press P4; the dew point data is being checked.',
+         escape: 'Escape: inspection sampling on press P4 was cut, so the rise was not detected.'}

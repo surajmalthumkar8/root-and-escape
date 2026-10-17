@@ -22,7 +22,7 @@ Gemini agents turn a customer complaint and a defect photo into an evidence-back
 1. Open the live app. There's no sign-in. **Case 118** opens with a stored result: a Japanese complaint about cracked clips.
 2. Read the four cards at the top:
    - the root cause (press P4's resin dryer failed);
-   - **"People blamed: No. Crew B rejected after splitting by press"**;
+   - **"People blamed: None. Crew B and shifts N, S looked worse but were rejected after splitting by press"**;
    - **Hold 24 lots, not 216**;
    - the Challenger checks passed.
 3. Click **Run live with Gemini** to watch the agents work. Each Gemini tool call and each result stream in with an evidence ID. Gemini runs are capped at 30 a day for all visitors and 5 per visitor; past the cap, the run still happens on the deterministic engine and is labelled that way.
@@ -42,6 +42,17 @@ Priya is the supplier quality engineer at a tier-2 plastics plant. To answer a c
 
 The fastest answer is the most common shallow one: **"operator error, retrain the operator"** ([QualityInspection.org on weak 8Ds](https://qualityinspection.org/fill-out-an-8d-report-fix-problem/)). The real cause comes back three months later. A blanket hold of every lot since the last good date also stops the customer's line for no reason.
 
+**Why it matters (cited):**
+
+| Fact | Source |
+|---|---|
+| Car makers take **about seven weeks** to establish a confirmed root cause, and countermeasures take another nine to ten | [McKinsey, June 2026](https://karriere.mckinsey.de/industries/automotive-and-assembly/our-insights/when-warranty-costs-rival-r-and-d-spend-remaking-vehicle-quality-with-ai) (survey of 40 executives) |
+| Supplier manuals ask for containment in **24 hours** and D4 to D8 within **10 working days** | [Graco SCAR](https://www.graco.com/us/en/suppliers/corrective-action-request.html), [SEW-Eurodrive 8D specification](https://media.sew-eurodrive.com/sew_de/media/nocms_media/lieferantenhandbuecher_1/8d-process-specification.pdf) |
+| Warranty cost the auto industry **about $58 billion in 2024**, about 2.2% of sales; only 10% of executives report satisfactory quality solutions | McKinsey, as above |
+| A stopped automotive line costs **about $2.3 million an hour** | [Siemens, True Cost of Downtime 2024](https://assets.new.siemens.com/siemens/assets/api/uuid:1b43afb5-2d07-47f7-9eb7-893fe7d0bc59/TCOD-2024_original.pdf) |
+| Regulators already demand our rule: where human error is suspected, it "should be justified having taken care to ensure that process, procedural or system-based errors or problems have not been overlooked" | EU GMP Chapter 1, §1.4(xiv), quoted by [PQE](https://blog.pqegroup.com/gxp-compliance/deviation-management) |
+| Who it serves: Toyota's supply chain alone counts **40,680 firms**, 38,000 of them tier 2 or below; India's component makers' association has over 1,100 members | [Nippon.com / Teikoku Databank](https://www.nippon.com/en/japan-data/h02250/), [ACMA](https://www.acma.in/about-us.php) |
+
 ## What it does
 
 | Step | What happens | Google Cloud |
@@ -51,7 +62,7 @@ The fastest answer is the most common shallow one: **"operator error, retrain th
 | **3. Act** | Lists exactly which lots to hold and where they are (at the customer, in transit, in the plant). A Challenger rejects unsupported drafts. The Writer drafts the 8D in English and Japanese. Export unlocks only after sign-off. | Challenger rules · Gemini Writer · Firestore (approvals, audit trail) · Cloud Run |
 
 **Case 118 (synthetic data):**
-- Root cause: press P4's resin dryer dew point rose to about −21 °C (normal about −44 °C). The crack rate on P4 was 4.33% vs 0.39% before.
+- Root cause: press P4's resin dryer failed. The dew point averaged about −9 °C against a normal −44 °C, above the resin maker's limit of −18 °C ([DuPont Zytel molding guide](https://dupont.materialdatacenter.com/links/processing/Zytel.pdf)). Wet PA66 degrades in the barrel and the clips turn brittle. The crack rate on P4 was 4.33% vs 0.39% before.
 - Escape: sampling was cut from 5/h to 1/h on 2 Oct (control plan rev C).
 - The naive answer, "night crew B", is **rejected**: inside each press, every crew has the same rate.
 - **Hold 24 lots instead of 216.**
@@ -120,23 +131,67 @@ Every stage has a deterministic fallback, and the result records which mode prod
 | Abuse of the free engine | Deterministic runs: 40 per visitor and 2,000 a day; a per-network limit of 20 runs per 10 minutes; 50 cases per visitor; photos over 8 MB or 40 megapixels are refused before decoding | `rae/main.py`, `rae/store.py` | `test_deterministic_runs_have_an_abuse_cap`, `test_per_ip_limit`, `test_photo_upload_limits_and_ownership` |
 | A judge changing what others see | Approvals and live runs are stored per visitor. The shared seed result is upgraded once, to an approved Gemini run that reached the same finding as the baseline | `rae/main.py`, `rae/store.py` | `test_export_locked_until_signed`, `test_visitor_runs_do_not_change_what_others_see`, `test_shared_seed_result_only_upgrades_to_the_same_finding` |
 | Signing something you didn't see | A sign-off is bound to the exact run on screen. A new run clears it, and signing a stale run is refused | `rae/main.py` | `test_signatures_belong_to_the_run_they_were_given_to` |
+| Naming a mechanism that can't cause this defect | `mechanism_fits_defect`: the occurrence may only name a mechanism that is a typical or possible cause of this defect type (a worn mould explains burrs, not cracks). The scripted engine names only typical causes and reports a possible one as a lead to check | `rae/analytics.py` (`MECHANISM_EFFECTS`), `rae/challenger.py` | `test_mechanism_must_fit_the_defect` |
+| Inventing a cause the data doesn't show | When the data locates the defect but no logged parameter or inspection change explains it, the draft says "mechanism not yet confirmed" or "escape not yet identified", lists what to check, and shows it as an open point | `rae/report.py`, `web/app.js` | `test_located_but_unexplained_cause_is_reported_as_open_not_invented` |
 | Untested claims | "Try to break it": any visitor can submit a root cause and see the same rules applied, at no model cost. The claim gets the run's evidence IDs, but only gets the analysed segment if it names it, so a claim about the wrong press or about nothing in the data fails | `rae/main.py` `/challenge` | `test_try_to_break_it_rejects_operator_error` |
 
 ### Evaluation
 
-**14-case benchmark** (`python -m rae.benchmark`; results in `rae/data/benchmark.json`, and a test checks the file matches a fresh run):
-- 12 planted causes: 8 strong at 10–20× baseline, and 4 weak at 3–7× baseline or in small segments.
-- 2 controls with no cause.
-- Seeds were not tuned.
-- Scored by row overlap with the planted segment, plus containment recall.
+Three eval layers, each runnable without an agent. Every number below is from a run on 17 Oct 2026.
 
-| Check | Result |
+**1. Analysis benchmark** (`python -m rae.benchmark`; results in `rae/data/benchmark.json`, and a test checks the file matches a fresh run). 14 plants with a cause planted at a known segment and rate (8 strong at 10–20× baseline, 4 weak at 3–7× or in small segments) plus 2 controls with no cause.
+
+| Check | Published series | Held-out series (seeds 500 and 700, never used for tuning) |
+|---|---|---|
+| Planted cause found | **12 / 12** | **23 / 24** (the miss abstained) |
+| No cause invented on controls | **2 / 2** | **4 / 4** |
+| Containment recall (affected lots inside the hold) | **1.00** | — |
+
+**2. End-to-end 8D eval with [DeepEval](https://github.com/confident-ai/deepeval)** (`tests/evals/`). 31 goldens built by the seeded generator (`tests/evals/build_dataset.py`; none hand-written): the 3 demo stories and the 14 benchmark plants on two seed series. Seven deterministic metrics, each something a quality director would check:
+
+| Metric | Deterministic engine |
 |---|---|
-| Planted cause found (≥ 0.8 overlap) | **11 / 12** |
-| Correct "insufficient evidence" on controls | **2 / 2** |
-| Containment recall (affected lots inside the hold) | **0.90** |
+| Locates the planted cause (or abstains on a control) | 31 / 31 |
+| Approved by the Challenger | 31 / 31 |
+| Every percentage and lot count is in the evidence | 31 / 31 |
+| Any named mechanism is in the data and fits the defect | 31 / 31 |
+| Escape cause is real, or honestly marked as not yet identified | 31 / 31 |
+| No blame on people without evidence | 31 / 31 |
+| Hold catches at least 80% of the affected lots | 31 / 31 |
 
-The one miss (B14: a weak signal in one cavity of one press) **abstained rather than guessing**, which is the failure mode you want in quality work. This scores the deterministic analysis layer on synthetic data; real plants are noisier. Gemini's own runs are checked by the Challenger on every live run, and the result shows how many rounds each draft needed.
+The same suite runs the real Gemini agents, with an optional Gemini judge (GEval) for the clarity of the written 8D, in Cloud Shell: `RAE_EVALS=1 RAE_EVAL_MODE=gemini RAE_EVAL_JUDGE=gemini deepeval test run tests/evals/test_rae_e2e.py`. Gemini-mode score: {{run after deploy}}.
+
+**3. Red-team eval of the Challenger with [promptfoo](https://www.promptfoo.dev/)** (`evals/challenger/`, promptfoo 0.120.19). 22 adversarial root-cause claims must each be rejected by the intended rule: people-blame in English and Japanese, the wrong press, nonsense, invented numbers, missing or non-detection escape causes, a mechanism that can't cause the defect, prompt injection, and causes claimed on the control case. 5 sound claims must be approved, so the suite also catches false rejections. **Result: 27 / 27.** The assertion itself was calibrated first (`calibration.yaml`: 2 known passes, 2 known failures). Set `RAE_EVAL_BASE_URL` to run the same claims against the live app.
+
+**What the evals found, and what changed** (three rounds on 17 Oct):
+
+| Round 1 finding | Fix | After |
+|---|---|---|
+| The full pipeline rejected every planted cause except the two demo stories: with no inspection change in the data, it wrote no escape cause | The draft states open points honestly ("mechanism not yet confirmed", "escape not yet identified", with the check to run) | 13 of 13 caused drafts approved, none invented |
+| It blamed a worn mould for scratches | A cited table of which logged condition causes which defect, used by the engine and enforced by a new Challenger rule | Mechanism metric 31 / 31 |
+| The demo dryer "failure" (−21 °C) was inside the resin maker's −18 °C limit | The synthetic failure now drifts to about −9 °C, and the evidence states the limit | Case 118 holds up to a materials review |
+| On a weak signal the hold missed 25% of affected lots | The hold always covers the complaint's date codes, plus any elevated day | Containment recall 0.90 → 1.00 |
+| One cavity on one press was missed when neither stood out alone | A pair-level test with a stricter bar (z ≥ 4.5, ratio ≥ 3, for about 100 pairs) | 12 / 12, and 0 false causes on held-out controls |
+
+```bash
+.venv/bin/python -m rae.benchmark
+RAE_EVALS=1 deepeval test run tests/evals/test_rae_e2e.py      # or: python tests/evals/summarize.py
+cd evals/challenger && PROMPTFOO_PYTHON=../../.venv/bin/python npx promptfoo@0.120.19 eval --no-share
+```
+
+All three run on synthetic plants. Real plants are noisier.
+
+### Engineering knowledge, with sources
+
+The plausibility table (`rae/analytics.py`, `MECHANISM_EFFECTS`) for the five conditions the plant logs, for PA66 parts:
+
+| Logged condition | Typical cause of | Possible cause of | Sources |
+|---|---|---|---|
+| Wet resin (dryer dew point high) | cracks: hydrolysis lowers molecular weight, so parts are brittle | flash | [Teknor Apex](https://etp.teknorapex.com/blog/drying-nylon-resin-for-injection-molding), [DuPont Zytel guide](https://dupont.materialdatacenter.com/links/processing/Zytel.pdf) |
+| Mould past its maintenance shot count | flash / burrs (parting-line damage) | short shots (blocked vents), scratches (rough surface) | [RJG](https://rjginc.com/the-two-causes-of-flash/), [Plastics Technology](https://www.ptonline.com/articles/an-expert-tells-how-to-stop-flash), [RJG short shots](https://rjginc.com/?p=218662) |
+| Melt temperature out of window | cracks (high: degradation), flash (high), short shots (low) | — | [RJC Mold](https://rjcmold.com/guides/injection-molding-defects-and-solutions/), [Entec](https://www.entecpolymers.com/news/injection-molding-troubleshooting-tips-tip-5-short-shots) |
+| Hold pressure out of window | cracks, flash, scratches from sticking (high) | short shots (low) | [Paulson](https://paulsontraining.com/injection-molded-part-defects-cracks-in-molded-parts/), [RJG](https://rjginc.com/the-two-causes-of-flash/) |
+| Cycle / cooling time too short | — | cracks (early ejection), drag marks | [Fictiv](https://www.fictiv.com/articles/injection-molding-ejection-systems-design-guide) |
 
 ## Data sources
 
@@ -167,7 +222,7 @@ The one miss (B14: a weak signal in one cavity of one press) **abstained rather 
 - **Gemini runs are capped** at 30 a day for everyone and 5 per visitor, to keep cost predictable for the whole judging window. After that, runs use the deterministic engine (labelled). Stored results always load.
 - **Photo checks are qualitative.** The box is a proposal the engineer confirms; **no dimensional measurement** is claimed. Multimodal models still trail human experts on fine defect localisation ([MMAD benchmark](https://arxiv.org/abs/2410.09453)).
 - **Cold starts.** The first request after idle can take a few seconds while the container starts.
-- **The Challenger checks grounding, not engineering sense.** It proves a claim names the analysed segment, cites real evidence and quotes real numbers. A grounded but implausible mechanism still needs the engineer's review, which is why nothing leaves unsigned.
+- **The Challenger checks grounding, plus one layer of engineering sense.** It proves a claim names the analysed segment, cites real evidence, quotes real numbers, and names a mechanism that can cause the defect (a cited table of five logged conditions). It is not a process engineer: a grounded, plausible draft still needs the engineer's review, which is why nothing leaves unsigned.
 - **The complaint text doesn't steer the statistics.** The analysis uses the defect type and the date-code window. The text feeds the D2 description and the Gemini agents' context.
 - **Live runs take time.** A live run takes about {{N}} s (several Gemini calls); progress streams while you wait.
 
@@ -199,7 +254,7 @@ The app's own limit (30 Gemini runs a day) holds either way.
 ```bash
 # Local, no cloud needed (deterministic mode, synthetic data)
 uv venv .venv && uv pip install -r requirements-dev.txt
-.venv/bin/python -m pytest -q tests          # 29 tests, including ADK with a scripted fake model
+.venv/bin/python -m pytest -q tests          # 33 tests, including ADK with a scripted fake model
 .venv/bin/python -m uvicorn rae.main:app --port 8088
 ```
 

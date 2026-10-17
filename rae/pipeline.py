@@ -212,6 +212,10 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
             report = {"en": build_report(case, intake, draft, containment, "en"),
                       "ja": build_report(case, intake, draft, containment, "ja")}
 
+        if "open_points" not in draft and not draft.get("insufficient_evidence"):  # Gemini drafts: derive from the text
+            occ_s = ((draft.get("occurrence") or {}).get("statement") or "").lower()
+            esc_s = ((draft.get("escape") or {}).get("statement") or "").lower()
+            draft["open_points"] = (["Mechanism not yet confirmed"] if "not yet confirmed" in occ_s else []) +                 (["Escape point not yet identified"] if "not yet identified" in esc_s else [])
         actions = assign_owners(draft.get("actions") or [], case)
         result = {
             "case_id": case["case_id"], "created_at": datetime.now(timezone.utc).isoformat(),

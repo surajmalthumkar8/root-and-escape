@@ -23,6 +23,17 @@ DETECTION_RE = re.compile(
     r"sampl|inspect|gauge|calibrat|control plan|check|detect|test|audit|検査|ゲージ|校正|抜き取り|管理計画|検出",
     re.I,
 )
+# How an occurrence statement names a mechanism, keyed like A.MECHANISM_DEFECTS.
+MECHANISM_RE = {
+    "dryer_dew_point_c": re.compile(r"dryer|dew[- ]?point|moisture|wet resin|乾燥|露点|吸湿", re.I),
+    "mold_shots_since_pm": re.compile(r"\bmou?lds?\b[^.;]*\b(wear|wore|worn|maintenance|shots?)\b|maintenance limit|摩耗|保全上限", re.I),
+    "melt_temp_c": re.compile(r"melt temp|溶融温度|樹脂温度", re.I),
+    "hold_pressure_bar": re.compile(r"hold(ing)? pressure|packing pressure|保圧", re.I),
+    "cycle_time_s": re.compile(r"cycle time|cooling time|サイクルタイム|冷却時間", re.I),
+}
+MECHANISM_NAMES = {"dryer_dew_point_c": "wet resin (dryer)", "mold_shots_since_pm": "a worn mould",
+                   "melt_temp_c": "melt temperature", "hold_pressure_bar": "hold pressure", "cycle_time_s": "cycle time"}
+UNCONFIRMED_RE = re.compile(r"not yet confirmed|not confirmed|未確定", re.I)
 PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s?%")
 LOTS_RE = re.compile(r"(\d[\d,]*)\s*(?:lots?\b|ロット)", re.I)
 
@@ -152,6 +163,16 @@ def check_draft(draft: dict, tb: Toolbox) -> list[dict]:
              "Operator error: REJECTED. A people-related cause needs a stratified effect that survives inside each "
              "press. The evidence shows the crew difference disappears once split by press.",
              "The people-related cause is backed by an effect that persists after stratification.")
+    occ_text = occ.get("statement") or ""
+    named = [k for k, rx in MECHANISM_RE.items() if rx.search(occ_text)]
+    defect = getattr(tb, "defect", None)
+    if named and defect and not UNCONFIRMED_RE.search(occ_text):
+        names = " or ".join(MECHANISM_NAMES[k] for k in named)
+        words = A.DEFECT_WORDS.get(defect, defect)
+        rule("mechanism_fits_defect", any(defect in A.MECHANISM_DEFECTS[k] for k in named),
+             f"{names[0].upper() + names[1:]} does not usually cause {words}. Name a mechanism that can produce {words}, "
+             "or say the mechanism is not yet confirmed.",
+             f"The named mechanism ({names}) is a typical cause of {words}.")
     if r is not None and r["primary_segment"]:
         seg = occ.get("segment") or {}
         rule("segment_matches_is_is_not", bool(seg) and (_subset(r["primary_segment"], seg) or _subset(seg, r["primary_segment"])),

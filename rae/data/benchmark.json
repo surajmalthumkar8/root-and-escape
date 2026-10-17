@@ -122,8 +122,8 @@
       "found": "cavity C2",
       "overlap": 1.0,
       "pass": true,
-      "containment_recall": 0.8,
-      "held_lots": 144,
+      "containment_recall": 1.0,
+      "held_lots": 180,
       "blanket_lots": 378
     },
     {
@@ -141,16 +141,18 @@
       "case": "B14",
       "defect": "scratch",
       "planted": "press P1 \u00d7 cavity C4",
-      "found": "insufficient evidence",
-      "overlap": 0.0,
-      "pass": false,
-      "containment_recall": 0.0
+      "found": "press P1 \u00d7 cavity C4",
+      "overlap": 1.0,
+      "pass": true,
+      "containment_recall": 1.0,
+      "held_lots": 42,
+      "blanket_lots": 324
     }
   ],
-  "caused_found": 11,
+  "caused_found": 12,
   "caused_total": 12,
   "controls_abstained": 2,
   "controls_total": 2,
-  "mean_containment_recall": 0.9,
+  "mean_containment_recall": 1.0,
   "note": "Synthetic data. Deterministic analysis layer only; Gemini runs are scored separately in the live app."
 }

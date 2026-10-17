@@ -168,7 +168,8 @@ def generate(seed: int = 42, planted_story: bool = True, extra: list[Planted] | 
                     "melt_temp_c": round(float(rng.normal(230, 1.5)), 1),
                     "hold_pressure_bar": round(float(rng.normal(62, 1.0)), 1),
                     "cycle_time_s": round(float(rng.normal(28.0, 0.3)), 2),
-                    "dryer_dew_point_c": round(float(rng.normal(-18, 2.0) if wet else rng.normal(-45, 2.0)), 1),
+                    # a failed desiccant dryer drifts toward 0 °C; resin makers ask for -18 °C or drier (DuPont Zytel guide)
+                    "dryer_dew_point_c": round(float(rng.normal(-4, 2.0) if wet else rng.normal(-45, 2.0)), 1),
                     "mold_shots_since_pm": shots[press],
                 })
 

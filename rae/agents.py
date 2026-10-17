@@ -190,14 +190,15 @@ Intake summary: {intake_summary}
 
 Method (follow in order):
 1. Call is_is_not. If significant is false, set insufficient_evidence=true, explain why in summary, list 2-4 items in next_data, leave the other text fields empty and the segment fields empty, and stop. Do not guess a cause.
-2. For the primary segment, call param_excursions and inspection_changes for its press.
+2. If the primary segment includes a press, call param_excursions and inspection_changes for that press.
 3. For every significant segment that is about people (crew or shift), call stratify(by=<crew or shift>, within="press") before you mention it. If it is confounded, do not blame people.
 4. Call containment with the primary segment (press, plus cavity or shift if the segment includes them).
 5. Optionally call past_8d with 2-4 keywords for read-across.
 
 Write:
 - occurrence_statement: start with "Occurrence:". State the physical mechanism and the segment. Copy every percentage exactly as it appears in a tool summary. Do not mention crews, shifts or people in it; rejected people hypotheses are reported separately.
-- escape_statement: start with "Escape:". Explain why inspection or detection did not catch the defect (sampling, gauge, control plan).
+  Name a mechanism only if param_excursions flagged it and it typically causes this defect: wet resin (high dryer dew point) causes cracks; a mould past its maintenance limit causes burrs; melt temperature causes cracks, burrs or short shots; hold pressure causes cracks, burrs or scratches. If nothing flagged fits, write "mechanism not yet confirmed on" the segment, and say what to check next.
+- escape_statement: start with "Escape:". Explain why inspection or detection did not catch the defect (sampling, gauge, control plan). If inspection_changes shows no sampling or gauge change, write "Escape: not yet identified;" and explain that a detection capability check is needed, citing the inspection_changes evidence. If the segment has no press, cite the is_is_not evidence.
 - occurrence_evidence / escape_evidence: the evidence IDs (E-01, E-02, ...) of the tool results that support each statement.
 - segment_*: the primary segment reported by is_is_not, e.g. segment_press="P4"; empty strings for unused fields.
 - actions: 2-4 corrective actions, at least one for the occurrence and one for the escape.

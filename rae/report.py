@@ -15,24 +15,35 @@ def _when(ts: str | None) -> str:
     return (ts or "")[:16].replace("T", " ")
 
 
-def mechanism(pe: dict | None) -> dict:
-    """Map flagged process data to a physical mechanism, a corrective action and past-8D keywords."""
+def mechanism(pe: dict | None, defect: str | None = None) -> dict:
+    """Map flagged process data to a physical mechanism, a corrective action and past-8D keywords.
+    A flagged parameter is only named as the mechanism when it is a typical cause of this defect type
+    (A.MECHANISM_DEFECTS); otherwise the mechanism is reported as not yet confirmed."""
     if not pe:
         return {"kind": "unknown", "text": "", "action": "", "keywords": []}
     data = {p["param"]: p for p in pe["data"]["params"]}
     flagged = pe["data"]["flagged"]
     press = pe["data"]["press"]
-    if "dryer_dew_point_c" in flagged:
+
+    def fits(param: str) -> bool:  # a typical cause of this defect, so it can be named as the mechanism
+        return defect is None or defect in A.MECHANISM_EFFECTS.get(param, {}).get("typical", set())
+
+    words, words_ja = A.DEFECT_WORDS.get(defect, "defects"), A.DEFECT_JA.get(defect, "不良")
+    if "dryer_dew_point_c" in flagged and fits("dryer_dew_point_c"):
         d = data["dryer_dew_point_c"]
+        over = d.get("spec_max") is not None and d["test_mean"] > d["spec_max"]
+        spec = f", above the resin maker's limit of {d['spec_max']} °C" if over else ""
+        spec_ja = f"、樹脂メーカー上限 {d['spec_max']} °C 超" if over else ""
         return {"kind": "dryer", "keywords": ["dryer", "moisture", "dew"],
                 "text": (f"the resin dryer on press {press} failed: dew point averaged {d['test_mean']} °C against a normal "
-                         f"{d['control_mean']} °C ({d['shift_sigma']}σ) from {_when(d['first_out'])} to {_when(d['last_out'])}, "
-                         f"so the resin was wet and the parts became brittle"),
+                         f"{d['control_mean']} °C ({d['shift_sigma']}σ{spec}) from {_when(d['first_out'])} to "
+                         f"{_when(d['last_out'])}, so the resin was wet, degraded in the barrel, and the parts became brittle"),
                 "text_ja": (f"プレス {press} の樹脂乾燥機が故障し、露点が平常 {d['control_mean']} °C に対し平均 {d['test_mean']} °C"
-                            f"（{d['shift_sigma']}σ）となった（{_when(d['first_out'])}〜{_when(d['last_out'])}）。樹脂が吸湿し、成形品が脆くなった"),
+                            f"（{d['shift_sigma']}σ{spec_ja}）となった（{_when(d['first_out'])}〜{_when(d['last_out'])}）。"
+                            f"吸湿した樹脂が成形中に劣化し、成形品が脆くなった"),
                 "action": f"Fit a dew-point interlock on the press {press} dryer (stop resin feed above -35 °C) and repair the dryer",
                 "action_ja": f"プレス {press} の乾燥機に露点インターロックを設置し（-35 °C 超で樹脂供給を停止）、乾燥機を修理する"}
-    if "mold_shots_since_pm" in flagged:
+    if "mold_shots_since_pm" in flagged and fits("mold_shots_since_pm"):
         pm = pe["data"]["pm"]
         return {"kind": "mould_wear", "keywords": ["pm", "wear", "cavity", "parting"],
                 "text": (f"the press {press} mould ran past its {pm['limit']:,}-shot maintenance limit from "
@@ -42,17 +53,36 @@ def mechanism(pe: dict | None) -> dict:
                 "action": f"Repair the worn cavity, then add a maintenance interlock that stops press {press} at {pm['limit']:,} shots",
                 "action_ja": f"摩耗したキャビティを修理し、プレス {press} を {pm['limit']:,} ショットで停止する保全インターロックを追加する"}
     for p in pe["data"]["params"]:
-        if p["flag"]:
+        if p["flag"] and fits(p["param"]):
             return {"kind": "param", "keywords": [p["param"].split("_")[0]],
                     "text": f"{p['label']} on press {press} moved {p['shift_sigma']}σ from normal",
                     "text_ja": f"プレス {press} の {p['label']} が平常から {p['shift_sigma']}σ 変動した",
                     "action": f"Restore {p['label']} on press {press} to its validated window and add an alarm",
                     "action_ja": f"プレス {press} の {p['label']} を検証済みの範囲に戻し、アラームを追加する"}
+    possible = [f for f in flagged if defect in A.MECHANISM_EFFECTS.get(f, {}).get("possible", set())]
+    if possible:  # a logged change that can cause this defect, but not typically: a lead, not a conclusion
+        f = possible[0]
+        what = ("the mould is past its maintenance limit" if f == "mold_shots_since_pm"
+                else f"{A.PARAMS.get(f, f)} moved")
+        what_ja = "金型が保全上限を超えている" if f == "mold_shots_since_pm" else f"{A.PARAMS.get(f, f)} が変動した"
+        return {"kind": "unknown", "keywords": [f.split("_")[0]],
+                "text": (f"mechanism not yet confirmed on press {press}; {what}, which can cause {words} but usually "
+                         f"doesn't, so check that first"),
+                "text_ja": f"プレス {press} の発生メカニズムは未確定（{what_ja}。{words_ja}の原因になり得るため、まずこれを確認する）",
+                "action": f"Check whether this is the cause on press {press} ({what}) before closing D4",
+                "action_ja": f"D4 を閉じる前に、プレス {press} で（{what_ja}）が原因かを確認する"}
+    if flagged:  # something moved, but nothing that typically causes this defect
+        return {"kind": "unknown", "keywords": [],
+                "text": (f"mechanism not yet confirmed on press {press}; the process changes logged there do not "
+                         f"usually cause {words}"),
+                "text_ja": f"プレス {press} の発生メカニズムは未確定（記録された工程変化は通常{words_ja}の原因にならない）",
+                "action": f"Find what on press {press} can cause {words} (tooling, handling, material) before closing D4",
+                "action_ja": f"D4 を閉じる前に、プレス {press} で{words_ja}を起こし得る要因（金型・取り扱い・材料）を特定する"}
     return {"kind": "unknown", "keywords": [],
-            "text": f"no process parameter on press {press} moved, so the mechanism is not yet confirmed",
-            "text_ja": f"プレス {press} の工程パラメータに変動はなく、発生メカニズムは未確定",
-            "action": "Collect more data on the segment (material, maintenance logs, tooling) before closing D4",
-            "action_ja": "D4 を閉じる前に、該当範囲の材料・保全記録・金型のデータを追加収集する"}
+            "text": f"mechanism not yet confirmed on press {press}; no logged process parameter moved",
+            "text_ja": f"プレス {press} の発生メカニズムは未確定（工程パラメータに変動なし）",
+            "action": f"Collect more data on press {press} (material, maintenance logs, tooling) before closing D4",
+            "action_ja": f"D4 を閉じる前に、プレス {press} の材料・保全記録・金型のデータを追加収集する"}
 
 
 def escape_text(ic: dict | None) -> dict:
@@ -75,13 +105,17 @@ def escape_text(ic: dict | None) -> dict:
                 "text_ja": f"プレス {press} のゲージ {g['gauge_id']} は {g['cal_due']} から校正期限切れで、規格外品が検査を通過した",
                 "action": f"Calibrate {g['gauge_id']} now and add a calibration-due lockout to the inspection station",
                 "action_ja": f"{g['gauge_id']} を直ちに校正し、校正期限切れで検査を止めるロックアウトを追加する"}
-    return {"text": "", "text_ja": "",
-            "action": "Review why final inspection did not detect the defect (no change found in sampling or gauges)",
-            "action_ja": "最終検査で検出できなかった理由を確認する（抜き取り・ゲージに変更なし）"}
+    return {"text": (f"not yet identified; inspection on press {press} shows no change in sampling or gauge calibration, "
+                     f"so why it did not detect the rise still has to be found with a detection capability check"),
+            "text_ja": f"未特定（プレス {press} の検査は抜き取り・ゲージ校正とも変更なし。検出能力の確認で、検出できなかった理由を特定する）",
+            "action": f"Run a detection capability check on press {press} inspection (gauge R&R and sampling plan) before closing D4",
+            "action_ja": f"D4 を閉じる前に、プレス {press} の検査の検出能力（ゲージ R&R・抜き取り計画）を確認する"}
 
 
 def scripted_investigation(tb: Toolbox) -> dict:
-    """The investigation a careful quality engineer would run, as fixed code. Returns a draft plus hypothesis rulings."""
+    """The investigation a careful quality engineer would run, as fixed code. Returns a draft plus hypothesis rulings.
+    When the data locates the defect but doesn't show why it happened or why it escaped, the draft says so and
+    lists what to check next, instead of inventing a cause."""
     r = tb.is_is_not()
     if not r["significant"]:
         tb.stratify("crew", "press")
@@ -104,29 +138,45 @@ def scripted_investigation(tb: Toolbox) -> dict:
         pe = tb.log.items[-1]
         tb.inspection_changes(press)
         ic = tb.log.items[-1]
-    mech = mechanism(pe)
-    esc = escape_text(ic)
+    label, label_ja = A.seg_label(seg), A.seg_label_ja(seg)
+    if press:
+        mech, esc = mechanism(pe, tb.defect), escape_text(ic)
+    else:  # e.g. one shift or one cavity number across every press: no single press log can explain it
+        mech = {"kind": "unknown", "keywords": [],
+                "text": (f"mechanism not yet confirmed on {label}; it is not tied to one press, so no single press's "
+                         f"process log explains it"),
+                "text_ja": f"{label_ja} の発生メカニズムは未確定（特定のプレスに限定されないため、単一プレスの工程記録では説明できない）",
+                "action": f"Collect more data on {label} (material lots, tooling, handling) before closing D4",
+                "action_ja": f"D4 を閉じる前に、{label_ja} の材料ロット・金型・取り扱いのデータを追加収集する"}
+        esc = {"text": (f"not yet identified; the defect on {label} is not tied to one press, so no single inspection "
+                        f"station's records explain why it was not detected"),
+               "text_ja": f"未特定（{label_ja} の不良は特定のプレスに限定されず、単一の検査工程の記録では検出できなかった理由を説明できない）",
+               "action": "Run a detection capability check at final inspection (gauge R&R and sampling plan) before closing D4",
+               "action_ja": "D4 を閉じる前に、最終検査の検出能力（ゲージ R&R・抜き取り計画）を確認する"}
     tb.past_8d(mech["keywords"] + (["sampling"] if ic and ic["data"]["sampling_changes"] else []))
     hyps = screen_hypotheses(tb)
     full = tb.last_is_is_not or {}
     top = next((s for s in full.get("top_segments", []) if s["filters"] == seg), None)
-    rate_txt = (f" The {tb.defect} rate on {A.seg_label(seg)} was {A.pct(top['rate_test'])} in the complaint date codes "
-                f"against {A.pct(top['rate_control'])} before.") if top else ""
-    rate_ja = (f"{A.seg_label_ja(seg)} の不良率は日付コード範囲で {A.pct(top['rate_test'])}、それ以前は {A.pct(top['rate_control'])}。"
+    rate_txt = (f" The {tb.defect.replace('_', ' ')} rate on {label} was {A.pct(top['rate_test'])} in the "
+                f"complaint date codes against {A.pct(top['rate_control'])} before.") if top else ""
+    rate_ja = (f"{label_ja} の不良率は日付コード範囲で {A.pct(top['rate_test'])}、それ以前は {A.pct(top['rate_control'])}。"
                if top else "")
     cont = tb.containment(seg)
-    occ_text = (f"Occurrence: {mech['text']}.{rate_txt}" if mech["text"] else
-                f"Occurrence: the defect is concentrated on {A.seg_label(seg)}.{rate_txt}")
+    open_points = []
+    if mech["kind"] == "unknown":
+        open_points.append("Mechanism not yet confirmed")
+    if esc["text"].startswith("not yet identified"):
+        open_points.append("Escape point not yet identified")
     return {
         "insufficient_evidence": False,
-        "occurrence": {"statement": occ_text, "segment": seg,
+        "occurrence": {"statement": f"Occurrence: {mech['text']}.{rate_txt}", "segment": seg,
                        "evidence": [is_id] + ([pe["id"]] if pe else [])},
-        "escape": {"statement": f"Escape: {esc['text']}." if esc["text"] else "",
-                   "evidence": [ic["id"]] if ic else []},
+        "escape": {"statement": f"Escape: {esc['text']}.", "evidence": [ic["id"]] if ic else [is_id]},
         "occurrence_ja": f"発生原因：{mech.get('text_ja', '')}。{rate_ja}",
-        "escape_ja": f"流出原因：{esc['text_ja']}。" if esc.get("text_ja") else "流出原因：未特定。",
+        "escape_ja": f"流出原因：{esc['text_ja']}。",
         "actions_ja": [a for a in (mech.get("action_ja"), esc.get("action_ja")) if a],
         "actions": [a for a in (mech["action"], esc["action"]) if a],
+        "open_points": open_points,
         "containment_evidence": cont["evidence_id"],
         "hypotheses": hyps,
         "evidence_used": [i["id"] for i in tb.log.items],

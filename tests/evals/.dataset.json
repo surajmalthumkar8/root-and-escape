@@ -1,0 +1,592 @@
+[
+ {
+  "name": "story-118",
+  "input": "件名：【不具合報告】CL-204 スナップクリップ 割れ発生のご連絡\n\n品質保証ご担当者様\n\nいつもお世話になっております。本日、弊社第3組立ラインにて、貴社納入品 CL-204 スナップクリップのフック根元部に割れが確認されました。受入品 2,400 個のうち 37 個で同様の割れを確認しております。該当品の日付コードは 2026/10/06 〜 2026/10/11 です。写真を添付いたします。\n\nつきましては、24時間以内の暫定処置（在庫・輸送中品の封じ込め）および 8D 報告書のご提出をお願いいたします。\n\nOEM-J 品質管理部",
+  "expected_output": "press P4",
+  "additional_metadata": {
+   "kind": "story",
+   "case_id": "118",
+   "defect": "crack",
+   "start": "2026-10-06",
+   "end": "2026-10-11",
+   "seed": 42,
+   "planted": {
+    "press": "P4"
+   },
+   "rate": null,
+   "mechanism": "dryer",
+   "escape": "sampling"
+  }
+ },
+ {
+  "name": "story-124",
+  "input": "Subject: Burrs on CL-204 snap clips\n\nOur incoming inspection found sharp burrs on the snap edge of CL-204 clips. The burrs scratch our wire harness insulation during assembly. 19 of 1,600 parts sampled are affected. Date codes 2026-09-29 to 2026-10-09. Please contain suspect stock and send an 8D within 5 days.\n\nOEM-J Supplier Quality",
+  "expected_output": "press P2 × cavity C3",
+  "additional_metadata": {
+   "kind": "story",
+   "case_id": "124",
+   "defect": "burr",
+   "start": "2026-09-29",
+   "end": "2026-10-09",
+   "seed": 42,
+   "planted": {
+    "press": "P2",
+    "cavity": "C3"
+   },
+   "rate": null,
+   "mechanism": "mould_wear",
+   "escape": "gauge"
+  }
+ },
+ {
+  "name": "story-121",
+  "input": "件名：CL-204 表面キズについて\n\nCL-204 の一部に軽微な表面キズが見られました。3,000 個中 11 個です。日付コード 2026/10/07 〜 2026/10/13。原因調査をお願いいたします。\n\nOEM-J 品質管理部",
+  "expected_output": "insufficient evidence",
+  "additional_metadata": {
+   "kind": "story",
+   "case_id": "121",
+   "defect": "scratch",
+   "start": "2026-10-07",
+   "end": "2026-10-13",
+   "seed": 42,
+   "planted": null,
+   "rate": null,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B01-seed100",
+  "input": "We found cracks on parts with date codes 2026-10-01 to 2026-10-08. Please contain the stock and send an 8D report.",
+  "expected_output": "press P3",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B01",
+   "defect": "crack",
+   "start": "2026-10-01",
+   "end": "2026-10-08",
+   "seed": 100,
+   "planted": {
+    "press": "P3"
+   },
+   "rate": 0.035,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B02-seed101",
+  "input": "We found burrs on parts with date codes 2026-09-25 to 2026-10-06. Please contain the stock and send an 8D report.",
+  "expected_output": "press P5 × cavity C2",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B02",
+   "defect": "burr",
+   "start": "2026-09-25",
+   "end": "2026-10-06",
+   "seed": 101,
+   "planted": {
+    "press": "P5",
+    "cavity": "C2"
+   },
+   "rate": 0.03,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B03-seed102",
+  "input": "We found short shots on parts with date codes 2026-10-03 to 2026-10-10. Please contain the stock and send an 8D report.",
+  "expected_output": "press P1",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B03",
+   "defect": "short_shot",
+   "start": "2026-10-03",
+   "end": "2026-10-10",
+   "seed": 102,
+   "planted": {
+    "press": "P1"
+   },
+   "rate": 0.03,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B04-seed103",
+  "input": "We found scratches on parts with date codes 2026-10-04 to 2026-10-12. Please contain the stock and send an 8D report.",
+  "expected_output": "shift N",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B04",
+   "defect": "scratch",
+   "start": "2026-10-04",
+   "end": "2026-10-12",
+   "seed": 103,
+   "planted": {
+    "shift": "N"
+   },
+   "rate": 0.02,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B05-seed104",
+  "input": "We found cracks on parts with date codes 2026-09-30 to 2026-10-09. Please contain the stock and send an 8D report.",
+  "expected_output": "press P6 × cavity C1",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B05",
+   "defect": "crack",
+   "start": "2026-09-30",
+   "end": "2026-10-09",
+   "seed": 104,
+   "planted": {
+    "press": "P6",
+    "cavity": "C1"
+   },
+   "rate": 0.04,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B06-seed105",
+  "input": "We found short shots on parts with date codes 2026-10-02 to 2026-10-11. Please contain the stock and send an 8D report.",
+  "expected_output": "cavity C4",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B06",
+   "defect": "short_shot",
+   "start": "2026-10-02",
+   "end": "2026-10-11",
+   "seed": 105,
+   "planted": {
+    "cavity": "C4"
+   },
+   "rate": 0.015,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B07-seed106",
+  "input": "We found burrs on parts with date codes 2026-10-05 to 2026-10-13. Please contain the stock and send an 8D report.",
+  "expected_output": "press P3 × cavity C4",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B07",
+   "defect": "burr",
+   "start": "2026-10-05",
+   "end": "2026-10-13",
+   "seed": 106,
+   "planted": {
+    "press": "P3",
+    "cavity": "C4"
+   },
+   "rate": 0.025,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B08-seed107",
+  "input": "We found scratches on parts with date codes 2026-10-06 to 2026-10-12. Please contain the stock and send an 8D report.",
+  "expected_output": "press P2",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B08",
+   "defect": "scratch",
+   "start": "2026-10-06",
+   "end": "2026-10-12",
+   "seed": 107,
+   "planted": {
+    "press": "P2"
+   },
+   "rate": 0.02,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B09-seed108",
+  "input": "We found cracks on parts with date codes 2026-10-06 to 2026-10-12. Please contain the stock and send an 8D report.",
+  "expected_output": "insufficient evidence",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B09",
+   "defect": "crack",
+   "start": "2026-10-06",
+   "end": "2026-10-12",
+   "seed": 108,
+   "planted": null,
+   "rate": null,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B10-seed109",
+  "input": "We found short shots on parts with date codes 2026-09-29 to 2026-10-06. Please contain the stock and send an 8D report.",
+  "expected_output": "insufficient evidence",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B10",
+   "defect": "short_shot",
+   "start": "2026-09-29",
+   "end": "2026-10-06",
+   "seed": 109,
+   "planted": null,
+   "rate": null,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B11-seed110",
+  "input": "We found burrs on parts with date codes 2026-10-02 to 2026-10-09. Please contain the stock and send an 8D report.",
+  "expected_output": "press P4",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B11",
+   "defect": "burr",
+   "start": "2026-10-02",
+   "end": "2026-10-09",
+   "seed": 110,
+   "planted": {
+    "press": "P4"
+   },
+   "rate": 0.008,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B12-seed111",
+  "input": "We found cracks on parts with date codes 2026-09-26 to 2026-10-05. Please contain the stock and send an 8D report.",
+  "expected_output": "cavity C2",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B12",
+   "defect": "crack",
+   "start": "2026-09-26",
+   "end": "2026-10-05",
+   "seed": 111,
+   "planted": {
+    "cavity": "C2"
+   },
+   "rate": 0.01,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B13-seed112",
+  "input": "We found short shots on parts with date codes 2026-10-01 to 2026-10-10. Please contain the stock and send an 8D report.",
+  "expected_output": "press P6 × shift S",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B13",
+   "defect": "short_shot",
+   "start": "2026-10-01",
+   "end": "2026-10-10",
+   "seed": 112,
+   "planted": {
+    "press": "P6",
+    "shift": "S"
+   },
+   "rate": 0.015,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B14-seed113",
+  "input": "We found scratches on parts with date codes 2026-10-03 to 2026-10-12. Please contain the stock and send an 8D report.",
+  "expected_output": "press P1 × cavity C4",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B14",
+   "defect": "scratch",
+   "start": "2026-10-03",
+   "end": "2026-10-12",
+   "seed": 113,
+   "planted": {
+    "press": "P1",
+    "cavity": "C4"
+   },
+   "rate": 0.012,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B01-seed300",
+  "input": "We found cracks on parts with date codes 2026-10-01 to 2026-10-08. Please contain the stock and send an 8D report.",
+  "expected_output": "press P3",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B01",
+   "defect": "crack",
+   "start": "2026-10-01",
+   "end": "2026-10-08",
+   "seed": 300,
+   "planted": {
+    "press": "P3"
+   },
+   "rate": 0.035,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B02-seed301",
+  "input": "We found burrs on parts with date codes 2026-09-25 to 2026-10-06. Please contain the stock and send an 8D report.",
+  "expected_output": "press P5 × cavity C2",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B02",
+   "defect": "burr",
+   "start": "2026-09-25",
+   "end": "2026-10-06",
+   "seed": 301,
+   "planted": {
+    "press": "P5",
+    "cavity": "C2"
+   },
+   "rate": 0.03,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B03-seed302",
+  "input": "We found short shots on parts with date codes 2026-10-03 to 2026-10-10. Please contain the stock and send an 8D report.",
+  "expected_output": "press P1",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B03",
+   "defect": "short_shot",
+   "start": "2026-10-03",
+   "end": "2026-10-10",
+   "seed": 302,
+   "planted": {
+    "press": "P1"
+   },
+   "rate": 0.03,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B04-seed303",
+  "input": "We found scratches on parts with date codes 2026-10-04 to 2026-10-12. Please contain the stock and send an 8D report.",
+  "expected_output": "shift N",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B04",
+   "defect": "scratch",
+   "start": "2026-10-04",
+   "end": "2026-10-12",
+   "seed": 303,
+   "planted": {
+    "shift": "N"
+   },
+   "rate": 0.02,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B05-seed304",
+  "input": "We found cracks on parts with date codes 2026-09-30 to 2026-10-09. Please contain the stock and send an 8D report.",
+  "expected_output": "press P6 × cavity C1",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B05",
+   "defect": "crack",
+   "start": "2026-09-30",
+   "end": "2026-10-09",
+   "seed": 304,
+   "planted": {
+    "press": "P6",
+    "cavity": "C1"
+   },
+   "rate": 0.04,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B06-seed305",
+  "input": "We found short shots on parts with date codes 2026-10-02 to 2026-10-11. Please contain the stock and send an 8D report.",
+  "expected_output": "cavity C4",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B06",
+   "defect": "short_shot",
+   "start": "2026-10-02",
+   "end": "2026-10-11",
+   "seed": 305,
+   "planted": {
+    "cavity": "C4"
+   },
+   "rate": 0.015,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B07-seed306",
+  "input": "We found burrs on parts with date codes 2026-10-05 to 2026-10-13. Please contain the stock and send an 8D report.",
+  "expected_output": "press P3 × cavity C4",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B07",
+   "defect": "burr",
+   "start": "2026-10-05",
+   "end": "2026-10-13",
+   "seed": 306,
+   "planted": {
+    "press": "P3",
+    "cavity": "C4"
+   },
+   "rate": 0.025,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B08-seed307",
+  "input": "We found scratches on parts with date codes 2026-10-06 to 2026-10-12. Please contain the stock and send an 8D report.",
+  "expected_output": "press P2",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B08",
+   "defect": "scratch",
+   "start": "2026-10-06",
+   "end": "2026-10-12",
+   "seed": 307,
+   "planted": {
+    "press": "P2"
+   },
+   "rate": 0.02,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B09-seed308",
+  "input": "We found cracks on parts with date codes 2026-10-06 to 2026-10-12. Please contain the stock and send an 8D report.",
+  "expected_output": "insufficient evidence",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B09",
+   "defect": "crack",
+   "start": "2026-10-06",
+   "end": "2026-10-12",
+   "seed": 308,
+   "planted": null,
+   "rate": null,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B10-seed309",
+  "input": "We found short shots on parts with date codes 2026-09-29 to 2026-10-06. Please contain the stock and send an 8D report.",
+  "expected_output": "insufficient evidence",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B10",
+   "defect": "short_shot",
+   "start": "2026-09-29",
+   "end": "2026-10-06",
+   "seed": 309,
+   "planted": null,
+   "rate": null,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B11-seed310",
+  "input": "We found burrs on parts with date codes 2026-10-02 to 2026-10-09. Please contain the stock and send an 8D report.",
+  "expected_output": "press P4",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B11",
+   "defect": "burr",
+   "start": "2026-10-02",
+   "end": "2026-10-09",
+   "seed": 310,
+   "planted": {
+    "press": "P4"
+   },
+   "rate": 0.008,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B12-seed311",
+  "input": "We found cracks on parts with date codes 2026-09-26 to 2026-10-05. Please contain the stock and send an 8D report.",
+  "expected_output": "cavity C2",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B12",
+   "defect": "crack",
+   "start": "2026-09-26",
+   "end": "2026-10-05",
+   "seed": 311,
+   "planted": {
+    "cavity": "C2"
+   },
+   "rate": 0.01,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B13-seed312",
+  "input": "We found short shots on parts with date codes 2026-10-01 to 2026-10-10. Please contain the stock and send an 8D report.",
+  "expected_output": "press P6 × shift S",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B13",
+   "defect": "short_shot",
+   "start": "2026-10-01",
+   "end": "2026-10-10",
+   "seed": 312,
+   "planted": {
+    "press": "P6",
+    "shift": "S"
+   },
+   "rate": 0.015,
+   "mechanism": null,
+   "escape": null
+  }
+ },
+ {
+  "name": "B14-seed313",
+  "input": "We found scratches on parts with date codes 2026-10-03 to 2026-10-12. Please contain the stock and send an 8D report.",
+  "expected_output": "press P1 × cavity C4",
+  "additional_metadata": {
+   "kind": "benchmark",
+   "case_id": "B14",
+   "defect": "scratch",
+   "start": "2026-10-03",
+   "end": "2026-10-12",
+   "seed": 313,
+   "planted": {
+    "press": "P1",
+    "cavity": "C4"
+   },
+   "rate": 0.012,
+   "mechanism": null,
+   "escape": null
+  }
+ }
+]

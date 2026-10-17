@@ -261,7 +261,8 @@
     }
     const o = d.occurrence || {}, e = d.escape || {};
     el.innerHTML = `<div class="cause"><b class="k">Occurrence</b><span>${esc(o.statement)}</span><span class="chips">${(o.evidence || []).map(chip).join("")}</span></div>
-      <div class="cause esc"><b class="k">Escape</b><span>${esc(e.statement || "Not found yet")}</span><span class="chips">${(e.evidence || []).map(chip).join("")}</span></div>`;
+      <div class="cause esc"><b class="k">Escape</b><span>${esc(e.statement || "Not found yet")}</span><span class="chips">${(e.evidence || []).map(chip).join("")}</span></div>` +
+      ((d.open_points || []).length ? `<p class="openpts"><b>Open before closing D4:</b> ${esc(d.open_points.join("; "))}. The cause is located; the draft says what it can't yet prove instead of guessing.</p>` : "");
   }
 
   function renderD3(c, d) {
@@ -400,7 +401,11 @@
     $("#how-dlg").showModal();
     try {
       const b = await api("/api/benchmark");
-      $("#bench").textContent = `Benchmark (synthetic, deterministic analysis layer, untuned seeds): planted cause found in ${b.caused_found}/${b.caused_total} cases (the miss abstained rather than guessing); correct "insufficient evidence" in ${b.controls_abstained}/${b.controls_total} controls; containment recall ${b.mean_containment_recall}.`;
+      const miss = b.caused_total - b.caused_found;
+      $("#bench").textContent = `Benchmark (synthetic plants, analysis layer): planted cause found in ${b.caused_found}/${b.caused_total} cases` +
+        (miss ? ` (${miss === 1 ? "the miss" : "the misses"} abstained rather than guessing)` : "") +
+        `; correct "insufficient evidence" in ${b.controls_abstained}/${b.controls_total} controls; containment recall ${b.mean_containment_recall}. ` +
+        `End to end on 31 planted-truth plants, every 8D passes the Challenger with grounded numbers and no invented mechanism; 22 adversarial claims are all rejected.`;
     } catch (err) { $("#bench").textContent = "Benchmark unavailable right now."; }
   });
   $("#how-close").addEventListener("click", () => $("#how-dlg").close());
