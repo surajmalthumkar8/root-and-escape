@@ -8,7 +8,7 @@ from __future__ import annotations
 import json
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -25,12 +25,27 @@ def utc_day() -> str:
 
 # ------------------------------------------------------------------------------------------------ plant data
 _plant_cache: dict = {}
+_plant_lock = threading.Lock()
+
+
+def plant_source_label() -> str:
+    if settings.gcp:
+        return f"BigQuery dataset {settings.dataset} (synthetic plant data, seed 42)"
+    return "local generator (synthetic plant data, seed 42)"
 
 
 def load_plant() -> tuple[PlantData, str]:
-    """Return (plant data, human-readable source). Cached per instance; the data is small (~4k rows)."""
+    """Return (plant data, human-readable source). Cached per instance; the data is small (~4k rows).
+    Blocking: call it from a worker thread. The lock makes concurrent first requests share one BigQuery read."""
     if "plant" in _plant_cache:
         return _plant_cache["plant"], _plant_cache["source"]
+    with _plant_lock:
+        if "plant" not in _plant_cache:
+            _plant_cache.update(plant=_read_plant(), source=plant_source_label())
+    return _plant_cache["plant"], _plant_cache["source"]
+
+
+def _read_plant() -> PlantData:
     if settings.gcp:
         from google.cloud import bigquery  # lazy import keeps cold starts fast in local mode
 
@@ -47,14 +62,17 @@ def load_plant() -> tuple[PlantData, str]:
                 df[c] = pd.to_datetime(df[c]).dt.date
         prod["prod_ts"] = pd.to_datetime(prod["prod_ts"]).dt.tz_localize(None)
         proc["prod_ts"] = pd.to_datetime(proc["prod_ts"]).dt.tz_localize(None)
-        plant = PlantData(prod, proc, insp, ship, past if len(past) else past_8d_table(),
-                          meta={"synthetic": True, "source": "bigquery"})
-        source = f"BigQuery dataset {settings.dataset} (synthetic plant data, seed 42)"
-    else:
-        plant = generate(42)
-        source = "local generator (synthetic plant data, seed 42)"
-    _plant_cache.update(plant=plant, source=source)
-    return plant, source
+        return PlantData(prod, proc, insp, ship, past if len(past) else past_8d_table(),
+                         meta={"synthetic": True, "source": "bigquery"})
+    return generate(42)
+
+
+def result_summary(result: dict | None) -> dict | None:
+    """The few fields the case list needs, so listing cases never downloads whole results."""
+    if not result:
+        return None
+    return {"verdict": result.get("verdict"), "modes": result.get("modes"),
+            "insufficient": bool((result.get("draft") or {}).get("insufficient_evidence"))}
 
 
 # ------------------------------------------------------------------------------------------------ cases / results
@@ -97,6 +115,9 @@ class LocalStore:
     def get_result(self, case_id: str) -> dict | None:
         return self._read(self.root / "results" / f"{case_id}.json", None)
 
+    def summaries(self, case_ids: list[str]) -> dict:
+        return {cid: result_summary(self.get_result(cid)) for cid in case_ids}
+
     def approvals(self, visitor: str, case_id: str) -> dict:
         return self._read(self.meta, {}).get("approvals", {}).get(visitor, {}).get(case_id, {})
 
@@ -113,17 +134,21 @@ class LocalStore:
             m.get("approvals", {}).get(visitor, {}).pop(case_id, None)
             self._write(self.meta, m)
 
-    def take_quota(self, visitor: str) -> tuple[bool, dict]:
+    def take_quota(self, visitor: str, kind: str = "gemini") -> tuple[bool, dict]:
+        """kind='gemini' (costs money, tight cap) or 'det' (deterministic runs, loose cap against abuse)."""
+        day_key = utc_day() if kind == "gemini" else f"{utc_day()}-det"
+        lim_total, lim_v = _limits(kind)
         with _lock:
             m = self._read(self.meta, {})
-            q = m.setdefault("quota", {}).setdefault(utc_day(), {"total": 0, "visitors": {}})
+            q = m.setdefault("quota", {}).setdefault(day_key, {"total": 0, "visitors": {}})
             used_v = q["visitors"].get(visitor, 0)
-            ok = q["total"] < settings.live_runs_per_day and used_v < settings.runs_per_visitor_per_day
+            ok = q["total"] < lim_total and used_v < lim_v
             if ok:
                 q["total"] += 1
                 q["visitors"][visitor] = used_v + 1
                 self._write(self.meta, m)
-            return ok, self._quota_view(q, visitor)
+            gq = m["quota"].get(utc_day(), {"total": 0, "visitors": {}})
+            return ok, self._quota_view(gq, visitor)
 
     def quota(self, visitor: str) -> dict:
         q = self._read(self.meta, {}).get("quota", {}).get(utc_day(), {"total": 0, "visitors": {}})
@@ -163,17 +188,28 @@ class GcpStore(LocalStore):
         return d.to_dict() if d.exists else None
 
     def list_user_cases(self, visitor):
-        docs = self.db.collection("cases").where("visitor", "==", visitor).limit(20).stream()
+        docs = self.db.collection("cases").where("visitor", "==", visitor).limit(50).stream()
         return sorted([d.to_dict() for d in docs], key=lambda c: c.get("received", ""), reverse=True)
 
     def save_result(self, case_id, result):
         # Firestore documents max out at 1 MiB; results are ~100-300 KB, stored as a JSON string to keep keys flexible.
-        self.db.collection("results").document(case_id).set({"json": json.dumps(result, ensure_ascii=False, default=str),
-                                                              "saved": time.time()})
+        doc = {"json": json.dumps(result, ensure_ascii=False, default=str), "saved": time.time(),
+               "summary": result_summary(result)}
+        if "__" in case_id:  # per-visitor runs expire (Firestore TTL policy on `expires_at`, set by deploy.sh)
+            doc["expires_at"] = datetime.now(timezone.utc) + timedelta(days=21)
+        self.db.collection("results").document(case_id).set(doc)
 
     def get_result(self, case_id):
         d = self.db.collection("results").document(case_id).get()
         return json.loads(d.to_dict()["json"]) if d.exists else None
+
+    def summaries(self, case_ids):
+        refs = [self.db.collection("results").document(c) for c in case_ids]
+        out = {c: None for c in case_ids}
+        for snap in self.db.get_all(refs, field_paths=["summary"]):  # one round trip, summary field only
+            if snap.exists:
+                out[snap.id] = (snap.to_dict() or {}).get("summary")
+        return out
 
     def _appr_ref(self, visitor, case_id):
         return self.db.collection("approvals").document(f"{visitor}__{case_id}")
@@ -190,8 +226,10 @@ class GcpStore(LocalStore):
     def reset_approvals(self, visitor, case_id):
         self._appr_ref(visitor, case_id).delete()
 
-    def take_quota(self, visitor):
-        ref = self.db.collection("quota").document(utc_day())
+    def take_quota(self, visitor, kind="gemini"):
+        day_key = utc_day() if kind == "gemini" else f"{utc_day()}-det"
+        lim_total, lim_v = _limits(kind)
+        ref = self.db.collection("quota").document(day_key)
         transaction = self.db.transaction()
 
         @self.fs.transactional
@@ -199,15 +237,15 @@ class GcpStore(LocalStore):
             snap = ref.get(transaction=t)
             q = snap.to_dict() if snap.exists else {"total": 0, "visitors": {}}
             used_v = q.get("visitors", {}).get(visitor, 0)
-            ok = q["total"] < settings.live_runs_per_day and used_v < settings.runs_per_visitor_per_day
+            ok = q.get("total", 0) < lim_total and used_v < lim_v
             if ok:
-                q["total"] += 1
+                q["total"] = q.get("total", 0) + 1
                 q.setdefault("visitors", {})[visitor] = used_v + 1
                 t.set(ref, q)
             return ok, q
 
         ok, q = txn(transaction)
-        return ok, self._quota_view(q, visitor)
+        return ok, (self._quota_view(q, visitor) if kind == "gemini" else self.quota(visitor))
 
     def quota(self, visitor):
         d = self.db.collection("quota").document(utc_day()).get()
@@ -224,6 +262,12 @@ class GcpStore(LocalStore):
         if not blob.exists():
             return None
         return blob.download_as_bytes(), blob.content_type or "image/jpeg"
+
+
+def _limits(kind: str) -> tuple[int, int]:
+    if kind == "gemini":
+        return settings.live_runs_per_day, settings.runs_per_visitor_per_day
+    return settings.det_runs_per_day, settings.det_runs_per_visitor_per_day
 
 
 _store = None

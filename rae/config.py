@@ -25,6 +25,9 @@ class Settings:
     use_bqml: bool = _bool("RAE_USE_BQML", True)
     live_runs_per_day: int = int(os.getenv("RAE_LIVE_RUNS_PER_DAY", "30"))
     runs_per_visitor_per_day: int = int(os.getenv("RAE_RUNS_PER_VISITOR_PER_DAY", "5"))
+    det_runs_per_visitor_per_day: int = int(os.getenv("RAE_DET_RUNS_PER_VISITOR_PER_DAY", "40"))
+    det_runs_per_day: int = int(os.getenv("RAE_DET_RUNS_PER_DAY", "2000"))
+    runs_per_ip_per_10min: int = int(os.getenv("RAE_RUNS_PER_IP_PER_10MIN", "20"))
     max_upload_mb: int = int(os.getenv("RAE_MAX_UPLOAD_MB", "8"))
     local_dir: str = os.getenv("RAE_LOCAL_DIR", "var")
 

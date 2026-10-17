@@ -10,3 +10,8 @@ tests
 docs
 deploy
 scripts
+.env
+.env.*
+*credentials*.json
+*-key.json
+*.pem

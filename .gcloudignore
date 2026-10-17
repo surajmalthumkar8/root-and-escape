@@ -12,3 +12,8 @@ docs
 deploy
 scripts
 *.md
+.env
+.env.*
+*credentials*.json
+*-key.json
+*.pem

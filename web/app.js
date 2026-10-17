@@ -40,7 +40,7 @@
     } catch (e) { $("#mode-pill").textContent = "Offline"; }
   }
 
-  async function loadCases(selectId) {
+  async function loadCases(selectId, reselect = true) {
     state.cases = await api("/api/cases");
     const ul = $("#case-list");
     ul.innerHTML = "";
@@ -55,20 +55,27 @@
       li.appendChild(b);
       ul.appendChild(li);
     }
+    if (!reselect) {  // refresh the list only; re-fetching the open case here could overwrite fresh sign-offs
+      document.querySelectorAll("#case-list button").forEach((b) => b.classList.toggle("on", b.dataset.id === state.current));
+      return;
+    }
     const want = selectId || (location.hash.slice(1) || "118");
     if (state.cases.some((c) => c.case_id === want)) selectCase(want); else if (state.cases.length) selectCase(state.cases[0].case_id);
   }
 
   async function selectCase(id) {
+    if (state.live && state.liveId !== id) { state.live.close(); state.live = null; $("#run-btn").disabled = false; $("#run-note").textContent = ""; }
     state.current = id;
     state.boxOk = false;
     try { history.replaceState(null, "", "#" + id); } catch (e) {}
     document.querySelectorAll("#case-list button").forEach((b) => b.classList.toggle("on", b.dataset.id === id));
     $("#case-title").textContent = "Loading…";
     try {
-      state.data = await api(`/api/cases/${encodeURIComponent(id)}`);
+      const data = await api(`/api/cases/${encodeURIComponent(id)}`);
+      if (id !== state.current) return;  // the visitor already moved to another case
+      state.data = data;
       render();
-    } catch (e) { $("#case-title").textContent = "Could not load the case: " + e.message; }
+    } catch (e) { if (id === state.current) $("#case-title").textContent = "Could not load the case: " + e.message; }
   }
 
   // ------------------------------------------------------------------------------------------ render
@@ -76,7 +83,7 @@
     const { case: c, result: r, approvals } = state.data;
     $("#case-title").textContent = c.title;
     $("#case-meta").textContent = `CASE ${c.case_id} · ${c.customer} · received ${String(c.received).slice(0, 16).replace("T", " ")} · date codes ${c.date_code_start} → ${c.date_code_end}`;
-    const photoUrl = (name) => (!name ? "" : name.startsWith("U-") ? `/api/photos/${encodeURIComponent(name)}` : `/static/photos/${encodeURIComponent(name)}`);
+    const photoUrl = (name) => (!name ? "" : name.startsWith("U-") ? `/api/photos/${encodeURIComponent(name)}?v=${encodeURIComponent(visitor)}` : `/static/photos/${encodeURIComponent(name)}`);
     $("#img-defect").src = photoUrl(c.photo) || "";
     $("#img-defect").alt = c.photo ? "Defect photo" : "No photo supplied";
     $("#img-golden").src = photoUrl(c.golden);
@@ -288,8 +295,11 @@
       if (signer.length < 2) { $("#signer").focus(); $("#signer").placeholder = "Type your name first"; return; }
       try { localStorage.setItem("rae-signer", signer); } catch (err) {}
       ap.disabled = true;
+      const caseId = state.current;
       try {
-        state.data.approvals = await api(`/api/cases/${state.current}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: ap.dataset.approve, name: signer }) });
+        const got = await api(`/api/cases/${caseId}/approve`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ section: ap.dataset.approve, name: signer, result_at: state.data.result && state.data.result.created_at }) });
+        if (caseId !== state.current) return;
+        state.data.approvals = { ...(state.data.approvals || {}), ...got };  // responses can arrive out of order; sign-offs only accumulate
         renderSign(state.data.approvals);
       } catch (err) { ap.disabled = false; alertNote(err.message); }
     }
@@ -305,6 +315,7 @@
   // live run (Server-Sent Events)
   $("#run-btn").addEventListener("click", () => runLive(state.current));
   function runLive(id) {
+    if (!id) return;  // no case loaded yet
     if (state.live) state.live.close();
     const tr = $("#tracker"), feed = $("#feed");
     tr.hidden = false; feed.innerHTML = "";
@@ -320,11 +331,19 @@
       });
     };
     const es = new EventSource(`/api/cases/${encodeURIComponent(id)}/live?v=${encodeURIComponent(visitor)}`);
-    state.live = es;
-    const finish = (note) => { es.close(); state.live = null; $("#run-btn").disabled = false; $("#run-note").textContent = note || ""; loadMeta(); };
+    state.live = es; state.liveId = id;
+    let ended = false;
+    const finish = (note) => {
+      if (ended) return;
+      ended = true; es.close();
+      if (state.live === es) { state.live = null; $("#run-btn").disabled = false; $("#run-note").textContent = note || ""; }
+      loadMeta();
+    };
     es.onmessage = (m) => {
       let e; try { e = JSON.parse(m.data); } catch (err) { return; }
-      if (e.type === "quota" && e.message) { add(esc(e.message)); finish("Limit reached"); }
+      if (state.live !== es) { es.close(); return; }  // a newer run or another case took over
+      if (e.type === "quota") { if (e.message) add(esc(e.message)); }  // informational: the run continues
+      else if (e.type === "limit") { add(esc(e.message)); finish("Limit reached"); }
       else if (e.type === "stage") { mark(e.stage); add(`<b>${esc(e.stage)}</b> ${esc(e.label || "")}`); }
       else if (e.type === "intake") add(`<b>intake</b> ${esc(e.intake.photo_observation || "")}`);
       else if (e.type === "call") add(`<b>Gemini →</b> ${esc(e.name)}(${esc(Object.entries(e.args || {}).map(([k, v]) => k + "=" + (Array.isArray(v) ? v.join("|") : v)).join(", "))})`);
@@ -332,8 +351,9 @@
       else if (e.type === "challenger") { mark("challenger"); add(`<b>challenger</b> round ${e.round.round}: ${esc(e.round.verdict)}${e.round.verdict === "REJECTED" ? " · " + esc(e.round.rules.filter((x) => !x.passed).map((x) => x.rule).join(", ")) : ""}`); }
       else if (e.type === "done") {
         document.querySelectorAll(".stages li").forEach((li) => li.className = "done");
-        state.data.result = e.result; render(); finish(`Done in ${e.result.duration_s}s`);
-        loadCases(id);
+        if (state.current === id) { state.data.result = e.result; state.data.approvals = {}; render(); }  // a new run needs new signatures
+        finish(`Done in ${e.result.duration_s}s`);
+        loadCases(null, false);  // refresh the list's tags without pulling the visitor back to the case that just ran
       } else if (e.type === "error") { add(esc(e.message)); finish("Stopped"); }
     };
     es.onerror = () => finish("Connection closed. The stored result is still shown.");

@@ -22,7 +22,7 @@ DETECTION_RE = re.compile(
     re.I,
 )
 PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s?%")
-LOTS_RE = re.compile(r"(\d[\d,]*)\s+lots?\b", re.I)
+LOTS_RE = re.compile(r"(\d[\d,]*)\s*(?:lots?\b|ロット)", re.I)
 
 
 def _subset(a: dict, b: dict) -> bool:
@@ -113,11 +113,20 @@ def check_draft(draft: dict, tb: Toolbox) -> list[dict]:
         res.append({"rule": name, "passed": bool(ok), "message": msg_ok if ok else msg_fail})
 
     insufficient = bool(draft.get("insufficient_evidence"))
-    if r is not None and not r["significant"]:
+    rule("analysis_was_run", r is not None,
+         "No is / is-not analysis was run, so nothing in this draft is grounded in plant data.",
+         "The is / is-not analysis was run on plant data.")
+    if r is None:
+        return res
+    if not r["significant"]:
         rule("no_claim_without_signal", insufficient,
              "The is / is-not analysis found no significant segment, so a root cause cannot be claimed. "
              "Write 'insufficient evidence' and list the data to collect.",
              "No significant segment, and the draft correctly says 'insufficient evidence'.")
+    elif insufficient:
+        rule("no_abstain_with_signal", False,
+             f"The is / is-not analysis found a significant segment ({r['primary_label']}). "
+             "Investigate it instead of answering 'insufficient evidence'.")
     if insufficient:
         return res
 

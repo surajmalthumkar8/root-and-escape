@@ -76,7 +76,7 @@ flowchart LR
 | Service | Role |
 |---|---|
 | **Gemini 3.8 Flash on Gemini Enterprise Agent Platform** | Intake (complaint + 2 photos), the Investigator agent's reasoning, and the bilingual Writer. Called on `global` with the service account; **no API key exists anywhere**. |
-| **Agent Development Kit (ADK) 2.12** | The Investigator: `LlmAgent` + 6 function tools + `output_schema`, run with `InMemoryRunner`, capped at 12 LLM calls per run. It revises when the Challenger rejects a draft. |
+| **Agent Development Kit (ADK) 2.12** | The Investigator: `LlmAgent` + 6 function tools + `output_schema`, run with `InMemoryRunner`, capped at 10 LLM calls per agent run (45 s per call, 230 s for the whole investigation). It revises when the Challenger rejects a draft. |
 | **BigQuery** | Five tables of synthetic plant data (lots × cavities, process parameters, inspection log, shipments, past 8Ds). |
 | **BigQuery ML: contribution analysis** | The 8D is / is-not done in SQL. `CONTRIBUTION_METRIC = 'SUM(defects)/SUM(units)'` over press, cavity, shift, crew and resin lot, test window vs the prior 28 days. It runs inside a BigQuery session with fixed arguments (the model never writes SQL), and is cached per window. |
 | **Cloud Run** | The `*.run.app` URL judges open. Scales to zero, max 3 instances, 300 s timeout, Server-Sent Events. |
@@ -112,11 +112,14 @@ Every stage has a deterministic fallback, and the result records which mode prod
 | Missing escape cause | `requires_occurrence_and_escape`, `escape_must_explain_detection` | `rae/challenger.py` | `test_challenger_rejects_missing_escape_and_fake_numbers` |
 | Invented numbers | `numbers_come_from_evidence`: every % and lot count must match a tool result. The Writer's text is rejected and replaced by templates if it fails. | `rae/challenger.py`, `rae/pipeline.py` | same test |
 | Claiming a cause where there is no signal | `no_claim_without_signal` | `rae/challenger.py` | `test_case_121_abstains`, `test_claim_without_signal_is_rejected` |
+| Dodging the work: answering "insufficient evidence" when there is a signal, or skipping the analysis | `no_abstain_with_signal`, `analysis_was_run` | `rae/challenger.py` | `test_abstaining_when_there_is_a_signal_is_rejected`, `test_draft_without_analysis_is_rejected` |
 | Citations that don't exist | `evidence_must_resolve` | `rae/challenger.py` | same test |
 | Model writing SQL | No free-form SQL tool. BigQuery ML runs with fixed, validated arguments | `rae/bq.py` | — |
 | Prompt injection in the complaint | Complaint is wrapped as data and the instruction says to ignore it; tools are an allow-list; Challenger rules are code | `rae/agents.py` | sample input 5 below |
-| Runaway cost | Gemini: 30 runs a day globally and 5 per visitor (a Firestore transaction), then deterministic fallback; max 12 LLM calls per run; max 3 instances; $50 Agent Platform spend cap | `rae/store.py`, `rae/agents.py`, `deploy/deploy.sh` | `test_live_run_streams_and_finishes` |
-| A judge changing what others see | Approvals and live runs are stored per visitor; the shared seed result is upgraded once, to an approved Gemini run | `rae/main.py`, `rae/store.py` | `test_export_locked_until_signed`, `test_visitor_runs_do_not_change_what_others_see` |
+| Runaway cost | Gemini: 30 runs a day globally and 5 per visitor (a Firestore transaction), then deterministic fallback; max 10 LLM calls per agent run; every Gemini stage has a timeout inside a 230 s run budget; max 3 instances; $50 Agent Platform spend cap | `rae/store.py`, `rae/agents.py`, `rae/pipeline.py`, `deploy/deploy.sh` | `test_live_run_streams_and_finishes`, `test_deterministic_runs_do_not_use_quota_and_never_dead_end` |
+| Abuse of the free engine | Deterministic runs: 40 per visitor and 2,000 a day; a per-network limit of 20 runs per 10 minutes; 50 cases per visitor; photos over 8 MB or 40 megapixels are refused before decoding | `rae/main.py`, `rae/store.py` | `test_deterministic_runs_have_an_abuse_cap`, `test_per_ip_limit`, `test_photo_upload_limits_and_ownership` |
+| A judge changing what others see | Approvals and live runs are stored per visitor. The shared seed result is upgraded once, to an approved Gemini run that reached the same finding as the baseline | `rae/main.py`, `rae/store.py` | `test_export_locked_until_signed`, `test_visitor_runs_do_not_change_what_others_see`, `test_shared_seed_result_only_upgrades_to_the_same_finding` |
+| Signing something you didn't see | A sign-off is bound to the exact run on screen. A new run clears it, and signing a stale run is refused | `rae/main.py` | `test_signatures_belong_to_the_run_they_were_given_to` |
 | Untested claims | "Try to break it": any visitor can submit a root cause and see the same rules applied, at no model cost | `rae/main.py` `/challenge` | `test_try_to_break_it_rejects_operator_error` |
 
 ### Evaluation
@@ -192,7 +195,7 @@ Budget setup used:
 ```bash
 # Local, no cloud needed (deterministic mode, synthetic data)
 uv venv .venv && uv pip install -r requirements-dev.txt
-.venv/bin/python -m pytest -q tests          # 20 tests, including ADK with a scripted fake model
+.venv/bin/python -m pytest -q tests          # 27 tests, including ADK with a scripted fake model
 .venv/bin/python -m uvicorn rae.main:app --port 8088
 ```
 
@@ -205,18 +208,23 @@ bash deploy/deploy.sh
 The deploy script:
 1. enables the APIs;
 2. creates a least-privilege service account (no keys);
-3. sets up Firestore and a bucket;
+3. sets up Firestore (with a 21-day TTL on per-visitor runs) and a bucket;
 4. loads BigQuery;
-5. deploys Cloud Run;
-6. smoke-tests the service;
-7. warms the seed cases with real Gemini runs.
+5. refuses to deploy if any file looks like a secret;
+6. deploys Cloud Run;
+7. smoke-tests the service and checks that Gemini is on;
+8. warms the seed cases with real Gemini runs, then checks that each one really ran on Gemini and that BigQuery ML answered.
+
+It exits non-zero and lists anything that needs a look.
 
 ## Security
 - **No secrets in this repo.** Gemini, BigQuery, Firestore and Cloud Storage all authenticate through the Cloud Run service account (Application Default Credentials).
 - **Least-privilege roles:** `aiplatform.user`, `bigquery.jobUser`, `bigquery.dataViewer`, `datastore.user`, `logging.logWriter`, and `storage.objectAdmin` on one bucket.
-- **Uploads:** size-limited (8 MB) and re-encoded to JPEG, which strips EXIF and location data.
-- **Inputs:** case and photo IDs are validated by pattern.
+- **Uploads:** JPEG, PNG or WebP only, at most 8 MB and 40 megapixels (checked before decoding), and re-encoded to JPEG, which strips EXIF and location data. A photo is served only to the visitor who uploaded it.
+- **Inputs:** case and photo IDs are validated by pattern; user case IDs are random (64 bits).
 - **Output:** all text in the UI is escaped.
+- **Container:** runs as a non-root user.
+- **Visitor IDs are not accounts.** They separate judges' views; they are not authentication. The hard cost limit is the global daily Gemini quota.
 
 ## What's next
 - MES/QMS connectors: read lots from the MES, file approved 8Ds into the QMS.

@@ -54,7 +54,23 @@ def test_case_121_abstains(plant):
     assert draft["insufficient_evidence"] is True
     res = check_draft(draft, tb)
     assert verdict(res) == "APPROVED_FOR_REVIEW"
-    assert res[0]["rule"] == "no_claim_without_signal"
+    assert {r["rule"] for r in res} == {"analysis_was_run", "no_claim_without_signal"}
+
+
+def test_abstaining_when_there_is_a_signal_is_rejected(plant):
+    tb = toolbox(plant, "118")
+    scripted_investigation(tb)
+    res = check_draft({"insufficient_evidence": True}, tb)
+    assert verdict(res) == "REJECTED"
+    assert any(r["rule"] == "no_abstain_with_signal" and not r["passed"] for r in res)
+
+
+def test_draft_without_analysis_is_rejected(plant):
+    tb = toolbox(plant, "118")  # no tool has been called, so there is nothing to ground a claim in
+    for draft in ({"insufficient_evidence": True},
+                  {"insufficient_evidence": False, "occurrence": {"statement": "x", "evidence": []}, "escape": {}}):
+        res = check_draft(draft, tb)
+        assert verdict(res) == "REJECTED" and res[0]["rule"] == "analysis_was_run" and not res[0]["passed"]
 
 
 def test_challenger_rejects_operator_error(plant):
