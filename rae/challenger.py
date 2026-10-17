@@ -18,8 +18,10 @@ PEOPLE_RE = re.compile(
     r"|teams?|setters?|technicians?|line leaders?|supervisors?|foreman|foremen|new hires?|trainees?"
     r"|mistakes?|forgot|forgotten|forgetting|negligen\w*|careless\w*|retrain\w*|re-train\w*|training"
     r"|night[- ]?shifts?|nights|shifts?\s+[DNS]|crews?\s+[A-Z]|temps?|agency|contractors?|management|managers?"
-    r"|engineers?|techs?|op error|reckless|incompetent|lazy|sloppy|poor judge?ment)\b"
-    r"|作業者|作業員|担当者|検査員|オペレーター|人為|夜勤|班|教育不足|ミス|うっかり|不注意|見落とし|さん|様|氏",
+    r"|engineers?|techs?|op error|reckless|incompetent|lazy|sloppy|poor judge?ment|guys|workforce|manpower|labou?r"
+    r"|(?:overnight|late|evening|graveyard|swing|early|morning|afternoon)[- ]?(?:shifts?|rotations?)|[A-Z]-shifts?|Man\s*[:\-–]"
+    r"|new (?:guys|people|hires?|starters?|joiners?)|rotations?)\b"
+    r"|作業者|作業員|担当者|検査員|オペレーター|人為|夜勤|班|教育不足|ミス|うっかり|不注意|見落とし|さん|様|氏|派遣|人員|作業ミス",
     re.I,
 )
 _NOT_A_NAME = (r"(?:Inspection|Sampling|Press|Dryer|Mould|Mold|Machine|Gauge|Line|Plant|Process|Production|System|Control"
@@ -36,7 +38,7 @@ ACTOR_BLAME_RE = re.compile(
 DEVICE_AFTER_RE = re.compile(r"^\s*(?:panel|interface|screen|hmi|console|display|terminal|station|alarm)\b", re.I)
 # A people word is not blame when the clause clears them: "not a people cause", "the crew difference disappears
 # inside every press", "班の差は消える". Blame stays blame: "crew B did not follow the instruction".
-EXONERATE_BEFORE_RE = re.compile(r"(\bnot\s+(?:(?:a|an|the|due to|caused by|from|by|about)\s+)*|\bno\s+|\brather than\s+"
+EXONERATE_BEFORE_RE = re.compile(r"(\bnot\s+(?:(?:a|an|the|due to|caused by|from|by|about|related to)\s+)*|\bunrelated to\s+|\bno\s+|\brather than\s+"
                                  r"|\b(?:isn't|is not|wasn't|was not|aren't|are not|weren't|were not)\s+(?:(?:a|an|the|due to|caused by)\s+)*"
                                  r"|\bruled out\s+(?:the\s+)?|\bunlike\s+(?:the\s+)?|\bexcept\s+(?:the\s+)?)$", re.I)
 EXONERATE_AFTER_RE = re.compile(r"\b(differences?|effects?|gaps?)\s+(disappears?|vanish(?:es)?|goes away|is explained)\b"
@@ -44,6 +46,8 @@ EXONERATE_AFTER_RE = re.compile(r"\b(differences?|effects?|gaps?)\s+(disappears?
                                 r"|\bnot responsible\b|\bnot to blame\b|\bwas cleared\b|\bnot at fault\b|\bblameless\b|\bno fault\b"
                                 r"|\b(?:were|was|are|is)\s+not\s+(?:at fault|to blame|the cause|a cause|responsible)\b"
                                 r"|\b(?:is|are|was|were)\s+not\s+significant\b|\bnot significant\b"
+                                r"|\bonly looked worse\b|\blooked worse (?:only )?because\b|\bjust works\b|\bworks (?:on )?press\b"
+                                r"|\bis confounded\b|\bwas confounded\b|\balike\b|\bequally\b|\bacross (?:all )?shifts\b"
                                 r"|浮かび上がらない|見られない|有意でない|有意差なし"
                                 r"|消え|ではない|ではなく|否定|目立たず|目立たない|差はない|差がない", re.I)
 DETECTION_RE = re.compile(
@@ -72,6 +76,7 @@ MECHANISM_RE = {
 UNLOGGED_RE = re.compile(r"hydraulic|(?<!dryer )heater|\bleak(?:s|ed|ing)?\b|contaminat|off[- ]spec|foreign (?:object|material|matter)"
                          r"|wrench|dropped|supplier|grade change|material change|power (?:cut|outage|failure)|static|humidity"
                          r"|conveyor|guide rails?|handling damage|transit damage|injection (?:pressure|speed)|screw|nozzle"
+                         r"|mou?ld temp(?:erature)?|regrind|masterbatch|colou?rant|cooling water"
                          r"|油漏れ|異物|ヒーター|コンベア|ガイド|射出圧", re.I)
 LEAD_RE = re.compile(r"\b(check|verify|investigate|rule out|next|collect|ask|confirm whether|to be checked)\b|確認|調査", re.I)
 MECHANISM_NAMES = {"dryer_dew_point_c": "wet resin (dryer)", "mold_shots_since_pm": "a worn mould",
@@ -83,6 +88,7 @@ INSUFFICIENT_RE = re.compile(
     r"(found|stands out|is supported|can be (identified|found|named)|could be (identified|found))|root cause (is )?unknown"
     r"|cannot (be )?(identified|determined)|can't (be )?(identified|determined)|can(?:no|')t name a (root )?cause"
     r"|unable to (identify|name|determine)|not (yet )?(possible|able) to (identify|name)|原因不明"
+    r"|(?:root )?cause (?:is )?not (?:yet )?determined|can(?:no|')t pin|cannot pin|no segment passes"
     r"|証拠不十分|根拠不十分|データ不足|特定できない|特定に至らず", re.I)
 CAUSAL_CLAIM_RE = re.compile(r"(?<!not )(?<!n't )\b(likely|probably|caused by|due to|because of|the cause is|root cause is"
                              r"|responsible for|(?:is|are) (?:scratching|damaging|causing|cracking))\b"
@@ -91,7 +97,7 @@ CAUSAL_CLAIM_RE = re.compile(r"(?<!not )(?<!n't )\b(likely|probably|caused by|du
 # ---- numbers. Every number a statement quotes with a unit must appear in a tool result (or in the complaint).
 PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s?(?:%|percent\b|per cent\b|パーセント)", re.I)
 LOTS_RE = re.compile(r"(\d[\d,]*)\s*(?:lots?\b|ロット)", re.I)
-_Q = r"([-−+]?\d[\d,]*(?:\.\d+)?)[\s-]?"
+_Q = r"(?<![A-Za-z0-9.])([-−+]?\d[\d,]*(?:\.\d+)?)[\s-]?"  # "P4 parts" is not a count of 4
 UNIT_RES = [  # (pattern in a statement, which pool of evidence numbers it must match)
     (re.compile(_Q + r"(?:°\s?C|℃)", re.I), "process"),
     (re.compile(_Q + r"(?:°\s?F|℉)", re.I), "never"),  # the plant logs °C only
@@ -101,7 +107,7 @@ UNIT_RES = [  # (pattern in a statement, which pool of evidence numbers it must 
     (re.compile(_Q + r"days?\b", re.I), "days"),
     (re.compile(_Q + r"(?:weeks?|hours?|minutes?|months?)\b", re.I), "never"),
     (re.compile(_Q + r"(?:per\s+shift|/\s?shift|/\s?min\b|per\s+minute|/\s?day\b|per\s+day)", re.I), "never"),
-    (re.compile(_Q + r"(?:parts?|pieces?|pcs|units?)\b", re.I), "parts"),
+    (re.compile(_Q + r"(?:[A-Za-z]+\s+){0,2}?(?:parts?|pieces?|pcs|units?|clips?)\b", re.I), "parts"),
     (re.compile(_Q + r"(?:bar|mm|ppm|per\s+thousand|‰)\b|" + _Q + r"‰", re.I), "process"),
     (re.compile(_Q + r"(?:fold|times)\b|(?:×|(?<![A-Za-z0-9])x)\s?(\d+(?:\.\d+)?)\b", re.I), "ratio"),
     (re.compile(r"\bz\s?=?\s?(\d+(?:\.\d+)?)"), "z"),
@@ -153,9 +159,10 @@ def _words_to_number(words: str) -> float | None:
 
 # Ways a segment value is written: P4, press 4, プレス4, 4号機; C3, cavity 3, キャビティ3; shift N; crew B; R-2291.
 SEGMENT_RES = {
-    "press": re.compile(r"\bpress(?:es)?[\s-]*(?:no\.?|number|#)?\s*P?-?(\d)\b|\bP-?(\d)\b|(?<![\w#])(?:no\.?|number)\s*(\d)\s+press\b|#\s*(\d)\s+press\b"
+    "press": re.compile(r"\bpress(?:es)?[\s-]*(?:no\.?|number|#)?\s*P?-?(\d)\b|(?<![A-Za-z0-9])P-?(\d)(?![0-9])"
+                        r"|\bmachine\s*#?\s*(\d)\b|(?<![\w#])(?:no\.?|number)\s*(\d)\s+press\b|#\s*(\d)\s+press\b"
                         r"|プレス\s*P?(\d)|(\d)\s*号機|\bpress\s+(one|two|three|four|five|six)\b", re.I),
-    "cavity": re.compile(r"\bcav(?:ity|ities|\.)?[\s-]*(?:no\.?|number|#)?\s*C?-?(\d)\b|\bC-?(\d)\b|キャビティ\s*C?(\d)"
+    "cavity": re.compile(r"\bcav(?:ity|ities|\.)?[\s-]*(?:no\.?|number|#)?\s*C?-?(\d)\b|(?<![A-Za-z0-9°])C-?(\d)(?![0-9])|キャビティ\s*C?(\d)"
                          r"|\bcavity\s+(one|two|three|four)\b", re.I),
     "shift": re.compile(r"\bshifts?\s+([DNS])\b"),
     "crew": re.compile(r"\bcrews?\s+([A-Z])\b"),
@@ -191,6 +198,7 @@ def segment_mentions(text: str) -> dict[str, set]:
         for m in rx.finditer(text):
             before = re.split(CLAUSE_RE, text[max(0, m.start() - 30):m.start()])[-1]  # negation stops at a clause break
             before = UNCONFIRMED_RE.sub("", before)  # "not yet confirmed on press P4" still names P4
+            before = " ".join(before.split()[-3:])  # "did not come from P4" negates; "wasn't dried properly on press P4" doesn't
             if NEGATION_RE.search(before):
                 continue
             val = next(g for g in m.groups() if g)
@@ -227,7 +235,7 @@ def blames_people(text: str) -> bool:
         sent_after = re.split(SENTENCE_RE, text[m.end():])[0]
         if EXONERATE_BEFORE_RE.search(before) or EXONERATE_AFTER_RE.search(after) or EXONERATE_AFTER_RE.search(sent_after):
             continue
-        if re.search(r"\b(nothing|none|no \w+)\b[^.]*\b(stands? out|differs?|is elevated)\b", sent_before + " " + sent_after, re.I):
+        if re.search(r"\b(nothing|none|no \w+)\b[^.]*\b(stand(?:s|ing)? out|stood out|differs?|is elevated)\b", sent_before + " " + sent_after, re.I):
             continue  # "nothing stands out by press, crew or shift"
         if re.search(r"\b(no|none|neither|nor)\b", sent_before, re.I) and \
                 re.search(r"\bstands? out\b|\bstood out\b|\bis elevated\b|\bdiffers?\b|\bexplains?\b|目立", sent_after, re.I):
@@ -324,6 +332,9 @@ def _quantities(text: str) -> list[float]:
 
 DEFECT_COUNT_RE = re.compile(r"(\d[\d,]*)\s+(?:lots?|parts?|pieces?)\s+(?:were|are|was|got)\s+"
                              r"(?:burred|cracked|scratched|defective|bad|damaged|affected|faulty)\b", re.I)
+TIME_RE = re.compile(r"\b\d{1,2}:\d{2}\b")
+REV_RE = re.compile(r"\brev(?:ision)?\.?\s*([A-Z])(?:\s*(?:→|->|to)\s*([A-Z]))?\b")
+CAPABILITY_RE = re.compile(r"\b(?:Cpk|Ppk|Cp|Pp)\b[^;]{0,60}?\d")
 DATE_RE = re.compile(r"\b\d{4}-\d{2}-\d{2}\b")
 KANJI_PCT_RE = re.compile(r"([〇一二三四五六七八九十百]+)\s*(?:パーセント|%)")
 _KANJI = {c: i for i, c in enumerate("〇一二三四五六七八九")}
@@ -370,6 +381,16 @@ def _numbers_ok(texts: list[str], log: EvidenceLog, sources: tuple[str, ...] = (
         t = normalize(t)
         for m in DEFECT_COUNT_RE.finditer(t):  # the evidence counts lots held, never lots found defective
             bad.append(m.group(0))
+        for tm in TIME_RE.findall(t):  # a clock time must appear in the evidence
+            if tm not in dates_known:
+                bad.append(tm)
+        known_revs = {m2.groups() for m2 in REV_RE.finditer(dates_known)}
+        for m2 in REV_RE.finditer(t):  # control-plan revisions must match the records ("rev B → C")
+            a2, b2 = m2.groups()
+            if (b2 and (a2, b2) not in known_revs) or (not b2 and not any(a2 in r2 for r2 in known_revs)):
+                bad.append(m2.group(0))
+        for m2 in CAPABILITY_RE.finditer(t):  # no capability study is in the evidence
+            bad.append(m2.group(0))
         for d in DATE_RE.findall(t):  # a date must be one the evidence, the complaint or the date codes contain
             if d not in dates_known:
                 bad.append(d)
@@ -476,6 +497,12 @@ def check_draft(draft: dict, tb: Toolbox) -> list[dict]:
             problems.append(f"it names {', '.join(other_press)} instead of the analysed press")
         if claims_sampling and not has_sampling:
             problems.append("the inspection records show no sampling change there")
+        changes = [c for i in insp for c in ((i["data"] or {}).get("sampling_changes") or [])]
+        mdir = re.search(r"from\s+(\d+)\s*/\s*h\s+to\s+(\d+)\s*/\s*h", esc_text, re.I)
+        if claims_sampling and changes and ((mdir and not any((int(mdir.group(1)), int(mdir.group(2))) ==
+                                                              (c["sampling_from"], c["sampling_to"]) for c in changes))
+                                            or re.search(r"\b(increased|raised|doubled|tightened)\b", esc_text, re.I)):
+            problems.append("the records show sampling was cut, not changed that way (more sampling is not a reason it escaped)")
         if claims_gauge and (not gauges or wrong_gauge):
             problems.append(f"the inspection records show no overdue gauge {' '.join(wrong_gauge)}".rstrip())
         if not (claims_sampling or claims_gauge or is_open):

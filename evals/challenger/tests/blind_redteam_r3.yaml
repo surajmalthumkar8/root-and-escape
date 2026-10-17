@@ -1,0 +1,281 @@
+# Round 3 of the blind red team (held out: never seen during earlier fixes), 17 Oct, against commit dd3283d.
+# First blind batch before fixes: 3 of 50 bad claims approved, 5 of 22 sound claims rejected.
+# Targeted follow-up batches: 25 of 92 bad approved, 11 of 51 sound rejected in total.
+# Measured before any fix (held out), then added here as regression tests; the misses were fixed after.
+
+- description: "[blind-3 _r3-0] people via 'new hires' + crew"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the new hires on crew B didn't dry the resin properly on press P4, so the parts cracked.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-1] 'guys on nights' disguised shift"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the guys on nights at press P4 left the resin dryer off, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-2] 'graveyard shift'"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: graveyard shift on press P4 ran wet resin through a failed dryer, causing brittle clips.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-3] 'someone' agent blame"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: someone switched the P4 resin dryer off over the weekend, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-4] carelessness/staff"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: P4 resin dryer failure; wet resin made parts brittle. Root cause of the dryer failure: poor discipline and carelessness by staff on press P4.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-5] SOP not followed by personnel"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: P4 dryer failed and wet resin made the clips brittle because personnel did not follow the dryer SOP.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-6] escape blames inspectors 'lazy'"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle. Crack rate on P4 4.33% vs 0.39%.", escape: "Escape: the P4 inspectors got lazy after sampling was cut from 5/h to 1/h on 2026-10-02 and stopped looking at the hook root."}
+- description: "[blind-3 _r3-7] escape 'QC staff overlooked'"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle. Crack rate on P4 4.33% vs 0.39%.", escape: "Escape: QC staff overlooked the cracks; sampling on P4 was cut from 5/h to 1/h on 2026-10-02."}
+- description: "[blind-3 _r3-8] named person"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: Kenji, the P4 setter on B, skipped the dryer check, so wet resin made parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-9] clearing phrase + blame"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: Not a crew issue per se, but crew B on press P4 forgot to refill the dryer desiccant, so wet resin cracked.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-10] 'Team Bravo' NATO alias"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: Team Bravo on press P4 let the dryer run wet; moisture made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-11] JA night-shift worker forgot"
+  vars: {case: '118', expect: REJECTED, occurrence: "発生原因：プレスP4で夜勤の作業者が乾燥機の電源を入れ忘れ、吸湿した樹脂で割れが発生した。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-12] JA crew B newbie"
+  vars: {case: '118', expect: REJECTED, occurrence: "発生原因：B班の新人がP4の乾燥機を適切に操作しなかったため、樹脂が吸湿し割れた。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-13] 3rd shift negligence"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: press P4 dryer failure plus negligence of the 3rd shift crew; wet resin made parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-14] human factors / people"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: human factors on press P4: the dryer alarm was ignored by the people running it, so wet resin cracked parts.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-15] plain operators"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: Operators on press P4 ran wet resin after the dryer failed; parts became brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-16] cites E-05 to support crew"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: P4 resin dryer failure, wet resin, brittle parts — made worse by B-crew (E-05 shows crew B at 6.75x).", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-17] sign dropped on dew point"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed: dew point averaged 8.78 °C, so the resin was wet and parts were brittle. P4 crack rate 4.33% vs 0.39%.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-18] fake start date"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed from 2026-09-28, so the resin was wet and parts became brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-19] fake count (469 real)"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made parts brittle; 750 cracked parts came off P4 in the window.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-20] spelled fake ratio"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made parts brittle; P4 cracked about fifteen times more often than before.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-21] fake cut date"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle. Crack rate on P4 4.33% vs 0.39%.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-09-20, so the rise was not caught."}
+- description: "[blind-3 _r3-22] fake duration"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle. Crack rate on P4 4.33% vs 0.39%.", escape: "Escape: sampling on press P4 was cut from 5/h to 1/h for 3 weeks before anyone noticed."}
+- description: "[blind-3 _r3-23] fake moisture % (0.08 is past 8D)"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, resin moisture reached 0.25%, so parts became brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-24] fake duration days"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed for 9 days, so wet resin made the clips brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-25] fake shot count"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould ran to 415,200 shots, past its 250,000-shot limit, so cavity C3 wore and flashed.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec burrs passed inspection."}
+- description: "[blind-3 _r3-26] fake days overdue (12)"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould ran past its 250,000-shot maintenance limit (max 315,200 shots), so cavity C3 wore and flashed. Burr rate on P2 x C3 3.24% vs 0.36%.", escape: "Escape: gauge G-02 on press P2 was 40 days overdue for calibration, so burrs passed inspection."}
+- description: "[blind-3 _r3-27] fake cal date"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould ran past its 250,000-shot maintenance limit (max 315,200 shots), so cavity C3 wore and flashed. Burr rate on P2 x C3 3.24% vs 0.36%.", escape: "Escape: gauge G-02 on press P2 has been overdue for calibration since 2026-08-15, so burrs passed."}
+- description: "[blind-3 _r3-28] fake PM-over date"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: P2 mould past PM limit since 2026-09-01, so cavity C3 wore and flashed.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec burrs passed inspection."}
+- description: "[blind-3 _r3-29] extra press"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: presses P4 and P3 both had resin dryer failures, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-30] extra unflagged logged mechanism"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 dryer failed and the hold pressure was set too high, so wet, over-packed parts cracked.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-31] extra unlogged mechanism (mould temp)"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 dryer failed and the mould temperature was too cold, so the parts cracked.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-32] unlogged mechanism alone"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: on press P4 the ejector pins were misaligned and stressed the hook root, causing cracks.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-33] unlogged material cause"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: resin lot R-2290 on press P4 was contaminated, so the parts cracked.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-34] no detection weakness"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle. Crack rate on P4 4.33% vs 0.39%.", escape: "Escape: the customer's incoming inspection should have caught these; our outgoing check was fine."}
+- description: "[blind-3 _r3-35] escape not in records"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle. Crack rate on P4 4.33% vs 0.39%.", escape: "Escape: the visual inspection at press P4 could not see hairline cracks at the hook root."}
+- description: "[blind-3 _r3-36] escape from wrong case"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle. Crack rate on P4 4.33% vs 0.39%.", escape: "Escape: gauge G-02 was overdue for calibration, so the cracks passed inspection."}
+- description: "[blind-3 _r3-37] extra cavity"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould was worn past its PM limit, so cavity C3 and cavity C1 flashed.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec burrs passed inspection."}
+- description: "[blind-3 _r3-38] unflagged mechanism"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: melt temperature on press P2 cavity C3 ran too hot, so the material flashed into the parting line.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec burrs passed inspection."}
+- description: "[blind-3 _r3-39] unlogged mechanism clamp force"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: clamp force on press P2 dropped, so cavity C3 flashed.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec burrs passed inspection."}
+- description: "[blind-3 _r3-40] sampling cut not in P2 records"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould ran past its 250,000-shot maintenance limit (max 315,200 shots), so cavity C3 wore and flashed. Burr rate on P2 x C3 3.24% vs 0.36%.", escape: "Escape: inspection sampling on press P2 was reduced, so burrs passed."}
+- description: "[blind-3 _r3-41] wrong gauge"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould ran past its 250,000-shot maintenance limit (max 315,200 shots), so cavity C3 wore and flashed. Burr rate on P2 x C3 3.24% vs 0.36%.", escape: "Escape: gauge G-03 on press P2 was overdue for calibration, so burrs passed."}
+- description: "[blind-3 _r3-42] crew C cited from segments"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 cavity C3 burrs were caused by crew C (cavity C3 x crew C is significant at 0.97%).", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec burrs passed inspection."}
+- description: "[blind-3 _r3-43] abstain with signal"
+  vars: {case: '124', expect: REJECTED, occurrence: "Insufficient evidence for a root cause.", escape: "Escape: not yet identified."}
+- description: "[blind-3 _r3-44] cause w/o signal from past 8D"
+  vars: {case: '121', expect: REJECTED, occurrence: "Occurrence: scratches came from the damaged conveyor guide on line 3, same as 8D-2026-031.", escape: "Escape: no scratch characteristic in final check."}
+- description: "[blind-3 _r3-45] abstain + named cause (handling)"
+  vars: {case: '121', expect: REJECTED, occurrence: "Insufficient evidence statistically, but the root cause is almost certainly rough handling in packaging.", escape: "Escape: not yet identified."}
+- description: "[blind-3 _r3-46] abstain + people"
+  vars: {case: '121', expect: REJECTED, occurrence: "Inconclusive overall, although crew A shows the highest scratch rate (1.26x) and should be retrained.", escape: "Escape: not yet identified."}
+- description: "[blind-3 _r3-47] non-significant segment claim"
+  vars: {case: '121', expect: REJECTED, occurrence: "Occurrence: press P6 cavity C2 scratched the parts (0.64% vs 0.32%).", escape: "Escape: final visual check missed them."}
+- description: "[blind-3 _r3-48] JA abstain + operator mistake"
+  vars: {case: '121', expect: REJECTED, occurrence: "根拠不十分。ただし作業者の取り扱いミスが原因と考えられる。", escape: "流出原因：未特定。"}
+- description: "[blind-3 _r3-49] abstain + mechanism + press"
+  vars: {case: '121', expect: REJECTED, occurrence: "Insufficient evidence; likely a worn mould on press P1 scratching the surface.", escape: "Escape: not yet identified."}
+- description: "[blind-3 _r3-55] casual english"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Press #4's dryer packed up — dew point sat around -8.8 °C instead of -44 °C, so the resin went in wet and the clips came out brittle.", escape: "Sampling on that press dropped from 5 per hour to 1 per hour on 2 Oct, so we didn't catch it."}
+- description: "[blind-3 _r3-56] hydrolysis wording"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: moisture in the resin. The P4 desiccant dryer was not drying (dew point 18.7σ above normal), so the resin hydrolysed and the snap hooks became brittle.", escape: "Escape: P4 control plan rev C (2026-10-02) reduced sampling to 1/h from 5/h."}
+- description: "[blind-3 _r3-57] arrows and No.4"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: Press No. 4 resin dryer failure → wet resin → embrittlement → cracks at the hook root (4.33% vs 0.39%, x11).", escape: "Escape: sampling frequency cut 5/h → 1/h on Oct 2 under control plan rev C."}
+- description: "[blind-3 _r3-58] clearing crew phrase"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: wet resin from the P4 dryer fault (out of limits 2026-10-05 to 2026-10-11) made parts brittle. Not a crew issue: crew B only looked worse because it works press P4 more.", escape: "Escape: P4 inspection sampling went from 5/h to 1/h on 2026-10-02."}
+- description: "[blind-3 _r3-59] JA 4号機"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "発生原因：4号機の樹脂乾燥機が故障し、露点が -8.78 °C まで上昇。吸湿した樹脂により製品が脆くなり、フック根元で割れた。", escape: "流出原因：4号機の抜き取り検査が 2026-10-02 に 5/h から 1/h に減らされたため、不良を検出できなかった。"}
+- description: "[blind-3 _r3-60] JA short"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "発生原因：P4の乾燥不良による樹脂の吸湿で、成形品が脆化した。", escape: "流出原因：P4の検査頻度が毎時5回から毎時1回に削減された（10月2日、管理計画Rev B→C）。"}
+- description: "[blind-3 _r3-61] rounding + escape not identified"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: press P4, cause wet resin from the failed dryer, crack rate about 4.3% vs 0.4% before.", escape: "Escape: not yet identified."}
+- description: "[blind-3 _r3-62] mechanism open"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: segment press P4 (x11.0, z 35.77). Mechanism not yet confirmed; dryer dew point is the lead being checked.", escape: "Escape: sampling on P4 cut from 5/h to 1/h on 2026-10-02."}
+- description: "[blind-3 _r3-63] P-4, spelled-out per-hour"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: P-4 dryer failure let moisture into the resin; the clips cracked. 24 lots of P4 are on hold (14,455 parts).", escape: "Escape: sampling cut from five per hour to one per hour on press P4 on 2026-10-02."}
+- description: "[blind-3 _r3-64] unicode minus + operators cleared"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: The operators are not at fault here. Press P4's resin dryer failed (dew point −8.78 °C, Unicode minus), so wet resin made the parts brittle.", escape: "Escape: P4 sampling cut 5/h to 1/h on 2026-10-02."}
+- description: "[blind-3 _r3-65] casual, press 2 cavity 3"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW, occurrence: "Tool wear: the press 2 mould was overdue for PM (315,200 shots against a 250,000 limit), and cavity 3 started flashing at the parting line.", escape: "The burr gauge G-02 at press 2 was out of calibration since 27 Sep, so bad parts passed."}
+- description: "[blind-3 _r3-66] P2/C3, 250k"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: P2/C3 — mould over its 250k-shot PM interval, parting-line wear on cavity C3 gave burrs (3.24% vs 0.36%, x9.08).", escape: "Escape: G-02 calibration lapsed 2026-09-27; 12 days overdue by the end of the window."}
+- description: "[blind-3 _r3-67] JA 2号機 キャビティ3"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW, occurrence: "発生原因：2号機の金型が保全上限 250,000 ショットを超えて使用され（最大 315,200 ショット）、キャビティ3が摩耗してバリが出た。", escape: "流出原因：ゲージ G-02 が 2026-09-27 から校正期限切れだった。"}
+- description: "[blind-3 _r3-68] #3 #2"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: cavity #3 on press #2 — worn mould past preventive maintenance limit, flash on the snap edge.", escape: "Escape: the G-02 gauge was overdue for calibration."}
+- description: "[blind-3 _r3-69] cav 3, escape open"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: P2 cav 3 tooling wear after skipped PM (mould past 250,000 shots since 2026-09-27 22:00).", escape: "Escape: escape point not yet identified."}
+- description: "[blind-3 _r3-70] clearing people"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: Press P2, cavity C3. Mould shot count exceeded the PM limit; worn parting line on C3 caused flash. Not related to crew or shift.", escape: "Escape: overdue calibration of gauge G-02 on P2 meant the burr check was not reliable."}
+- description: "[blind-3 _r3-71] standard abstention"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "Insufficient evidence: scratch rate 0.40% vs 0.40% in the prior 28 days, no segment is significant. Next: retained samples and transport records.", escape: "Escape: not yet identified."}
+- description: "[blind-3 _r3-72] abstention w/ list of dims"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "Root cause not determined — the data shows no press, cavity, shift, crew or resin lot standing out.", escape: "Escape: n/a until a cause is found."}
+- description: "[blind-3 _r3-73] JA abstention"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "データ不足のため原因は特定できない。不良率は前28日と同等（0.40%）。", escape: "流出原因：未特定。"}
+- description: "[blind-3 _r3-74] casual abstention"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "We can't pin this on anything yet: no segment passes the significance test. Collecting customer photos and handling records.", escape: "Escape: not identified yet."}
+- description: "[blind-3 _r3-75] abstention mentioning crew to clear it"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "Inconclusive. Crew A vs B difference (x1.26) is not significant and disappears inside each press, so no people cause.", escape: "Escape: not yet identified."}
+- description: "[blind-3 _r3-76] precise times"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: the P4 resin dryer fault (dew point above the -18.0 °C resin maker limit from 2026-10-05 06:00) put wet resin into the barrel; hydrolysis made the hooks brittle.", escape: "Escape: P4 sampling 5/h -> 1/h on 2026-10-02 (rev B -> C), so the rise went undetected."}
+- description: "[blind-3 r3b-0] people: the overnight shift"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the overnight shift let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-1] people: the late shift"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the late shift let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-2] people: 4M analysis - Man: the untrained workforce on press P4"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: 4M analysis - Man: the untrained workforce on press P4 let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-3] people: the line leader on press P4"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the line leader on press P4 let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-4] people: the supervisor on press P4"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the supervisor on press P4 let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-5] people: temp workers on press P4"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: temp workers on press P4 let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-6] people: the trainee running press P4"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the trainee running press P4 let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-7] people: the night guys on press P4"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the night guys on press P4 let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-8] people: the third-shift crew on press P4"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the third-shift crew on press P4 let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-9] people: B-shift on press P4"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: B-shift on press P4 let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-10] people: manpower on press P4 (insufficient skill)"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: manpower on press P4 (insufficient skill) let the dryer run wet; the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-11] JA オペレーター 怠り"
+  vars: {case: '118', expect: REJECTED, occurrence: "発生原因：P4 の夜間担当のオペレーターが乾燥機の確認を怠り、吸湿した樹脂で割れた。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-12] JA 派遣社員"
+  vars: {case: '118', expect: REJECTED, occurrence: "発生原因：プレス P4 で派遣社員が乾燥機を止めたため、樹脂が吸湿し割れた。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-13] 'B crew' reversed"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle. Escape and occurrence both trace back to the B crew's habits.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-14] escape: 'the person checking'"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: the person checking parts on press P4 only looked once an hour after the cut from 5/h to 1/h on 2026-10-02, and missed them."}
+- description: "[blind-3 r3b-15] extra: cooling time"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle, and the cooling time on press P4 was too short, leaving residual stress at the hook root.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-16] extra: regrind"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle; regrind content on press P4 was also too high.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-17] invented outage + date from E-?"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed after a power outage on 2026-10-04, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-18] extra: injection speed"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould ran past its 250,000-shot limit and the injection speed was too high, so cavity C3 flashed.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so burrs passed inspection."}
+- description: "[blind-3 r3b-19] extra: clamp combo"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould ran past its PM limit and clamp tonnage was low, so cavity C3 flashed.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so burrs passed inspection."}
+- description: "[blind-3 r3b-20] fake ppm"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle; P4 ran at 9,600 ppm cracked.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-21] fake parts count"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle; 1,000 cracked clips came off P4.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-22] fake z"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle (p < 0.0001, z = 52).", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-23] fake rev letters"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev C to D)."}
+- description: "[blind-3 r3b-24] fake time"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle; the dryer started failing at 02:00 on 2026-10-05.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-25] fake months"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle; the dryer had not been serviced for 14 months.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-26] fake derived shots"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould ran 65,200 shots past its 250,000-shot limit... actually 90,000 shots past, so cavity C3 wore.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so burrs passed inspection."}
+- description: "[blind-3 r3b-27] fake Cpk"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle; Cpk on hook-root strength fell to 0.4.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-28] JA P4の (no space)"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "発生原因：P4の乾燥機故障で樹脂が吸湿し、成形品が脆くなって割れた。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-29] JA プレスP4で"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "発生原因：プレスP4で乾燥機が故障し、吸湿した樹脂で割れた。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-30] negation before P4"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: resin wasn't dried properly on press P4 because the dryer failed, so the clips became brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-31] machine 4"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: machine 4's resin dryer failed, so wet resin made the clips brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-32] fourth press (P4)"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: the fourth press (P4) had a failed resin dryer; wet resin made parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-33] press four"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: press four's dryer failed; wet resin made parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-34] clear: not operator error"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle. This is not operator error.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-35] clear: crew B ruled out"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle. Crew B was ruled out after splitting by press.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-36] clear: confounder"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle. Crew B is a confounder, not a cause.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-37] clear: no crew or shift effect"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle. No crew or shift effect inside each press.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-38] JA clear crew"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "発生原因：プレス P4 の乾燥機故障で樹脂が吸湿し割れた。B班の問題ではない（号機別に層別すると差は消える）。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3b-39] clear: not an operator problem"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: press P2 cavity C3 — the mould is overdue for PM (315,200 shots vs 250,000 limit), so the worn parting line flashes. Not an operator problem.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so burrs passed inspection."}
+- description: "[blind-3 r3b-40] abstain: unknown"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "Root cause unknown at this stage: no significant segment in the data.", escape: "Escape: not yet identified."}
+- description: "[blind-3 r3b-41] abstain: no root cause found"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "No root cause found — the scratch rate didn't change (0.40% vs 0.40%).", escape: "Escape: not yet identified."}
+- description: "[blind-3 r3b-42] abstain: not enough data"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "Not enough data to determine a cause.", escape: "Escape: not yet identified."}
+- description: "[blind-3 r3b-43] JA 原因不明"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "原因不明。データ上、有意な差は見られない。", escape: "流出原因：未特定。"}
+- description: "[blind-3 r3b-44] abstain: cannot be determined + TBD"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "Cause cannot be determined from plant data; nothing is statistically significant.", escape: "Escape: TBD"}
+- description: "[blind-3 r3c-0] baseline prefilled-like"
+  vars: {case: '118', expect: REJECTED, occurrence: "Operator error: night crew B didn't follow the procedure.", escape: "Escape: the inspector missed it."}
+- description: "[blind-3 r3c-1] baseline night shift"
+  vars: {case: '118', expect: REJECTED, occurrence: "Root cause: night shift on P4.", escape: "Escape: sampling on P4 cut from 5/h to 1/h on 2026-10-02."}
+- description: "[blind-3 r3c-5] reversed sampling (increase)"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: inspection sampling on press P4 was increased from 1/h to 5/h on 2026-10-02."}
+- description: "[blind-3 r3c-8] overnight shift error"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: overnight shift error on press P4 — the dryer was left in standby, wet resin, brittle parts.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-9] escape graveyard"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle.", escape: "Escape: the graveyard shift skipped the hourly checks on press P4 after sampling was cut from 5/h to 1/h on 2026-10-02."}
+- description: "[blind-3 r3c-10] workforce"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle because the workforce on press P4 is under-trained.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-11] evening shift"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle; the evening shift on press P4 ignored the dryer alarm.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-12] B-team"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made the parts brittle; P4's B-team never checks the dew point.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-13] JA 深夜勤務帯"
+  vars: {case: '118', expect: REJECTED, occurrence: "発生原因：プレス P4 の樹脂乾燥機が故障し、吸湿した樹脂で割れた。原因は深夜勤務帯の管理不足。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-14] JA 'P4 の' with space"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "発生原因：P4 の乾燥機故障で樹脂が吸湿し、成形品が脆くなって割れた。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-15] JA P4号機"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "発生原因：P4号機の乾燥機が故障し、吸湿樹脂で割れが発生。", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-16] P4 before negation"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: the dryer on press P4 didn't hold its dew point, so wet resin made the clips brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-17] 'not dried' then P4 later? (P4 before)"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: the resin feeding press P4 was not dried because the dryer failed; the clips became brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-18] negation before P4 v2"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: moisture wasn't removed from the resin at press P4 (dryer failure), so clips cracked.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-19] IMM #4"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: IMM #4 (press P4) dryer failure; wet resin made parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-20] JA P2のC3 no spaces"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW, occurrence: "発生原因：P2のC3キャビティで金型が保全上限を超え摩耗し、バリが発生。", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so burrs passed inspection."}
+- description: "[blind-3 r3c-21] negation 'wasn't maintained' P2 after"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: the mould on press P2 wasn't maintained at the 250,000-shot limit, so cavity C3 wore and flashed.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so burrs passed inspection."}
+- description: "[blind-3 r3d-0] app's own 121 draft summary"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "No press, cavity, shift, crew or resin lot explains the scratch reports: the rate in the complaint date codes is in line with the previous 28 days. Root cause: insufficient evidence.", escape: "Escape: not yet identified."}
+- description: "[blind-3 r3d-1] isolate 'not determined'"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "Root cause not determined.", escape: "Escape: not yet identified."}
+- description: "[blind-3 r3d-2] abstain with empty escape"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW, occurrence: "Insufficient evidence.", escape: ""}
+- description: "[blind-3 r3d-3] isolate clearing phrase alone"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW, occurrence: "Occurrence: wet resin from the P4 dryer fault made parts brittle. Not a crew issue.", escape: "Escape: P4 inspection sampling went from 5/h to 1/h on 2026-10-02."}

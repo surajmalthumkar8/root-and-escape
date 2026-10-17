@@ -166,7 +166,9 @@ Three eval layers, each runnable without an agent. Every number below is from a 
 
 The same suite runs the real Gemini agents, with an optional Gemini judge (GEval) for the clarity of the written 8D, in Cloud Shell: `RAE_EVALS=1 RAE_EVAL_MODE=gemini RAE_EVAL_JUDGE=gemini deepeval test run tests/evals/test_rae_e2e.py`. Gemini-mode score: {{run after deploy}}.
 
-**3. Red-team eval of the Challenger with [promptfoo](https://www.promptfoo.dev/)** (`evals/challenger/`, promptfoo 0.120.19). 313 root-cause claims, each either a bad one that must be rejected or a sound one that must be approved, so false rejections count as failures too. The assertion was calibrated first (`calibration.yaml`: 2 known passes, 2 known failures). 11 more claims that only a language model can judge (self-contradiction, keyword filler) live in `promptfooconfig.live.yaml`, which runs against the deployed app where the Gemini critic is on (`RAE_EVAL_BASE_URL=...`).
+**3. Red-team eval of the Challenger with [promptfoo](https://www.promptfoo.dev/)** (`evals/challenger/`, promptfoo 0.120.19).
+
+**Honest headline: on a held-out blind round, 89% of never-seen claims were ruled correctly** (64 of 72: 3 of 50 bad claims approved, 5 of 22 sound claims rejected). Every claim found since is a regression test: **451 / 451** pass. Each claim is either a bad root cause that must be rejected or a sound one that must be approved, so false rejections count as failures too. The assertion was calibrated first (`calibration.yaml`: 2 known passes, 2 known failures). 21 more claims that only a language model can judge (self-contradiction, filler, a real number put in the wrong place) live in `promptfooconfig.live.yaml`, which runs against the deployed app where the Gemini critic is on (`RAE_EVAL_BASE_URL=...`).
 
 | Round | Claims | Wrong verdicts before the fixes | Now |
 |---|---|---|---|
@@ -174,9 +176,9 @@ The same suite runs the real Gemini agents, with an optional Gemini judge (GEval
 | Outside review | 19 | 15 | 19 / 19 (a blank escape is now required by design) |
 | Blind red team, round 1 (black box: README and API only) | 75 | 21 of 60 bad approved, 8 of 23 sound rejected | 75 / 75 |
 | Blind red team, round 2 | 192 | 37 of 130 bad approved, 24 of 62 sound rejected | 192 / 192 |
-| **Blind red team, round 3 (held out, never used for fixes)** | {{R3_N}} | {{R3_WRONG}} | not fixed against |
+| **Blind red team, round 3 (held out)** | 138 | **First blind batch, measured before any fix: 3 of 50 bad approved, 5 of 22 sound rejected.** Targeted follow-up batches: 25 of 92 bad approved, 11 of 51 sound rejected | 138 / 138 |
 
-Every round's claims stay in the suite, so fixing one round can't quietly break another. Rounds 1 and 2 were used to improve the rules, so their "now" column is a regression check, not an accuracy estimate. Round 3 is the honest estimate for phrasings nobody has tried yet.
+Every round's claims stay in the suite, so fixing one round can't quietly break another. The "now" column is a regression check, not an accuracy estimate: each round was measured first and fixed after. The trend across rounds (35% of bad claims approved in round 1, 6% in round 3's blind batch) is the honest picture, and a new round would still find misses.
 
 **What the evals found, and what changed** (three rounds on 17 Oct):
 
@@ -186,7 +188,7 @@ Every round's claims stay in the suite, so fixing one round can't quietly break 
 | It blamed a worn mould for scratches | A cited table of which logged condition causes which defect, used by the engine and enforced by a new Challenger rule | Mechanism metric 31 / 31 |
 | The demo dryer "failure" (−21 °C) was inside the resin maker's −18 °C limit | The synthetic failure now drifts to about −9 °C, and the evidence states the limit | Case 118 holds up to a materials review |
 | On a weak signal the hold missed 25% of affected lots | The hold always covers the complaint's date codes, plus any elevated day | Containment recall 0.90 → 1.00 |
-| An outside review and two blind red teams showed "Try to break it" misjudging free text: a ghost story about P4 passed, "press 4" was rejected, blame by name or pronoun passed, honest "insufficient evidence" was rejected | A segment parser with aliases and negation; people rules on both causes, with clearing phrases ("not a crew issue"); the mechanism must be in the data; the escape must match the inspection records; unit- and precision-aware number checks; text normalization against disguised spellings; a Gemini critic in the cloud | 313 / 313 regression claims; held-out round 3 in the table above |
+| An outside review and two blind red teams showed "Try to break it" misjudging free text: a ghost story about P4 passed, "press 4" was rejected, blame by name or pronoun passed, honest "insufficient evidence" was rejected | A segment parser with aliases and negation; people rules on both causes, with clearing phrases ("not a crew issue"); the mechanism must be in the data; the escape must match the inspection records; unit- and precision-aware number checks; text normalization against disguised spellings; a Gemini critic in the cloud | 451 / 451 regression claims; 89% correct on round 3's untouched batch |
 | One cavity on one press was missed when neither stood out alone | A pair-level test with a stricter bar (z ≥ 4.5, ratio ≥ 3, for about 100 pairs) | 12 / 12, and 0 false causes on held-out controls |
 
 ```bash

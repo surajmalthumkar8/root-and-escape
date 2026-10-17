@@ -23,3 +23,23 @@
   vars: {case: '124', expect: REJECTED, occurrence: "Burrs on press P2 × cavity C3 (3.24% vs 0.36%): mould, shots, limit, wear, flash, cavity, root cause established.", escape: "Gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec parts passed inspection."}
 - description: "[blind-2 C12] real number wrong meaning"
   vars: {case: '121', expect: REJECTED, occurrence: "Insufficient evidence; scratch rate doubled (×1.0) in the complaint window but no segment stands out.", escape: "Escape cause not yet identified; need handling and packaging records."}
+- description: "[blind-3 _r3-50] self-contradiction"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the P4 resin dryer worked perfectly throughout; nevertheless wet resin from the failed P4 dryer made the parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-51] keyword filler"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: P4 dryer wet resin moisture dew point brittle P4 P4 crack.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not caught."}
+- description: "[blind-3 _r3-52] escape self-undermining"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle. Crack rate on P4 4.33% vs 0.39%.", escape: "Escape: sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, but sampling frequency has nothing to do with whether defects are caught."}
+- description: "[blind-3 _r3-53] contradiction"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould was well within PM limits yet ran past its 250,000-shot limit, so cavity C3 wore and flashed.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec burrs passed inspection."}
+- description: "[blind-3 _r3-54] filler abstention"
+  vars: {case: '121', expect: REJECTED, occurrence: "Insufficient evidence, insufficient evidence, insufficient evidence.", escape: "Escape: not yet identified."}
+- description: "[blind-3 r3c-2] overall rate attributed to P4"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made parts brittle. The crack rate on press P4 was 0.96% against 0.32% before.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-3] normal value as failed value"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed: dew point averaged -44.44 °C, so the resin was wet and parts were brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-4] sampling date as dryer date"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed from 2026-10-02, so wet resin made parts brittle.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-6] reversed direction"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed, so wet resin made parts brittle; P4 crack rate fell from 4.33% to 0.39%.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not caught."}
+- description: "[blind-3 r3c-7] swapped limit/max"
+  vars: {case: '124', expect: REJECTED, occurrence: "Occurrence: the press P2 mould ran past its 315,200-shot maintenance limit (max 250,000 shots), so cavity C3 wore and flashed.", escape: "Escape: gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so burrs passed inspection."}

@@ -429,7 +429,7 @@
       $("#bench").textContent = `Benchmark (synthetic plants, analysis layer): planted cause found in ${b.caused_found}/${b.caused_total} cases` +
         (miss ? ` (${miss === 1 ? "the miss" : "the misses"} abstained rather than guessing)` : "") +
         `; correct "insufficient evidence" in ${b.controls_abstained}/${b.controls_total} controls; containment recall ${b.mean_containment_recall}. ` +
-        `End to end on 31 planted-truth plants, every 8D passes the Challenger with grounded numbers and no invented mechanism; 313 red-team claims, most written blind by red teamers, are ruled correctly.`;
+        `End to end on 31 planted-truth plants, every 8D passes the Challenger with grounded numbers and no invented mechanism; on a held-out blind red-team round, 89% of never-seen claims were ruled correctly, and all 451 claims found so far are regression tests.`;
     } catch (err) { $("#bench").textContent = "Benchmark unavailable right now."; }
   });
   $("#how-close").addEventListener("click", () => $("#how-dlg").close());

@@ -35,4 +35,5 @@ tests:  # every suite the code rules can judge; needs_gemini_critic.yaml runs in
   - file://tests/external_review.yaml
   - file://tests/blind_redteam.yaml
   - file://tests/blind_redteam_r2.yaml
+  - file://tests/blind_redteam_r3.yaml
   - file://tests/needs_gemini_critic.yaml
