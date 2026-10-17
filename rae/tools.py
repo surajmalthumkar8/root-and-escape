@@ -121,7 +121,7 @@ class Toolbox:
                        f"{_p(top['rate_test'])} vs {_p(top['rate_control'])} before (×{top['ratio']}, z {top['z']}).")
         else:
             summary = (f"{self.defect} rate {_p(o['rate_test'])} in date codes {self.start}–{self.end} vs "
-                       f"{_p(o['rate_control'])} before (×{o['ratio']}). No segment passes the significance test.")
+                       f"{_p(o['rate_control'])} in the prior 28 days (×{o['ratio']}). No segment passes the significance test.")
         item = self._add("is_is_not", {"defect": self.defect, "test": [str(self.start), str(self.end)]}, r, summary, source)
         return {"evidence_id": item["id"], "summary": summary, "significant": r["significant"],
                 "primary_segment": r["primary_segment"],

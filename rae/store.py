@@ -136,7 +136,7 @@ class LocalStore:
 
     def take_quota(self, visitor: str, kind: str = "gemini") -> tuple[bool, dict]:
         """kind='gemini' (costs money, tight cap) or 'det' (deterministic runs, loose cap against abuse)."""
-        day_key = utc_day() if kind == "gemini" else f"{utc_day()}-det"
+        day_key = utc_day() if kind == "gemini" else f"{utc_day()}-{kind}"
         lim_total, lim_v = _limits(kind)
         with _lock:
             m = self._read(self.meta, {})
@@ -230,7 +230,7 @@ class GcpStore(LocalStore):
         """Lock-free: count the run first, then check, and give the slot back if it went over the cap.
         It can never grant more than the cap (every granted run stays counted) and never waits on a lock.
         A transaction was tried first; on the Firestore emulator it hit lock timeouts with only 3 runs at once."""
-        day_key = utc_day() if kind == "gemini" else f"{utc_day()}-det"
+        day_key = utc_day() if kind == "gemini" else f"{utc_day()}-{kind}"
         lim_total, lim_v = _limits(kind)
         ref = self.db.collection("quota").document(day_key)
         inc = self.fs.Increment
@@ -265,6 +265,8 @@ class GcpStore(LocalStore):
 def _limits(kind: str) -> tuple[int, int]:
     if kind == "gemini":
         return settings.live_runs_per_day, settings.runs_per_visitor_per_day
+    if kind == "critic":  # one short Gemini call per "Try to break it" claim that passes the code rules
+        return settings.critic_checks_per_day, settings.critic_checks_per_visitor_per_day
     return settings.det_runs_per_day, settings.det_runs_per_visitor_per_day
 
 

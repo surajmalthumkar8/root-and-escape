@@ -1,0 +1,38 @@
+# yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
+description: >-
+  LIVE APP (set RAE_EVAL_BASE_URL).   Can a root-cause claim get past the Challenger without evidence? Adversarial claims must be rejected by the
+  named rule; sound claims must be approved (no false rejections).
+
+prompts:
+  - '{{occurrence}}'
+
+providers:
+  - id: file://provider.py
+    label: rae-challenger
+    config:
+      workers: 1
+
+defaultTest:
+  options:
+    transform: JSON.parse(output)
+  assert:
+    - type: javascript
+      metric: ruling
+      value: |
+        const want = context.vars.expect;
+        if (output.verdict !== want) {
+          return { pass: false, score: 0, reason: `verdict ${output.verdict}, wanted ${want}; failed: ${output.failed.join(', ') || 'none'}` };
+        }
+        const rule = context.vars.rule;
+        if (rule && !output.failed.includes(rule)) {
+          return { pass: false, score: 0, reason: `rejected, but not by ${rule}; failed: ${output.failed.join(', ')}` };
+        }
+        return { pass: true, score: 1, reason: rule ? `rejected by ${rule}` : 'approved' };
+
+tests:  # every suite the code rules can judge; needs_gemini_critic.yaml runs in promptfooconfig.live.yaml
+  - file://tests/attacks.yaml
+  - file://tests/sound_claims.yaml
+  - file://tests/external_review.yaml
+  - file://tests/blind_redteam.yaml
+  - file://tests/blind_redteam_r2.yaml
+  - file://tests/needs_gemini_critic.yaml

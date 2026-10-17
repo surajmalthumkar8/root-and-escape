@@ -29,4 +29,9 @@ defaultTest:
         }
         return { pass: true, score: 1, reason: rule ? `rejected by ${rule}` : 'approved' };
 
-tests: file://tests/*.yaml
+tests:  # every suite the code rules can judge; needs_gemini_critic.yaml runs in promptfooconfig.live.yaml
+  - file://tests/attacks.yaml
+  - file://tests/sound_claims.yaml
+  - file://tests/external_review.yaml
+  - file://tests/blind_redteam.yaml
+  - file://tests/blind_redteam_r2.yaml

@@ -86,7 +86,7 @@ flowchart LR
 
 | Service | Role |
 |---|---|
-| **Gemini 3.8 Flash on Gemini Enterprise Agent Platform** | Intake (complaint + 2 photos), the Investigator agent's reasoning, and the bilingual Writer. Called on `global` with the service account; **no API key exists anywhere**. |
+| **Gemini 3.8 Flash on Gemini Enterprise Agent Platform** | Intake (complaint + 2 photos), the Investigator agent's reasoning, the bilingual Writer, and the Challenger's critic. Called on `global` with the service account; **no API key exists anywhere**. |
 | **Agent Development Kit (ADK) 2.12** | The Investigator: `LlmAgent` + 6 function tools + `output_schema`, run with `InMemoryRunner`, capped at 10 LLM calls per agent run (45 s per call, 130 s for the investigation stage, 230 s for the whole run). It revises when the Challenger rejects a draft. |
 | **BigQuery** | Five tables of synthetic plant data (lots × cavities, process parameters, inspection log, shipments, past 8Ds). |
 | **BigQuery ML: contribution analysis** | The 8D is / is-not done in SQL. `CONTRIBUTION_METRIC = 'SUM(defects)/SUM(units)'` over press, cavity, shift, crew and resin lot, test window vs the prior 28 days. It runs inside a BigQuery session with fixed arguments (the model never writes SQL), and is cached per window. |
@@ -102,6 +102,7 @@ flowchart LR
 | Investigator | Gemini 3.8 Flash via ADK | Plan the investigation and call tools: `is_is_not`, `stratify`, `param_excursions`, `inspection_changes`, `containment`, `past_8d` | `DraftOut` with evidence IDs |
 | Challenger | Deterministic rules | Accept or reject the draft; screen every significant hypothesis | rule results + rulings |
 | Writer | Gemini 3.8 Flash | 8D sections D2–D7 in English and Japanese | `WriterOut` |
+| Critic | Gemini 3.8 Flash | In "Try to break it", after every code rule passes: reject contradictions, filler and reasoning that doesn't follow | `CriticOut` |
 
 **Why agents rather than one prompt.**
 - The investigation needs several tool calls, and the next test depends on the last result. Example: a crew difference appears, so split it by press.
@@ -132,6 +133,9 @@ Every stage has a deterministic fallback, and the result records which mode prod
 | A judge changing what others see | Approvals and live runs are stored per visitor. The shared seed result is upgraded once, to an approved Gemini run that reached the same finding as the baseline | `rae/main.py`, `rae/store.py` | `test_export_locked_until_signed`, `test_visitor_runs_do_not_change_what_others_see`, `test_shared_seed_result_only_upgrades_to_the_same_finding` |
 | Signing something you didn't see | A sign-off is bound to the exact run on screen. A new run clears it, and signing a stale run is refused | `rae/main.py` | `test_signatures_belong_to_the_run_they_were_given_to` |
 | A mechanism that isn't in the data, or can't cause this defect | Three rules. `mechanism_named_or_open`: the occurrence names a physical mechanism or says it is not yet confirmed (and "not confirmed, but we are certain" doesn't count). `mechanism_in_evidence`: the process data for that press flags it. `mechanism_fits_defect`: it is a typical or possible cause of this defect type (a worn mould explains burrs, not cracks). The scripted engine names only typical causes and reports a possible one as a lead to check | `rae/analytics.py` (`MECHANISM_EFFECTS`), `rae/challenger.py` | `test_mechanism_must_fit_the_defect`, promptfoo suite |
+| An escape cause the records don't show | `escape_in_evidence`: a sampling cut must appear in that press's inspection records, an overdue gauge must be the one the records name, another press is rejected, and "our inspection was adequate" is not an escape cause. "Escape point not yet identified" is accepted | `rae/challenger.py` | promptfoo suite |
+| Hiding a cause inside "insufficient evidence" | `abstention_names_no_cause`: an abstention ("insufficient evidence", "inconclusive", 根拠不十分, データ不足 …) may not also name a press, a mechanism or a person, and its numbers are checked too | `rae/challenger.py` | promptfoo suite |
+| Contradictions and filler that every code rule passes | In the cloud, once all code rules pass, the **Gemini critic** reads the claim against the evidence and rejects self-contradiction, keyword filler and reasoning that doesn't follow (`gemini_coherence_check`). It has its own cap (300 checks a day, 30 per visitor), and the result says when it didn't run | `rae/agents.py` (`critic`), `rae/main.py` | `test_gemini_critic_checks_what_code_rules_cannot` |
 | Naming the wrong place | `segment_matches_is_is_not`: the claim must name every part of the analysed segment, in any common spelling (P4, press 4, プレス4, 4号機; C3, cavity 3), and no other value of it. A negated mention ("did not come from P4") doesn't count | `rae/challenger.py` (`names_segment`) | promptfoo suite |
 | Inventing a cause the data doesn't show | When the data locates the defect but no logged parameter or inspection change explains it, the draft says "mechanism not yet confirmed" or "escape not yet identified", lists what to check, and shows it as an open point | `rae/report.py`, `web/app.js` | `test_located_but_unexplained_cause_is_reported_as_open_not_invented` |
 | Untested claims | "Try to break it": any visitor can submit a root cause and see the same rules applied, at no model cost. The server attaches the evidence for what the claim talks about (the analysis, process data, stratification, inspection records); any E-number the claim cites itself must exist. "Insufficient evidence" is accepted as an answer, and is right on case 121 | `rae/main.py` `/challenge` | `test_try_to_break_it_rejects_operator_error` |
@@ -162,7 +166,17 @@ Three eval layers, each runnable without an agent. Every number below is from a 
 
 The same suite runs the real Gemini agents, with an optional Gemini judge (GEval) for the clarity of the written 8D, in Cloud Shell: `RAE_EVALS=1 RAE_EVAL_MODE=gemini RAE_EVAL_JUDGE=gemini deepeval test run tests/evals/test_rae_e2e.py`. Gemini-mode score: {{run after deploy}}.
 
-**3. Red-team eval of the Challenger with [promptfoo](https://www.promptfoo.dev/)** (`evals/challenger/`, promptfoo 0.120.19). 22 adversarial root-cause claims must each be rejected by the intended rule: people-blame in English and Japanese, the wrong press, nonsense, invented numbers, missing or non-detection escape causes, a mechanism that can't cause the defect, prompt injection, and causes claimed on the control case. 5 sound claims must be approved, so the suite also catches false rejections. An outside review then added 19 claims, 15 of which the Challenger got wrong at the time; they are now in `tests/external_review.yaml`. **Result: 46 / 46** on the committed suite. The assertion itself was calibrated first (`calibration.yaml`: 2 known passes, 2 known failures). Set `RAE_EVAL_BASE_URL` to run the same claims against the live app.
+**3. Red-team eval of the Challenger with [promptfoo](https://www.promptfoo.dev/)** (`evals/challenger/`, promptfoo 0.120.19). 313 root-cause claims, each either a bad one that must be rejected or a sound one that must be approved, so false rejections count as failures too. The assertion was calibrated first (`calibration.yaml`: 2 known passes, 2 known failures). 11 more claims that only a language model can judge (self-contradiction, keyword filler) live in `promptfooconfig.live.yaml`, which runs against the deployed app where the Gemini critic is on (`RAE_EVAL_BASE_URL=...`).
+
+| Round | Claims | Wrong verdicts before the fixes | Now |
+|---|---|---|---|
+| Written by us | 22 attacks, 5 sound | 0 | 27 / 27 |
+| Outside review | 19 | 15 | 19 / 19 (a blank escape is now required by design) |
+| Blind red team, round 1 (black box: README and API only) | 75 | 21 of 60 bad approved, 8 of 23 sound rejected | 75 / 75 |
+| Blind red team, round 2 | 192 | 37 of 130 bad approved, 24 of 62 sound rejected | 192 / 192 |
+| **Blind red team, round 3 (held out, never used for fixes)** | {{R3_N}} | {{R3_WRONG}} | not fixed against |
+
+Every round's claims stay in the suite, so fixing one round can't quietly break another. Rounds 1 and 2 were used to improve the rules, so their "now" column is a regression check, not an accuracy estimate. Round 3 is the honest estimate for phrasings nobody has tried yet.
 
 **What the evals found, and what changed** (three rounds on 17 Oct):
 
@@ -172,6 +186,7 @@ The same suite runs the real Gemini agents, with an optional Gemini judge (GEval
 | It blamed a worn mould for scratches | A cited table of which logged condition causes which defect, used by the engine and enforced by a new Challenger rule | Mechanism metric 31 / 31 |
 | The demo dryer "failure" (−21 °C) was inside the resin maker's −18 °C limit | The synthetic failure now drifts to about −9 °C, and the evidence states the limit | Case 118 holds up to a materials review |
 | On a weak signal the hold missed 25% of affected lots | The hold always covers the complaint's date codes, plus any elevated day | Containment recall 0.90 → 1.00 |
+| An outside review and two blind red teams showed "Try to break it" misjudging free text: a ghost story about P4 passed, "press 4" was rejected, blame by name or pronoun passed, honest "insufficient evidence" was rejected | A segment parser with aliases and negation; people rules on both causes, with clearing phrases ("not a crew issue"); the mechanism must be in the data; the escape must match the inspection records; unit- and precision-aware number checks; text normalization against disguised spellings; a Gemini critic in the cloud | 313 / 313 regression claims; held-out round 3 in the table above |
 | One cavity on one press was missed when neither stood out alone | A pair-level test with a stricter bar (z ≥ 4.5, ratio ≥ 3, for about 100 pairs) | 12 / 12, and 0 false causes on held-out controls |
 
 ```bash
@@ -223,6 +238,7 @@ The plausibility table (`rae/analytics.py`, `MECHANISM_EFFECTS`) for the five co
 - **Gemini runs are capped** at 30 a day for everyone and 5 per visitor, to keep cost predictable for the whole judging window. After that, runs use the deterministic engine (labelled). Stored results always load.
 - **Photo checks are qualitative.** The box is a proposal the engineer confirms; **no dimensional measurement** is claimed. Multimodal models still trail human experts on fine defect localisation ([MMAD benchmark](https://arxiv.org/abs/2410.09453)).
 - **Cold starts.** The first request after idle can take a few seconds while the container starts.
+- **The Challenger is a rule engine, plus a Gemini critic in the cloud.** On the agents' own drafts it is exact (31 / 31 end to end). On free text typed by people, blind red teams keep finding phrasings it misjudges; three rounds are documented in the Evaluation section, and every case found is now a test. The Gemini critic covers contradictions and filler only when Gemini is on.
 - **The Challenger checks grounding, plus one layer of engineering sense.** It proves a claim names the analysed segment, cites real evidence, quotes real numbers, and names a mechanism that can cause the defect (a cited table of five logged conditions). It is not a process engineer: a grounded, plausible draft still needs the engineer's review, which is why nothing leaves unsigned.
 - **The complaint text doesn't steer the statistics.** The analysis uses the defect type and the date-code window. The text feeds the D2 description and the Gemini agents' context.
 - **Live runs take time.** A live run takes about {{N}} s (several Gemini calls); progress streams while you wait.

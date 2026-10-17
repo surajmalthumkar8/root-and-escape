@@ -429,7 +429,7 @@
       $("#bench").textContent = `Benchmark (synthetic plants, analysis layer): planted cause found in ${b.caused_found}/${b.caused_total} cases` +
         (miss ? ` (${miss === 1 ? "the miss" : "the misses"} abstained rather than guessing)` : "") +
         `; correct "insufficient evidence" in ${b.controls_abstained}/${b.controls_total} controls; containment recall ${b.mean_containment_recall}. ` +
-        `End to end on 31 planted-truth plants, every 8D passes the Challenger with grounded numbers and no invented mechanism; 46 red-team claims, 19 of them from an outside review, are ruled correctly.`;
+        `End to end on 31 planted-truth plants, every 8D passes the Challenger with grounded numbers and no invented mechanism; 313 red-team claims, most written blind by red teamers, are ruled correctly.`;
     } catch (err) { $("#bench").textContent = "Benchmark unavailable right now."; }
   });
   $("#how-close").addEventListener("click", () => $("#how-dlg").close());
@@ -461,7 +461,10 @@
       const bad = r.rules.filter((x) => !x.passed);
       out.innerHTML = (r.verdict === "REJECTED" ? `<span class="stamp">Rejected</span>` : `<span class="stamp ok">Passed</span>`) +
         (bad.length ? bad.map((x) => `<div class="rule"><span class="ic no">✗</span><span><b>${esc(x.rule.replaceAll("_", " "))}</b> · ${esc(x.message)}</span></div>`).join("")
-          : `<p class="small">All ${r.rules.length} checks pass. A person still has to sign it.</p>`);
+          : `<p class="small">All ${r.rules.length} checks pass. A person still has to sign it.</p>`) +
+        (r.critic === "gemini" || r.critic === "skipped" ? "" : `<p class="small muted">${{ off: "The Gemini critic is off in this mode, so contradictions and filler are not checked; the code rules above still are.",
+          quota: "Today's Gemini critic checks are used up, so contradictions and filler were not checked this time.",
+          error: "The Gemini critic did not answer in time, so contradictions and filler were not checked this time." }[r.critic] || ""}</p>`);
     } catch (err) { out.textContent = err.message; }
   });
 

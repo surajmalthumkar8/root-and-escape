@@ -481,19 +481,17 @@ class _StoredToolbox:
             "primary_label": a.get("primary_label")}
 
 
-@app.post("/api/cases/{case_id}/challenge")
-def challenge(case_id: str, body: Challenge, x_visitor: str | None = Header(default=None)):
-    """'Try to break it': run the Challenger's rules against a root-cause claim the visitor writes.
-    The claim is given the run's evidence IDs, but it only gets the analysed segment if it names that segment
-    (for example "P4"). A claim about the wrong press, or about nothing in the data, fails."""
-    from .challenger import INSUFFICIENT_RE, check_draft, names_segment, verdict
-    visitor = visitor_of(x_visitor)
-    case_for(case_id, visitor)
+def _challenge_rules(case_id: str, visitor: str, body: Challenge) -> tuple[list[dict], dict, object]:
+    """The code rules for a visitor's claim. The claim only gets the analysed segment if it names it, and only the
+    evidence for what it talks about, so a claim about the wrong press, or about nothing in the data, fails."""
+    from .challenger import INSUFFICIENT_RE, check_draft, names_segment, normalize
+    case = case_for(case_id, visitor)
     result = _result_for(case_id, visitor)
     if not result:
         raise HTTPException(404, "Run the investigation first")
     tb = _StoredToolbox(result)
-    occ_text, esc_text = body.occurrence.strip(), body.escape.strip()
+    tb.case = case  # counts quoted from the complaint itself are allowed
+    occ_text, esc_text = normalize(body.occurrence.strip()), normalize(body.escape.strip())
     prim = (tb.last_is_is_not or {}).get("primary_segment") or {}
     # the analysed segment is attached only if the claim names it (P4, press 4, プレス4...) and no other value
     seg = prim if prim and names_segment(occ_text, prim)[0] else {}
@@ -508,8 +506,35 @@ def challenge(case_id: str, body: Challenge, x_visitor: str | None = Header(defa
     draft = {"insufficient_evidence": bool(INSUFFICIENT_RE.search(occ_text)),
              "occurrence": {"statement": occ_text, "segment": seg, "evidence": occ_ev},
              "escape": {"statement": esc_text, "evidence": esc_ev}}
-    rules = check_draft(draft, tb)
-    return {"verdict": verdict(rules), "rules": rules}
+    return check_draft(draft, tb), draft, tb
+
+
+@app.post("/api/cases/{case_id}/challenge")
+async def challenge(case_id: str, body: Challenge, x_visitor: str | None = Header(default=None)):
+    """'Try to break it': the Challenger's code rules on a claim the visitor writes, then, if every rule passes and
+    Gemini is on, the Gemini critic for what code can't judge (contradictions, filler, reasoning that doesn't follow)."""
+    from .challenger import verdict
+    visitor = visitor_of(x_visitor)
+    rules, draft, tb = await asyncio.to_thread(_challenge_rules, case_id, visitor, body)
+    passed = verdict(rules) == "APPROVED_FOR_REVIEW" and not draft["insufficient_evidence"]
+    critic = "off" if passed else "skipped"  # the critic only looks at claims that pass every code rule
+    if passed:
+        g = await asyncio.to_thread(llm)
+        if g is not None:
+            ok, _ = await asyncio.to_thread(_take_quota, get_store(), visitor, "critic")
+            critic = "quota"
+            if ok:
+                try:
+                    c = await asyncio.wait_for(g.critic(getattr(tb, "defect", "") or "", draft["occurrence"]["statement"],
+                                                        draft["escape"]["statement"],
+                                                        [f"{i['id']}: {i['summary']}" for i in tb.log.items]), timeout=25)
+                    rules.append({"rule": "gemini_coherence_check", "passed": bool(c.get("coherent")),
+                                  "message": f"Gemini critic: {c.get('reason') or ''}".strip()})
+                    critic = "gemini"
+                except Exception as exc:  # noqa: BLE001  (the code rules still stand; say the critic didn't run)
+                    log.warning("critic failed: %s", type(exc).__name__)
+                    critic = "error"
+    return {"verdict": verdict(rules), "rules": rules, "critic": critic}
 
 
 @app.get("/api/cases/{case_id}/report", response_class=HTMLResponse)

@@ -28,6 +28,8 @@ class Settings:
     det_runs_per_visitor_per_day: int = int(os.getenv("RAE_DET_RUNS_PER_VISITOR_PER_DAY", "40"))
     det_runs_per_day: int = int(os.getenv("RAE_DET_RUNS_PER_DAY", "2000"))
     runs_per_ip_per_10min: int = int(os.getenv("RAE_RUNS_PER_IP_PER_10MIN", "20"))
+    critic_checks_per_day: int = int(os.getenv("RAE_CRITIC_CHECKS_PER_DAY", "300"))
+    critic_checks_per_visitor_per_day: int = int(os.getenv("RAE_CRITIC_CHECKS_PER_VISITOR_PER_DAY", "30"))
     max_upload_mb: int = int(os.getenv("RAE_MAX_UPLOAD_MB", "8"))
     local_dir: str = os.getenv("RAE_LOCAL_DIR", "var")
 

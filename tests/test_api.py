@@ -228,3 +228,27 @@ def test_try_to_break_it_rejects_the_judges_bypasses():
         "occurrence": "Occurrence: the press P2 mould ran past its maintenance limit, and cavity C3 makes the burrs.",
         "escape": "Escape: gauge G-02 was overdue for calibration, so inspection missed the burrs."}).json()
     assert half["verdict"] == "REJECTED" and full["verdict"] == "APPROVED_FOR_REVIEW", (half["rules"], full["rules"])
+
+
+def test_gemini_critic_checks_what_code_rules_cannot(monkeypatch):
+    import rae.main as main_mod
+
+    class StubCritic:
+        model = "stub-gemini"
+
+        async def critic(self, defect, occurrence, escape, evidence):
+            salad = "banana" in occurrence
+            return {"coherent": not salad, "reason": "It is keyword filler, not an explanation." if salad else "Consistent."}
+
+    monkeypatch.setattr(main_mod, "llm", lambda: StubCritic())
+    client.get("/api/cases/118", headers=V)
+    esc = "Escape: inspection sampling on press P4 was cut from 5/h to 1/h, so the rise was not detected."
+    salad = client.post("/api/cases/118/challenge", headers=V, json={
+        "occurrence": "press P4 resin dryer dew point brittle wet banana lorem ipsum, so cracks.", "escape": esc}).json()
+    assert salad["critic"] == "gemini" and salad["verdict"] == "REJECTED"
+    assert any(r["rule"] == "gemini_coherence_check" and not r["passed"] for r in salad["rules"])
+    good = client.post("/api/cases/118/challenge", headers=V, json={
+        "occurrence": "The resin dryer on press P4 failed, so wet resin made the clips brittle.", "escape": esc}).json()
+    assert good["critic"] == "gemini" and good["verdict"] == "APPROVED_FOR_REVIEW"
+    bad = client.post("/api/cases/118/challenge", headers=V, json={"occurrence": "Operator error on press P4.", "escape": esc}).json()
+    assert bad["critic"] == "skipped"  # code rules already rejected it; no Gemini call is spent

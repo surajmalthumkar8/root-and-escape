@@ -1,0 +1,25 @@
+# Claims only the Gemini critic can judge: a self-contradiction and keyword filler. Every code rule passes them,
+# so they run only against the live app (promptfooconfig.live.yaml), where Gemini is on.
+
+- description: "[blind A21] contradictory statement (dryer failed and worked normally)"
+  vars: {case: '118', expect: REJECTED, occurrence: "Occurrence: the press P4 resin dryer failed (dew point -8.78 °C vs -44.44 °C) and also the press P4 dryer worked normally throughout and the dew point stayed at -44.44 °C. 4.33% vs 0.39%.", escape: "Escape: inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02, so the rise was not detected."}
+- description: "[blind A22] keyword salad, no causal claim"
+  vars: {case: '118', expect: REJECTED, occurrence: "press P4 resin dryer dew point brittle wet 4.33% 0.39% banana lorem ipsum weather forecast football.", escape: "inspection sampling detection 5/h 1/h not detected banana."}
+- description: "[blind-2 A26] negated mechanism"
+  vars: {case: '118', expect: REJECTED, occurrence: "The resin dryer on press P4 did not fail and the resin was dry; the cracks on P4 (4.33% vs 0.39%) have some other cause.", escape: "Inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not detected."}
+- description: "[blind-2 A34] keyword salad filler"
+  vars: {case: '118', expect: REJECTED, occurrence: "Press P4, dryer, dew point, wet resin, brittle, crack, mechanism, root cause, 8D.", escape: "Inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not detected."}
+- description: "[blind-2 A35] escape filler"
+  vars: {case: '118', expect: REJECTED, occurrence: "The resin dryer on press P4 failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle and they cracked. Crack rate on P4 was 4.33% vs 0.39% before.", escape: "Detection weakness: inspection, sampling, missed."}
+- description: "[blind-2 A36] escape negated"
+  vars: {case: '118', expect: REJECTED, occurrence: "The resin dryer on press P4 failed (dew point -8.78 °C vs normal -44.44 °C), so wet resin made the clips brittle and they cracked. Crack rate on P4 was 4.33% vs 0.39% before.", escape: "There was no detection weakness; inspection on press P4 worked as designed."}
+- description: "[blind-2 A41] containment count as defect count"
+  vars: {case: '118', expect: REJECTED, occurrence: "The press P4 dryer failure cracked 14,455 parts (dew point -8.78 °C vs -44.44 °C, wet resin, brittle clips).", escape: "Inspection sampling on press P4 was cut from 5/h to 1/h on 2026-10-02 (control plan rev B to C), so the rise was not detected."}
+- description: "[blind-2 B20] contradiction"
+  vars: {case: '124', expect: REJECTED, occurrence: "The press P2 × cavity C3 mould was well within its 250,000-shot maintenance limit, yet tool wear made burrs (3.24% vs 0.36%).", escape: "Gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec parts passed inspection."}
+- description: "[blind-2 B23] real number wrong context"
+  vars: {case: '124', expect: REJECTED, occurrence: "The press P2 × cavity C3 mould overran its maintenance limit by 250,000 shots, so the worn cavity flashed.", escape: "Gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec parts passed inspection."}
+- description: "[blind-2 B27] filler"
+  vars: {case: '124', expect: REJECTED, occurrence: "Burrs on press P2 × cavity C3 (3.24% vs 0.36%): mould, shots, limit, wear, flash, cavity, root cause established.", escape: "Gauge G-02 on press P2 was overdue for calibration since 2026-09-27, so out-of-spec parts passed inspection."}
+- description: "[blind-2 C12] real number wrong meaning"
+  vars: {case: '121', expect: REJECTED, occurrence: "Insufficient evidence; scratch rate doubled (×1.0) in the complaint window but no segment stands out.", escape: "Escape cause not yet identified; need handling and packaging records."}
