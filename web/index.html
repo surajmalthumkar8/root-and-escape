@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Root &amp; Escape · the 8D copilot</title>
-<meta name="description" content="Gemini agents turn a customer complaint and a defect photo into an evidence-backed 8D report. Google Cloud AI Builder Cup 2026 prototype.">
+<title>Root &amp; Escape · 8D root-cause workbench</title>
+<meta name="description" content="Turns a customer complaint and a defect photo into an evidence-backed 8D report, using Gemini agents over plant data in BigQuery. A person signs before anything leaves.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Red+Hat+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;600&display=swap">
@@ -14,12 +14,13 @@
 <header class="top">
   <div class="brand">
     <h1>Root <span class="amp">&amp;</span> Escape</h1>
-    <p>The 8D copilot that won't accept "operator error"</p>
+    <p>8D root-cause workbench that won't accept "operator error" without proof</p>
   </div>
   <div class="status" id="status" aria-live="polite">
     <span class="pill" id="mode-pill">Loading…</span>
     <span class="pill" id="quota-pill"></span>
     <span class="pill warn">Synthetic plant data</span>
+    <button class="btn ghost small" id="tour-btn" type="button">Take the tour</button>
     <button class="link" id="how-btn" type="button">How it works</button>
   </div>
 </header>
@@ -28,7 +29,7 @@
   <aside class="cases" aria-label="Cases">
     <div class="cases-head"><h2>Complaints</h2><button class="btn small" id="new-btn" type="button">+ New</button></div>
     <ul id="case-list"></ul>
-    <p class="hint">Seed cases load instantly. "Run live" re-runs the agents on Gemini (limited per day).</p>
+    <p class="hint">The three example cases open instantly. "Run live" sends one through the Gemini agents again (a few runs a day for everyone).</p>
   </aside>
 
   <main id="main">
@@ -36,13 +37,14 @@
       <div>
         <div class="eyebrow" id="case-meta"></div>
         <h2 id="case-title">Loading case…</h2>
-        <div class="clock" id="clock"></div>
       </div>
       <div class="run">
         <button class="btn" id="run-btn" type="button">Run live with Gemini</button>
         <span class="small muted" id="run-note"></span>
       </div>
     </section>
+
+    <nav class="rail" id="rail" aria-label="8D steps for this case"></nav>
 
     <section class="tracker" id="tracker" hidden aria-live="polite">
       <ol class="stages">
@@ -58,11 +60,11 @@
 
     <div class="board" id="board">
       <article class="cell span2" id="c-d2">
-        <span class="dtag">D2 · PROBLEM</span>
+        <span class="dtag">D2 · Problem</span>
         <h3>The complaint and the photo</h3>
         <div class="photos">
           <figure><div class="ph" id="ph-defect"><img id="img-defect" alt="Defect photo"><div class="box" id="box" hidden></div></div><figcaption id="cap-defect">Defect photo</figcaption></figure>
-          <figure><div class="ph"><img id="img-golden" alt="Golden sample photo"></div><figcaption>Golden sample</figcaption></figure>
+          <figure><div class="ph"><img id="img-golden" alt="Golden sample photo"></div><figcaption><span class="term" data-term="golden" tabindex="0">Golden sample</span></figcaption></figure>
         </div>
         <div class="box-actions"><button class="btn ghost small" id="box-ok" type="button">Confirm box</button><span class="small muted" id="box-note"></span></div>
         <p class="small translation" id="translation"></p>
@@ -70,56 +72,65 @@
         <dl class="w5" id="w5"></dl>
       </article>
 
+      <article class="cell" id="c-d3">
+        <span class="dtag">D3 · <span class="term" data-term="containment" tabindex="0">Containment</span></span>
+        <h3>Hold only what's suspect</h3>
+        <div id="d3"></div>
+      </article>
+
       <article class="cell" id="c-isnot">
-        <span class="dtag">D4 · IS / IS-NOT</span>
+        <span class="dtag">D4 · <span class="term" data-term="isnot" tabindex="0">Is / is not</span></span>
         <h3 id="isnot-h">Where the defect is, and isn't</h3>
         <div id="heatmap"></div>
+        <div id="isnot-table"></div>
         <p class="small" id="isnot-text"></p>
         <p class="small muted" id="isnot-method"></p>
       </article>
 
       <article class="cell" id="c-hyp">
-        <span class="dtag">CHALLENGER · HYPOTHESES</span>
+        <span class="dtag">D4 · Suspects</span>
         <h3>Every suspect, tested</h3>
         <ul class="hyps" id="hyps"></ul>
       </article>
 
       <article class="cell" id="c-d4">
-        <span class="dtag">D4 · ROOT CAUSES</span>
-        <h3>Why it happened, why it escaped</h3>
+        <span class="dtag">D4 · Root causes</span>
+        <h3>Why it happened, and why it got out</h3>
         <div id="d4"></div>
       </article>
 
-      <article class="cell" id="c-d3">
-        <span class="dtag">D3 · CONTAINMENT</span>
-        <h3>Hold what matters</h3>
-        <div id="d3"></div>
-      </article>
-
-      <article class="cell" id="c-rules">
-        <span class="dtag">CHALLENGER · RULES</span>
-        <h3>Draft checks</h3>
-        <div id="rules"></div>
-        <form class="breakit" id="breakit">
-          <label for="bi-occ"><b>Try to break it.</b> Write a root cause and see if the Challenger accepts it.</label>
-          <textarea id="bi-occ" rows="3" maxlength="600">Operator error: night crew B did not follow the work instruction. Retrain crew B.</textarea>
-          <input id="bi-esc" maxlength="600" placeholder="Escape cause (required): why inspection missed it">
-          <button class="btn small" type="submit">Challenge this claim</button>
-          <div id="bi-out" aria-live="polite"></div>
-        </form>
+      <article class="cell span3" id="c-rules">
+        <span class="dtag"><span class="term" data-term="challenger" tabindex="0">Challenger</span> · Checks</span>
+        <div class="split">
+          <div>
+            <h3>Checks every draft must pass</h3>
+            <div id="rules"></div>
+          </div>
+          <form class="breakit" id="breakit">
+            <h3>Try to break it</h3>
+            <p class="small muted">Write a root cause and the same checks judge it. Or pick an example.</p>
+            <div class="tries" id="bi-tries" role="group" aria-label="Example claims"></div>
+            <label for="bi-occ" class="small">Occurrence: why it happened</label>
+            <textarea id="bi-occ" rows="3" maxlength="600">Operator error: night crew B did not follow the work instruction. Retrain crew B.</textarea>
+            <label for="bi-esc" class="small">Escape: why inspection missed it</label>
+            <input id="bi-esc" maxlength="600" placeholder="e.g. inspection on that press was cut, so the rise wasn't caught">
+            <button class="btn small" type="submit">Challenge this claim</button>
+            <div id="bi-out" aria-live="polite"></div>
+          </form>
+        </div>
       </article>
 
       <article class="cell" id="c-d5">
-        <span class="dtag">D5 · ACTIONS</span>
+        <span class="dtag">D5 · Actions</span>
         <h3>Corrective actions</h3>
         <div id="d5"></div>
       </article>
 
       <article class="cell span2" id="c-sign">
-        <span class="dtag">SIGN-OFF</span>
+        <span class="dtag"><span class="term" data-term="signoff" tabindex="0">Sign-off</span></span>
         <h3>Nothing leaves unsigned</h3>
         <div class="sign">
-          <label for="signer">Your name (stored with each approval)</label>
+          <label for="signer">Your name (saved with each approval)</label>
           <input id="signer" maxlength="60" placeholder="e.g. Priya (QE)">
           <ul id="sign-list"></ul>
           <div class="btn-row">
@@ -131,14 +142,14 @@
       </article>
 
       <article class="cell span3" id="c-report">
-        <span class="dtag">8D DRAFT</span>
+        <span class="dtag"><span class="term" data-term="8d" tabindex="0">8D</span> draft</span>
         <div class="report-head"><h3>The report your customer receives</h3>
           <div class="btn-row" role="group" aria-label="Language"><button type="button" class="btn small" id="lang-en" aria-pressed="true">English</button><button type="button" class="btn small ghost" id="lang-ja" aria-pressed="false">日本語</button></div></div>
         <dl class="report" id="report"></dl>
       </article>
 
       <article class="cell span3" id="c-ev">
-        <span class="dtag">EVIDENCE</span>
+        <span class="dtag"><span class="term" data-term="evidence" tabindex="0">Evidence</span></span>
         <h3>Every claim traces to one of these</h3>
         <ol class="evidence" id="evidence"></ol>
         <details class="trace" id="trace" open><summary>How the agents worked on this run</summary><ol id="trace-list"></ol></details>
@@ -148,16 +159,30 @@
   </main>
 </div>
 
+<footer class="foot">
+  <span>Root &amp; Escape · prototype for the Google Cloud AI Builder Cup 2026 · all plant data is synthetic</span>
+  <span>Gemini on Agent Platform · ADK · BigQuery ML · Cloud Run · Firestore · <a href="https://github.com/surajmalthumkar8/root-and-escape" target="_blank" rel="noopener">source</a></span>
+</footer>
+
+<div class="coach" id="coach" hidden role="dialog" aria-modal="false" aria-labelledby="coach-h">
+  <div class="coach-top"><span class="coach-n" id="coach-n"></span><button class="link" id="coach-x" type="button">Close tour</button></div>
+  <h3 id="coach-h"></h3>
+  <p id="coach-p"></p>
+  <div class="btn-row"><button class="btn ghost small" id="coach-back" type="button">Back</button><button class="btn small" id="coach-next" type="button">Next</button></div>
+</div>
+
+<div class="gloss" id="gloss" role="tooltip" hidden></div>
+
 <dialog id="new-dlg" aria-labelledby="new-h">
   <form id="new-form" method="dialog">
     <h2 id="new-h">New customer complaint</h2>
-    <p class="small muted">The agents investigate it against the same synthetic plant history (date codes 30 Aug – 16 Oct 2026).</p>
+    <p class="small muted">The agents investigate it against the same synthetic plant history, which covers date codes 30 Aug to 16 Oct 2026. <button class="link" id="f-example" type="button">Fill in an example</button></p>
     <label for="f-title">Title</label><input id="f-title" name="title" maxlength="120" placeholder="e.g. Clips cracking at the hook">
     <label for="f-complaint">Complaint (any language)</label>
     <textarea id="f-complaint" name="complaint" rows="5" maxlength="4000" required placeholder="Paste the customer's email…"></textarea>
     <div class="two">
       <div><label for="f-defect">Defect type</label><select id="f-defect" name="defect"><option>crack</option><option>burr</option><option>scratch</option><option value="short_shot">short shot</option></select></div>
-      <div><label for="f-photo">Defect photo (optional, ≤ 8 MB)</label><input id="f-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"></div>
+      <div><label for="f-photo">Defect photo (optional, up to 8 MB)</label><input id="f-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"></div>
     </div>
     <div class="two">
       <div><label for="f-start">Date codes from</label><input id="f-start" name="date_code_start" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-01" required></div>
@@ -168,21 +193,30 @@
   </form>
 </dialog>
 
-<dialog id="how-dlg" aria-labelledby="how-h">
+<dialog id="how-dlg" class="wide" aria-labelledby="how-h">
   <h2 id="how-h">How it works</h2>
-  <p class="small"><b>8D</b> is the eight-step problem-solving report a supplier owes its customer after a defect. Typical clocks: containment in 1 day, root cause in 5, corrective actions in 20.</p>
-  <ol class="how">
-    <li><b>Intake</b>: Gemini on Agent Platform reads the complaint (any language) and compares the defect photo with a golden sample. It proposes a box; the engineer confirms it.</li>
-    <li><b>Investigator</b>: an ADK agent tests hypotheses with tools over BigQuery: the is / is-not analysis (BigQuery ML contribution analysis plus a two-proportion test), a confounder split, process-parameter excursions and inspection changes.</li>
-    <li><b>Challenger</b>: fixed rules reject a draft with no escape cause, uncited claims, numbers not found in evidence, or blame on people without a stratified effect.</li>
-    <li><b>Writer</b>: Gemini drafts the 8D in English and Japanese. Every percentage and lot count must match a tool result, or the template text is used.</li>
-    <li><b>Sign-off</b>: you approve D2–D5. Export is locked until then.</li>
+  <p>When a car maker finds bad parts, the supplier owes it an <span class="term" data-term="8d" tabindex="0">8D report</span>. The customer sets the clock: stop the bad parts within a day, find the root cause within about five, fix it within about twenty. Under that pressure people write "operator error" and hold all the stock to be safe. This tool drafts the 8D from the plant's own records, shows the evidence for every claim, and refuses a cause the data doesn't support. A quality engineer reviews it and signs.</p>
+
+  <ol class="flow" aria-label="What happens on a run">
+    <li><span class="who">Intake · Gemini</span><b>Reads the complaint and the photo</b><span>Translates the email (any language), compares the defect photo with a known-good part and proposes a box around the defect.</span></li>
+    <li><span class="who">Investigator · Gemini through ADK</span><b>Tests suspects against plant data</b><span>Chooses which tools to call over the BigQuery tables:</span>
+      <span class="tools"><code>is_is_not</code><code>stratify</code><code>param_excursions</code><code>inspection_changes</code><code>containment</code><code>past_8d</code></span>
+      <span>BigQuery ML contribution analysis runs alongside the is / is not test.</span></li>
+    <li class="loop"><span class="who">Challenger · rules in code</span><b>Rejects a weak draft</b><span>No escape cause, a claim without evidence, a number that isn't in the data, or blame on people without a split that proves it: the draft goes back to the Investigator, up to three rounds. In the cloud a Gemini critic also reads approved claims for contradictions.</span></li>
+    <li><span class="who">Writer · Gemini</span><b>Drafts the 8D in English and Japanese</b><span>Every number it writes is checked against the evidence. If one doesn't match, the template text is used and the page says so.</span></li>
+    <li class="person"><span class="who">Quality engineer</span><b>Approves D2 to D5, then exports</b><span>Export stays locked until a named person signs.</span></li>
   </ol>
-  <p class="small"><b>Try:</b> case 118 (crack, with a crew confounder) · case 124 (burr in one cavity) · case 121 (no real cause) ·
-    "+ New" with your own complaint (date codes 30 Aug – 16 Oct 2026) · "Try to break it" under Draft checks.</p>
-  <p class="small"><b>Data:</b> synthetic plant data (seed 42) in BigQuery; synthetic photos, watermarked. <b>Limits:</b> Gemini runs are capped per day; other runs use the deterministic engine and are labelled as such.</p>
+
+  <h3 class="how-sub">Three example cases</h3>
+  <ul class="examples">
+    <li><button class="link" type="button" data-open="118">Case 118</button> Cracked clips. Night crew B looks almost seven times worse, but split by press the gap disappears: crew B just works the faulty press more often. Nobody gets blamed, and 24 lots are held instead of 216.</li>
+    <li><button class="link" type="button" data-open="124">Case 124</button> Burrs on one cavity of one press, and an overdue gauge that let them through.</li>
+    <li><button class="link" type="button" data-open="121">Case 121</button> Light scratches with no pattern in the data. It says "insufficient evidence" instead of inventing a cause.</li>
+  </ul>
+
+  <p class="small"><b>Data:</b> synthetic plant history (seed 42) loaded into BigQuery, and synthetic, watermarked photos. <b>Limits:</b> Gemini runs are capped per day; other runs use the deterministic engine and are labelled that way.</p>
   <p class="small muted" id="bench">Loading benchmark…</p>
-  <div class="btn-row"><button class="btn" id="how-close" type="button">Close</button></div>
+  <div class="btn-row"><button class="btn" id="how-tour" type="button">Take the tour</button><button class="btn ghost" id="how-close" type="button">Close</button></div>
 </dialog>
 
 <script src="/static/app.js"></script>

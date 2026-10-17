@@ -4,6 +4,8 @@
   const $ = (s) => document.querySelector(s);
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
   const pct = (x, d = 2) => (x == null ? "–" : (x * 100).toFixed(d) + "%");
+  const cap = (x) => String(x).charAt(0).toUpperCase() + String(x).slice(1);
+  const motion = () => (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 
   let visitor;
   try { visitor = localStorage.getItem("rae-visitor"); } catch (e) {}
@@ -15,6 +17,26 @@
   try { signer = localStorage.getItem("rae-signer") || ""; } catch (e) {}
 
   const state = { cases: [], current: null, data: null, live: null, boxOk: false };
+  const SHOWS = {  // what each example case demonstrates
+    "118": "Shows a crew that looks guilty but isn't",
+    "124": "Shows a two-part cause and an overdue gauge",
+    "121": "Shows no real cause, so it claims none",
+  };
+  // Plain-language meanings for the jargon on the page (shown on hover, focus or tap).
+  const GLOSS = {
+    "8d": ["8D", "The eight-step report a supplier owes its customer after a defect: team, problem, containment, root causes, corrective actions, verification, prevention and closure."],
+    containment: ["Containment (D3)", "Stopping suspect parts from reaching the customer's line while the cause is still being found. Here it means exactly which lots to hold, and where they are now."],
+    isnot: ["Is / is not", "A comparison of where the defect shows up and where it doesn't: which press, cavity, shift, crew or resin lot, and which dates. The difference points to the cause."],
+    occurrence: ["Occurrence cause", "Why the defect was made in the first place."],
+    escape: ["Escape cause", "Why inspection didn't catch the defect before it shipped. An 8D needs this as well as the occurrence cause."],
+    confounded: ["Confounded", "A factor that only looks guilty because it overlaps with the real cause. Compare inside each press and the difference disappears."],
+    challenger: ["Challenger", "Checks written in code that every draft must pass: evidence behind each claim, numbers that match the data, and no blame on people without a split that proves it. A failed draft goes back to the agent."],
+    golden: ["Golden sample", "A known-good part photographed the same way, for comparison."],
+    signoff: ["Sign-off", "A named person approves D2 to D5. Export stays locked until all four are signed."],
+    evidence: ["Evidence", "Each E-number is one stored tool result, such as a query or a statistical test. Click an E-number anywhere on the page to jump to it."],
+    datecodes: ["Date codes", "The production dates moulded into the parts. They tell you which days' output is suspect."],
+  };
+  const term = (key, text) => `<span class="term" data-term="${key}" tabindex="0">${esc(text)}</span>`;
 
   async function api(path, opts = {}) {
     const res = await fetch(path, { ...opts, headers: { "X-Visitor": visitor, ...(opts.headers || {}) } });
@@ -50,7 +72,8 @@
       b.type = "button";
       b.dataset.id = c.case_id;
       const tag = c.verdict ? (c.insufficient ? "insufficient evidence" : "8D drafted") : "not run yet";
-      b.innerHTML = `<b>${esc(c.case_id)} · ${esc(c.title)}</b><span>${esc(c.defect)} · ${esc(tag)}${c.seed ? "" : " · yours"}</span>`;
+      const shows = SHOWS[c.case_id] && c.seed ? `<span class="shows">${esc(SHOWS[c.case_id])}</span>` : "";
+      b.innerHTML = `<b>${esc(c.case_id)} · ${esc(c.title)}</b>${shows}<span>${esc(c.defect)} · ${esc(tag)}${c.seed ? "" : " · yours"}</span>`;
       b.addEventListener("click", () => selectCase(c.case_id));
       li.appendChild(b);
       ul.appendChild(li);
@@ -82,20 +105,20 @@
   function render() {
     const { case: c, result: r, approvals } = state.data;
     $("#case-title").textContent = c.title;
-    $("#case-meta").textContent = `CASE ${c.case_id} · ${c.customer} · received ${String(c.received).slice(0, 16).replace("T", " ")} · date codes ${c.date_code_start} → ${c.date_code_end}`;
+    $("#case-meta").innerHTML = `CASE ${esc(c.case_id)} · ${esc(c.customer)} · received ${esc(String(c.received).slice(0, 16).replace("T", " "))} · ${term("datecodes", "date codes")} ${esc(c.date_code_start)} → ${esc(c.date_code_end)}`;
     const photoUrl = (name) => (!name ? "" : name.startsWith("U-") ? `/api/photos/${encodeURIComponent(name)}?v=${encodeURIComponent(visitor)}` : `/static/photos/${encodeURIComponent(name)}`);
     $("#img-defect").src = photoUrl(c.photo) || "";
     $("#img-defect").alt = c.photo ? "Defect photo" : "No photo supplied";
     $("#img-defect").hidden = !c.photo;  // no broken-image icon when the complaint came without a photo
     $("#img-golden").src = photoUrl(c.golden);
     $("#complaint").textContent = c.complaint;
-    renderClock(c);
+    renderRail();
     if (!r) {
       $("#board").hidden = true; renderVerdict(null);
       let empty = $("#empty");
       if (!empty) { empty = document.createElement("div"); empty.id = "empty"; empty.className = "empty"; $("#board").after(empty); }
       empty.hidden = false;
-      empty.textContent = "Not investigated yet. Press \u201cRun live\u201d to start; each step streams in above.";
+      empty.textContent = 'Not investigated yet. Press "Run live" to start; each step streams in above.';
       return;
     }
     $("#board").hidden = false;
@@ -123,6 +146,7 @@
     renderD4(r.draft, r);
     renderD3(r.containment, r.draft);
     renderRules(r.challenger || []);
+    renderTries(r);
     const acts = r.actions || [];
     $("#d5").innerHTML = acts.length ? `<ul class="acts">${acts.map((a) => `<li>${esc(a.action)}<br><span class="who">${esc(a.owner)} · due ${esc(a.due)}</span></li>`).join("")}</ul>`
       : `<p class="small">${esc((r.report && r.report.en && r.report.en.D5) || "")}</p>`;
@@ -160,7 +184,8 @@
     $("#heatmap").innerHTML = s;
     const o = a.overall;
     $("#isnot-h").textContent = a.significant ? `IS: ${a.primary_label}` : "No segment stands out";
-    const shiftNote = hm.col_dim === "shift" || hm.row_dim === "shift" ? " Shifts: D day 06–14, S swing 14–22, N night 22–06." : "";
+    const shiftNote = hm.col_dim === "shift" || hm.row_dim === "shift" ? " Shifts: D day 06:00 to 14:00, S swing 14:00 to 22:00, N night 22:00 to 06:00." : "";
+    renderIsNotTable(a);
     $("#isnot-text").textContent = `${a.defect} rate ${pct(o.rate_test)} in the complaint window vs ${pct(o.rate_control)} in the 28 days before (×${o.ratio}). Cells: % defective by ${hm.row_dim} × ${hm.col_dim}, complaint window.${shiftNote}`;
     $("#isnot-method").textContent = "Method: " + a.method + (a.bqml_error ? " (BigQuery ML unavailable for this run)" : "");
     const bq = (a.bqml_insights || []).filter((x) => x.segment !== "all").slice(0, 4);
@@ -174,6 +199,26 @@
     }
   }
 
+  // The classic is / is not worksheet, filled from the analysis: where and when the defect is, and where and when it isn't.
+  function renderIsNotTable(a) {
+    const el = $("#isnot-table"), hm = a.heatmap, o = a.overall, prim = a.primary_segment || {};
+    const win = (w) => (w && w.length === 2 ? `${w[0]} → ${w[1]}` : "");
+    let rows = `<tr><th>When</th><td class="is">date codes ${esc(win(a.test_window))}: ${pct(o.rate_test)}</td><td>the 28 days before: ${pct(o.rate_control)}</td></tr>`;
+    if (a.significant && Object.keys(prim).length) {
+      const seg = (a.segments || []).find((x) => x.label === a.primary_label);
+      const inPrim = (dim, v) => !(dim in prim) || String(prim[dim]) === String(v);
+      const rest = [];
+      hm.rows.forEach((row, i) => hm.cols.forEach((col, j) => {
+        const cell = hm.cells[i][j];
+        if (cell.rate != null && !(inPrim(hm.row_dim, row) && inPrim(hm.col_dim, col))) rest.push(cell.rate);
+      }));
+      const lo = Math.min(...rest), hi = Math.max(...rest);
+      const restTxt = rest.length ? `everywhere else: ${(lo * 100).toFixed(1)}% to ${(hi * 100).toFixed(1)}%` : "everywhere else";
+      rows = `<tr><th>Where</th><td class="is">${esc(a.primary_label)}${seg ? ": " + pct(seg.rate_test) : ""}</td><td>${esc(restTxt)}</td></tr>` + rows;
+    }
+    el.innerHTML = `<table class="isnot"><thead><tr><th></th><th>Is</th><th>Is not</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+
   function renderHyps(h) {
     const ul = $("#hyps");
     if (!h.length) { ul.innerHTML = `<li class="small muted">No hypothesis passed the significance test.</li>`; return; }
@@ -182,7 +227,7 @@
     const main = h.filter((x) => x.ruling !== "EXPLAINED").sort((a, b) => order[a.ruling] - order[b.ruling]);
     const expl = h.filter((x) => x.ruling === "EXPLAINED");
     ul.innerHTML = main.map((x) => `<li><div class="h"><b>${esc(x.hypothesis)}</b><span class="stamp ${cls[x.ruling] || ""}">${esc(x.ruling)}</span></div>
-      <span class="small muted">looks ${esc(x.looks)}</span><span class="small">${esc(x.reason)}</span>
+      <span class="small muted">looks ${esc(x.looks)}</span><span class="small">${esc(x.reason).replace(/^confounded/, term("confounded", "confounded"))}</span>
       <span class="chips">${(x.evidence || []).filter(Boolean).map(chip).join("")}</span></li>`).join("") +
       (expl.length ? `<li class="explained"><b>${expl.length} side effects explained:</b> ${esc(expl.map((x) => x.hypothesis).join(", "))} look elevated only because they include the primary segment.</li>` : "");
   }
@@ -196,7 +241,7 @@
       ? `A customer reported a ${what} problem. The plant data shows no cause, so the agents say so instead of guessing.`
       : `A customer reported a ${what} problem. The agents found why it happened, why inspection missed it` +
         (lots ? `, and which ${lots} lots to hold.` : ".")) +
-      ` Every claim links to its evidence. <a href="#c-rules">Try to break it ↓</a>`;
+      ` Every claim links to its evidence. <a href="#c-rules">Try to break it ↓</a> or <button class="link inline" type="button" data-tour>take the 2-minute tour</button>.`;
     el.hidden = false;
   }
 
@@ -261,8 +306,8 @@
       return;
     }
     const o = d.occurrence || {}, e = d.escape || {};
-    el.innerHTML = `<div class="cause"><b class="k">Occurrence</b><span>${esc(o.statement)}</span><span class="chips">${(o.evidence || []).map(chip).join("")}</span></div>
-      <div class="cause esc"><b class="k">Escape</b><span>${esc(e.statement || "Not found yet")}</span><span class="chips">${(e.evidence || []).map(chip).join("")}</span></div>` +
+    el.innerHTML = `<div class="cause"><b class="k">${term("occurrence", "Occurrence")}</b><span>${esc(o.statement)}</span><span class="chips">${(o.evidence || []).map(chip).join("")}</span></div>
+      <div class="cause esc"><b class="k">${term("escape", "Escape")}</b><span>${esc(e.statement || "Not found yet")}</span><span class="chips">${(e.evidence || []).map(chip).join("")}</span></div>` +
       ((d.open_points || []).length ? `<p class="openpts"><b>Open before closing D4:</b> ${esc(d.open_points.join("; "))}. The cause is located; the draft says what it can't yet prove instead of guessing.</p>` : "");
   }
 
@@ -295,7 +340,8 @@
     }).join("");
     const all = ["D2", "D3", "D4", "D5"].every((k) => appr[k]);
     $("#exp-en").disabled = $("#exp-ja").disabled = !all;
-    $("#exp-en").title = $("#exp-ja").title = all ? "" : "Approve D2–D5 first";
+    $("#exp-en").title = $("#exp-ja").title = all ? "" : "Approve D2 to D5 first";
+    renderRail();
   }
 
   function renderTrace(r) {
@@ -327,6 +373,24 @@
 
   // ------------------------------------------------------------------------------------------ actions
   document.addEventListener("click", async (e) => {
+    const tr = e.target.closest("[data-try]");
+    if (tr) {
+      const t = tries[Number(tr.dataset.try)];
+      if (!t) return;
+      document.querySelectorAll(".try").forEach((b) => b.classList.toggle("on", b === tr));
+      $("#bi-occ").value = t.occ; $("#bi-esc").value = t.esc;
+      $("#breakit").requestSubmit();
+      return;
+    }
+    if (e.target.closest("[data-tour]")) { startTour(); return; }
+    const open = e.target.closest("[data-open]");
+    if (open) { $("#how-dlg").close(); selectCase(open.dataset.open); return; }
+    const jump = e.target.closest("[data-jump]");
+    if (jump) {
+      const t = document.getElementById(jump.dataset.jump);
+      if (t) { e.preventDefault(); t.scrollIntoView({ behavior: motion(), block: "start" }); }
+      return;
+    }
     const evBtn = e.target.closest("[data-ev]");
     if (evBtn) {
       const li = document.getElementById("ev-" + evBtn.dataset.ev);
@@ -406,6 +470,12 @@
   // new case
   $("#new-btn").addEventListener("click", () => { $("#new-err").textContent = ""; $("#new-dlg").showModal(); });
   $("#new-cancel").addEventListener("click", () => $("#new-dlg").close());
+  $("#f-example").addEventListener("click", () => {
+    $("#f-title").value = "Clips cracking at the hook, second customer";
+    $("#f-complaint").value = "Hello,\n\nOur incoming inspection found cracks at the hook root on CL-204 snap clips: 12 of 1,200 pieces in the delivery we received on 10 Oct. " +
+      "Date codes 2026-10-05 to 2026-10-10. Please contain the stock you have in the plant and in transit, and send us an 8D.\n\nRegards,\nIncoming Quality, OEM-K";
+    $("#f-defect").value = "crack"; $("#f-start").value = "2026-10-05"; $("#f-end").value = "2026-10-10";
+  });
   $("#new-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData($("#new-form"));
@@ -433,22 +503,141 @@
     } catch (err) { $("#bench").textContent = "Benchmark unavailable right now."; }
   });
   $("#how-close").addEventListener("click", () => $("#how-dlg").close());
+  $("#how-tour").addEventListener("click", () => { $("#how-dlg").close(); startTour(); });
+  $("#tour-btn").addEventListener("click", () => startTour());
 
-  function renderClock(c) {
-    const el = $("#clock");
-    const rec = new Date(c.received);
-    if (isNaN(rec)) { el.innerHTML = ""; return; }
-    const now = new Date();
+  // ------------------------------------------------------------------------------------------ glossary
+  const gloss = $("#gloss");
+  function showGloss(el) {
+    const g = GLOSS[el.dataset.term];
+    if (!g) return;
+    gloss.innerHTML = `<b>${esc(g[0])}</b>${esc(g[1])}`;
+    gloss.hidden = false;
+    const r = el.getBoundingClientRect(), w = gloss.offsetWidth, h = gloss.offsetHeight;
+    const left = Math.min(Math.max(8, r.left), window.innerWidth - w - 8);
+    const top = r.bottom + 6 + h > window.innerHeight ? r.top - h - 6 : r.bottom + 6;
+    Object.assign(gloss.style, { left: left + "px", top: Math.max(8, top) + "px" });
+    gloss.dataset.for = el.dataset.term;
+  }
+  const hideGloss = () => { gloss.hidden = true; gloss.dataset.for = ""; };
+  document.addEventListener("mouseover", (e) => { const t = e.target.closest(".term"); if (t) showGloss(t); });
+  document.addEventListener("mouseout", (e) => { if (e.target.closest(".term")) hideGloss(); });
+  document.addEventListener("focusin", (e) => { const t = e.target.closest(".term"); if (t) showGloss(t); });
+  document.addEventListener("focusout", (e) => { if (e.target.closest(".term")) hideGloss(); });
+  document.addEventListener("click", (e) => {  // touch screens have no hover: a tap toggles it
+    const t = e.target.closest(".term");
+    if (t) { if (gloss.dataset.for === t.dataset.term && !gloss.hidden) hideGloss(); else showGloss(t); }
+  });
+  window.addEventListener("scroll", hideGloss, { passive: true });
+
+  // ------------------------------------------------------------------------------------------ guided tour
+  const TOUR = [
+    ["c-d2", "The complaint", (r) => `A car maker reports ${esc((r.intake && r.intake.d2 && r.intake.d2.how_many) || "bad parts")}. The email is translated, and the defect is boxed on the photo next to a known-good part.`],
+    ["c-d3", "Hold only what's suspect", (r) => { const c = r.containment; return c ? `The plant records show which lots could be affected: ${c.targeted_lots} lots, not all ${c.blanket_lots}. The customer's line keeps running and the suspect parts are still caught.` : "No lots stand out, so there's no blanket hold."; }],
+    ["c-isnot", "Where it is, and where it isn't", (r) => { const a = r.analysis || {}; return a.significant ? `Defect rate by ${esc(a.heatmap.row_dim)} and ${esc(a.heatmap.col_dim)} for the complaint's date codes. ${esc(cap(a.primary_label))} stands out; the rest stay near their normal rate.` : "Nothing stands out in the data, and the page says so."; }],
+    ["c-hyp", "Every suspect, tested", (r) => { const h = (r.hypotheses || []).find((x) => x.ruling === "REJECTED" && /^crew/.test(x.hypothesis)); return h ? `${esc(cap(h.hypothesis))}'s defect rate looks high: ${esc(h.looks)}. Split by press, the gap disappears: ${esc(h.hypothesis)} simply works the faulty press more often, so nobody gets blamed.` : "Each suspect is tested against the data and marked supported or rejected, with the evidence."; }],
+    ["c-d4", "Two root causes", () => "Why it happened, and why inspection didn't catch it. An 8D needs both. Click any E-number to see the record behind a claim."],
+    ["c-rules", "Try to break it", () => "Pick an example such as blaming the crew, or write your own claim. The checks that reviewed the agents' draft judge yours the same way."],
+    ["c-sign", "Nothing leaves unsigned", () => "A quality engineer approves D2 to D5. Only then can the 8D be exported, in English or Japanese. To watch the agents do all of this from scratch, press Run live."],
+  ];
+  let tourAt = -1;
+  async function startTour() {
+    if (state.current !== "118" && state.cases.some((c) => c.case_id === "118")) await selectCase("118");
+    if (!state.data || !state.data.result) return;
+    try { localStorage.setItem("rae-toured", "1"); } catch (e) {}
+    $("#board").classList.add("touring");
+    $("#coach").hidden = false;
+    showStep(0);
+  }
+  function showStep(i) {
+    tourAt = i;
+    const [id, title, text] = TOUR[i];
+    document.querySelectorAll(".cell.spot").forEach((x) => x.classList.remove("spot"));
+    const el = document.getElementById(id);
+    el.classList.add("spot");
+    el.scrollIntoView({ behavior: motion(), block: "start" });
+    $("#coach-n").textContent = `Step ${i + 1} of ${TOUR.length} · case 118`;
+    $("#coach-h").textContent = title;
+    $("#coach-p").innerHTML = text(state.data.result);
+    $("#coach-back").disabled = i === 0;
+    $("#coach-next").textContent = i === TOUR.length - 1 ? "Finish" : "Next";
+  }
+  function endTour() {
+    tourAt = -1;
+    $("#coach").hidden = true;
+    $("#board").classList.remove("touring");
+    document.querySelectorAll(".cell.spot").forEach((x) => x.classList.remove("spot"));
+  }
+  $("#coach-next").addEventListener("click", () => (tourAt >= TOUR.length - 1 ? endTour() : showStep(tourAt + 1)));
+  $("#coach-back").addEventListener("click", () => tourAt > 0 && showStep(tourAt - 1));
+  $("#coach-x").addEventListener("click", endTour);
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { hideGloss(); if (tourAt >= 0) endTour(); } });
+
+  // D1 to D8 across the top, the way an 8D form reads: status, and the customer's due date for D3, D4 and D5.
+  function renderRail() {
+    const el = $("#rail");
+    if (!state.data) { el.innerHTML = ""; return; }
+    const { case: c, result: r } = state.data, appr = state.data.approvals || {};
+    const rec = new Date(c.received), now = new Date();
     const demo = !String(c.case_id).startsWith("U-");  // demo cases have fixed dates; don't let them turn "overdue" while judges look
-    const items = [["D3 containment", 1], ["D4 root cause", 5], ["D5 actions", 20]].map(([k, d]) => {
-      const due = new Date(rec.getTime() + d * 864e5);
-      if (demo) return `<span>${esc(k)}: due ${esc(due.toISOString().slice(0, 10))}</span>`;
-      const h = (due - now) / 36e5;
+    const due = (days) => {
+      if (isNaN(rec)) return "";
+      const d = new Date(rec.getTime() + days * 864e5), h = (d - now) / 36e5;
+      if (demo) return `<span class="due">due ${esc(d.toISOString().slice(0, 10))}</span>`;
       const cls = h < 0 ? "over" : h < 24 ? "soon" : "";
-      const txt = h < 0 ? "overdue" : h < 48 ? `due in ${Math.max(1, Math.round(h))} h` : `due ${due.toISOString().slice(0, 10)}`;
-      return `<span class="${cls}">${esc(k)}: ${esc(txt)}</span>`;
-    });
-    el.innerHTML = items.join("");
+      return `<span class="due ${cls}">${h < 0 ? "overdue" : h < 48 ? `due in ${Math.max(1, Math.round(h))} h` : "due " + esc(d.toISOString().slice(0, 10))}</span>`;
+    };
+    const dr = (r && r.draft) || {};
+    const signed = (k) => appr[k] && { cls: "signed", s: "Signed · " + appr[k].by.replace("human:", "") };
+    const drafted = { cls: "drafted", s: "Awaiting signature" };
+    const st = {
+      D1: { cls: "drafted", s: "In the draft" },
+      D2: signed("D2") || drafted,
+      D3: signed("D3") || (dr.insufficient_evidence ? { cls: "open", s: "No hold needed" } : drafted),
+      D4: signed("D4") || (dr.insufficient_evidence ? { cls: "open", s: "No cause claimed" } : (dr.open_points || []).length ? { cls: "open", s: "Open points" } : drafted),
+      D5: signed("D5") || drafted,
+      D6: { cls: "drafted", s: "In the draft" }, D7: { cls: "drafted", s: "In the draft" },
+      D8: ["D2", "D3", "D4", "D5"].every((k) => appr[k]) ? { cls: "signed", s: "Ready to export" } : { cls: "", s: "After sign-off" },
+    };
+    const steps = [["D1", "Team", "c-report"], ["D2", "Problem", "c-d2", 0], ["D3", "Containment", "c-d3", 1], ["D4", "Root causes", "c-d4", 5],
+      ["D5", "Actions", "c-d5", 20], ["D6", "Verify", "c-report"], ["D7", "Prevent", "c-report"], ["D8", "Close", "c-sign"]];
+    el.innerHTML = steps.map(([k, name, target, days]) => {
+      const x = r ? st[k] : { cls: "", s: "Not run yet" };
+      return `<a href="#${target}" class="${x.cls}" data-jump="${target}"><span class="d">${k}</span><span class="t">${esc(name)}</span>` +
+        `<span class="s">${esc(x.s)}</span>${days ? due(days) : ""}</a>`;
+    }).join("");
+  }
+
+  // "Try to break it" examples, built from this case's own draft so they work on any case.
+  function buildTries(r) {
+    const d = (r && r.draft) || {};
+    if (!r) return [];
+    if (d.insufficient_evidence) return [
+      { label: "Blame the night shift", occ: "Operator error: the night shift did not follow the work instruction. Retrain the night shift.", esc: "Escape: inspection missed it." },
+      { label: "Name a cause anyway", occ: "Occurrence: the press P1 mould wore out.", esc: "Escape: the gauge was out of calibration." },
+      { label: "Say what the data shows", occ: "Insufficient evidence: no press, cavity, shift, crew or resin lot stands out, so no cause is claimed.", esc: "" },
+    ];
+    const occ = (d.occurrence && d.occurrence.statement) || "", escTxt = (d.escape && d.escape.statement) || "";
+    if (!occ) return [];
+    const who = ((r.hypotheses || []).find((h) => h.ruling === "REJECTED" && /^crew/.test(h.hypothesis)) ||
+      (r.hypotheses || []).find((h) => h.ruling === "REJECTED" && /^shift/.test(h.hypothesis)) || { hypothesis: "the night crew" }).hypothesis;
+    const tries = [{ label: `Blame ${who}`, occ: `Operator error: ${who} did not follow the work instruction. Retrain ${who}.`, esc: escTxt }];
+    const press = ((r.analysis || {}).primary_segment || {}).press;
+    if (press) {
+      const other = press === "P1" ? "P2" : "P1", rx = new RegExp(`\\b${press}\\b`, "g");
+      tries.push({ label: "Point at the wrong press", occ: occ.replace(rx, other), esc: escTxt.replace(rx, other) });
+    }
+    const m = occ.match(/(\d+(?:\.\d+)?)%/);
+    tries.push({ label: "Invent a number", esc: escTxt,
+      occ: m ? occ.replace(m[0], (parseFloat(m[1]) * 1.5).toFixed(2) + "%") : occ + " The defect rate went up to 7.5%." });
+    tries.push({ label: "Leave out the escape", occ, esc: "" });
+    tries.push({ label: "The agents' own answer", occ, esc: escTxt });
+    return tries;
+  }
+  let tries = [];
+  function renderTries(r) {
+    tries = buildTries(r);
+    $("#bi-tries").innerHTML = tries.map((t, i) => `<button type="button" class="try" data-try="${i}">${esc(t.label)}</button>`).join("");
   }
 
   $("#breakit").addEventListener("submit", async (e) => {

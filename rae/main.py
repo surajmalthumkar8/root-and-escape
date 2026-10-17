@@ -164,14 +164,20 @@ def _same_finding(new: dict, old: dict) -> bool:
             == bool((old.get("draft") or {}).get("insufficient_evidence")))
 
 
+def _gemini_steps(r: dict) -> int:
+    m = r.get("modes") or {}
+    return (m.get("investigation") == "gemini") + (m.get("writer") == "gemini")
+
+
 def upgrades_shared(new: dict, prev: dict | None) -> bool:
-    """The shared result of a seed case changes at most once: from the deterministic baseline to an approved Gemini
-    run that reached the same finding. Any other run is kept per visitor, so one judge never changes what another sees."""
+    """The shared result of a seed case only moves up, at most twice: deterministic baseline, then an approved Gemini
+    investigation, then one whose Gemini report also passed the number check, always with the same finding. Any other
+    run is kept per visitor, so one judge never changes what another sees."""
     if new.get("verdict") != "APPROVED_FOR_REVIEW" or (new.get("modes") or {}).get("investigation") != "gemini":
         return False
     if prev is None:
         return True
-    return (prev.get("modes") or {}).get("investigation") != "gemini" and _same_finding(new, prev)
+    return _gemini_steps(new) > _gemini_steps(prev) and _same_finding(new, prev)
 
 
 def _save_run(case_id: str, visitor: str, r: dict) -> None:

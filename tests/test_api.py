@@ -185,7 +185,11 @@ def test_shared_seed_result_only_upgrades_to_the_same_finding():
     assert not upgrades_shared({**gem, "verdict": "REJECTED"}, base)
     assert not upgrades_shared({**gem, "analysis": {"primary_segment": {"press": "P1"}}}, base)  # different finding
     assert not upgrades_shared({**gem, "draft": {"insufficient_evidence": True}}, base)
-    assert not upgrades_shared(gem, gem)                                                    # only once
+    assert not upgrades_shared(gem, gem)                                                    # never sideways
+    full = {**base, "modes": {"investigation": "gemini", "writer": "gemini"}}
+    assert upgrades_shared(full, gem)          # a Gemini run whose report also passed the number check replaces one that fell back
+    assert not upgrades_shared(gem, full)      # never downgrades
+    assert not upgrades_shared(full, full)
 
 
 def test_stream_sends_heartbeats_during_quiet_stretches(monkeypatch):
