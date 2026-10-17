@@ -12,11 +12,17 @@ from .data.generator import END, PlantData
 class EvidenceLog:
     def __init__(self) -> None:
         self.items: list[dict] = []
+        self.listener = None  # called with each new item (used to stream evidence live)
 
     def add(self, tool: str, args: dict, data: dict, summary: str, source: str) -> dict:
         item = {"id": f"E-{len(self.items) + 1:02d}", "tool": tool, "args": args, "summary": summary,
                 "source": source, "data": data}
         self.items.append(item)
+        if self.listener:
+            try:
+                self.listener(item)
+            except Exception:  # noqa: BLE001  (streaming is best-effort)
+                pass
         return item
 
     def get(self, eid: str) -> dict | None:
@@ -35,7 +41,11 @@ class EvidenceLog:
                 for m in re.finditer(r"(\d[\d,]*)\s+lots?\b", i["summary"], re.I)]
 
     def public(self) -> list[dict]:
-        return [{k: v for k, v in i.items() if k != "data"} | {"data": _trim(i["data"])} for i in self.items]
+        return [public_item(i) for i in self.items]
+
+
+def public_item(i: dict) -> dict:
+    return {k: v for k, v in i.items() if k != "data"} | {"data": _trim(i["data"])}
 
 
 def _trim(d):

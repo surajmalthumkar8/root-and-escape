@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Root &amp; Escape · the 8D copilot</title>
+<meta name="description" content="Gemini agents turn a customer complaint and a defect photo into an evidence-backed 8D report. Google Cloud AI Builder Cup 2026 prototype.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Red+Hat+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;600&display=swap">
+<link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+<header class="top">
+  <div class="brand">
+    <h1>Root <span class="amp">&amp;</span> Escape</h1>
+    <p>The 8D copilot that won't accept "operator error"</p>
+  </div>
+  <div class="status" id="status" aria-live="polite">
+    <span class="pill" id="mode-pill">Loading…</span>
+    <span class="pill" id="quota-pill"></span>
+    <span class="pill warn">Synthetic plant data</span>
+    <button class="link" id="how-btn" type="button">How it works</button>
+  </div>
+</header>
+
+<div class="shell">
+  <aside class="cases" aria-label="Cases">
+    <div class="cases-head"><h2>Complaints</h2><button class="btn small" id="new-btn" type="button">+ New</button></div>
+    <ul id="case-list"></ul>
+    <p class="hint">Seed cases load instantly. "Run live" re-runs the agents on Gemini (limited per day).</p>
+  </aside>
+
+  <main id="main">
+    <section class="case-head">
+      <div>
+        <div class="eyebrow" id="case-meta"></div>
+        <h2 id="case-title">Loading case…</h2>
+      </div>
+      <div class="run">
+        <button class="btn" id="run-btn" type="button">Run live with Gemini</button>
+        <span class="small muted" id="run-note"></span>
+      </div>
+    </section>
+
+    <section class="tracker" id="tracker" hidden aria-live="polite">
+      <ol class="stages">
+        <li data-stage="intake">Intake</li><li data-stage="investigate">Investigator</li>
+        <li data-stage="challenger">Challenger</li><li data-stage="write">Writer</li>
+      </ol>
+      <ul class="feed" id="feed"></ul>
+    </section>
+
+    <div class="notes" id="notes" hidden></div>
+
+    <div class="board" id="board">
+      <article class="cell span2" id="c-d2">
+        <span class="dtag">D2 · PROBLEM</span>
+        <h3>The complaint and the photo</h3>
+        <div class="photos">
+          <figure><div class="ph" id="ph-defect"><img id="img-defect" alt="Defect photo"><div class="box" id="box" hidden></div></div><figcaption id="cap-defect">Defect photo</figcaption></figure>
+          <figure><div class="ph"><img id="img-golden" alt="Golden sample photo"></div><figcaption>Golden sample</figcaption></figure>
+        </div>
+        <div class="box-actions"><button class="btn ghost small" id="box-ok" type="button">Confirm box</button><span class="small muted" id="box-note"></span></div>
+        <details class="complaint"><summary>Original complaint</summary><pre id="complaint"></pre><p class="small" id="translation"></p></details>
+        <dl class="w5" id="w5"></dl>
+      </article>
+
+      <article class="cell" id="c-isnot">
+        <span class="dtag">D4 · IS / IS-NOT</span>
+        <h3 id="isnot-h">Where the defect is, and isn't</h3>
+        <div id="heatmap"></div>
+        <p class="small" id="isnot-text"></p>
+        <p class="small muted" id="isnot-method"></p>
+      </article>
+
+      <article class="cell" id="c-hyp">
+        <span class="dtag">CHALLENGER · HYPOTHESES</span>
+        <h3>Every suspect, tested</h3>
+        <ul class="hyps" id="hyps"></ul>
+      </article>
+
+      <article class="cell" id="c-d4">
+        <span class="dtag">D4 · ROOT CAUSES</span>
+        <h3>Why it happened, why it escaped</h3>
+        <div id="d4"></div>
+      </article>
+
+      <article class="cell" id="c-d3">
+        <span class="dtag">D3 · CONTAINMENT</span>
+        <h3>Hold what matters</h3>
+        <div id="d3"></div>
+      </article>
+
+      <article class="cell" id="c-rules">
+        <span class="dtag">CHALLENGER · RULES</span>
+        <h3>Draft checks</h3>
+        <div id="rules"></div>
+      </article>
+
+      <article class="cell" id="c-d5">
+        <span class="dtag">D5 · ACTIONS</span>
+        <h3>Corrective actions</h3>
+        <div id="d5"></div>
+      </article>
+
+      <article class="cell span2" id="c-sign">
+        <span class="dtag">SIGN-OFF</span>
+        <h3>Nothing leaves unsigned</h3>
+        <div class="sign">
+          <label for="signer">Your name (stored with each approval)</label>
+          <input id="signer" maxlength="60" placeholder="e.g. Priya (QE)">
+          <ul id="sign-list"></ul>
+          <div class="btn-row">
+            <button class="btn" id="exp-en" type="button" disabled>Export 8D (English)</button>
+            <button class="btn" id="exp-ja" type="button" disabled>Export 8D (日本語)</button>
+            <button class="btn ghost small" id="reset-btn" type="button">Reset my approvals</button>
+          </div>
+        </div>
+      </article>
+
+      <article class="cell span3" id="c-ev">
+        <span class="dtag">EVIDENCE</span>
+        <h3>Every claim traces to one of these</h3>
+        <ol class="evidence" id="evidence"></ol>
+        <p class="small muted" id="provenance"></p>
+      </article>
+    </div>
+  </main>
+</div>
+
+<dialog id="new-dlg" aria-labelledby="new-h">
+  <form id="new-form" method="dialog">
+    <h2 id="new-h">New customer complaint</h2>
+    <p class="small muted">The agents investigate it against the same synthetic plant history (date codes 30 Aug – 16 Oct 2026).</p>
+    <label for="f-title">Title</label><input id="f-title" name="title" maxlength="120" placeholder="e.g. Clips cracking at the hook">
+    <label for="f-complaint">Complaint (any language)</label>
+    <textarea id="f-complaint" name="complaint" rows="5" maxlength="4000" required placeholder="Paste the customer's email…"></textarea>
+    <div class="two">
+      <div><label for="f-defect">Defect type</label><select id="f-defect" name="defect"><option>crack</option><option>burr</option><option>scratch</option><option value="short_shot">short shot</option></select></div>
+      <div><label for="f-photo">Defect photo (optional, ≤ 8 MB)</label><input id="f-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"></div>
+    </div>
+    <div class="two">
+      <div><label for="f-start">Date codes from</label><input id="f-start" name="date_code_start" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-01" required></div>
+      <div><label for="f-end">to</label><input id="f-end" name="date_code_end" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-08" required></div>
+    </div>
+    <p class="small err" id="new-err" role="alert"></p>
+    <div class="btn-row"><button class="btn" id="new-submit" type="submit" value="ok">Create and investigate</button><button class="btn ghost" type="button" id="new-cancel">Cancel</button></div>
+  </form>
+</dialog>
+
+<dialog id="how-dlg" aria-labelledby="how-h">
+  <h2 id="how-h">How it works</h2>
+  <ol class="how">
+    <li><b>Intake</b>: Gemini on Agent Platform reads the complaint (any language) and compares the defect photo with a golden sample. It proposes a box; the engineer confirms it.</li>
+    <li><b>Investigator</b>: an ADK agent tests hypotheses with tools over BigQuery: the is / is-not analysis (BigQuery ML contribution analysis plus a two-proportion test), a confounder split, process-parameter excursions and inspection changes.</li>
+    <li><b>Challenger</b>: fixed rules reject a draft with no escape cause, uncited claims, numbers not found in evidence, or blame on people without a stratified effect.</li>
+    <li><b>Writer</b>: Gemini drafts the 8D in English and Japanese. Every percentage and lot count must match a tool result, or the template text is used.</li>
+    <li><b>Sign-off</b>: you approve D2–D5. Export is locked until then.</li>
+  </ol>
+  <p class="small muted" id="bench"></p>
+  <div class="btn-row"><button class="btn" id="how-close" type="button">Close</button></div>
+</dialog>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

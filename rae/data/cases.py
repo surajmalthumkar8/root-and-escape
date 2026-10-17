@@ -78,3 +78,43 @@ def get_seed(case_id: str) -> dict | None:
 
 def parse_date(s: str) -> date:
     return date.fromisoformat(s[:10])
+
+
+# Deterministic intake for the seed cases (used when Gemini is off or fails). Box coordinates come from
+# scripts/make_photos.py, which draws the defects, so they are ground truth for the synthetic photos.
+CANNED_INTAKE = {
+    "118": {
+        "translation_en": ("Subject: [Defect report] CL-204 snap clip cracking. Today our assembly line 3 found cracks at the "
+                           "hook root of your CL-204 snap clips: 37 of 2,400 received parts. Date codes 2026/10/06 to "
+                           "2026/10/11. Photos attached. Please contain stock on hand and in transit within 24 hours and "
+                           "send an 8D report."),
+        "defect_type": "crack", "box_2d": [508, 459, 625, 508],
+        "photo_observation": "Crack with stress whitening at the root of the snap hook; the golden sample shows a clean root.",
+        "d2": {"what": "crack at the snap-hook root", "where": "OEM-J assembly line 3", "how_many": "37 of 2,400 received parts",
+               "when": "reported 17 Oct 2026; date codes 2026-10-06 to 2026-10-11"},
+        "d2_ja": {"what": "スナップフック根元の割れ", "where": "OEM-J 第3組立ライン", "how_many": "受入 2,400 個中 37 個",
+                  "when": "2026年10月17日報告、日付コード 2026-10-06〜2026-10-11"},
+        "urgency": "containment within 24 hours",
+    },
+    "124": {
+        "translation_en": None,
+        "defect_type": "burr", "box_2d": [293, 615, 436, 654],
+        "photo_observation": "Thin flash (burr) along the outer edge of the snap tooth; absent on the golden sample.",
+        "d2": {"what": "burr on the snap-tooth edge", "where": "OEM-J incoming inspection", "how_many": "19 of 1,600 sampled parts",
+               "when": "reported 16 Oct 2026; date codes 2026-09-29 to 2026-10-09"},
+        "d2_ja": {"what": "スナップ爪エッジのバリ", "where": "OEM-J 受入検査", "how_many": "抜き取り 1,600 個中 19 個",
+                  "when": "2026年10月16日報告、日付コード 2026-09-29〜2026-10-09"},
+        "urgency": "8D within 5 days",
+    },
+    "121": {
+        "translation_en": ("Subject: Surface scratches on CL-204. Some CL-204 parts show light surface scratches: 11 of 3,000. "
+                           "Date codes 2026/10/07 to 2026/10/13. Please investigate the cause."),
+        "defect_type": "scratch", "box_2d": [645, 298, 729, 684],
+        "photo_observation": "Light linear scratches on the clip body; no crack or flash.",
+        "d2": {"what": "light surface scratches on the body", "where": "OEM-J", "how_many": "11 of 3,000 parts",
+               "when": "reported 15 Oct 2026; date codes 2026-10-07 to 2026-10-13"},
+        "d2_ja": {"what": "本体の軽微な表面キズ", "where": "OEM-J", "how_many": "3,000 個中 11 個",
+                  "when": "2026年10月15日報告、日付コード 2026-10-07〜2026-10-13"},
+        "urgency": "investigate",
+    },
+}
