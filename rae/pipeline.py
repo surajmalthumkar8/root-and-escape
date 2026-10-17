@@ -8,7 +8,7 @@ from __future__ import annotations
 import asyncio
 import re
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import AsyncIterator
 
 from .challenger import _numbers_ok, check_draft, screen_hypotheses, verdict
@@ -91,13 +91,18 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
         queue: asyncio.Queue = asyncio.Queue()
         loop = asyncio.get_running_loop()
         log.listener = lambda item: loop.call_soon_threadsafe(queue.put_nowait, item)
-        task = asyncio.create_task(llm.investigate(tb, case, intake))
-        while True:  # stream each tool result while the agent is still thinking
+        on_call = lambda name, args: loop.call_soon_threadsafe(queue.put_nowait, {"_call": name, "args": args})  # noqa: E731
+        task = asyncio.create_task(llm.investigate(tb, case, intake, on_call=on_call))
+        while True:  # stream each tool call and result while the agent is still thinking
             getter = asyncio.create_task(queue.get())
             done, _ = await asyncio.wait({task, getter}, return_when=asyncio.FIRST_COMPLETED)
             if getter in done:
-                yield ev("evidence", item=public_item(getter.result()))
-                sent += 1
+                item = getter.result()
+                if "_call" in item:
+                    yield ev("call", name=item["_call"], args=item["args"])
+                else:
+                    yield ev("evidence", item=public_item(item))
+                    sent += 1
             else:
                 getter.cancel()
             if task.done() and queue.empty():
@@ -161,7 +166,7 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
     if llm:
         try:
             report = await llm.write(case, intake, draft, containment, log)
-            if not (_report_ok(report.get("en", {}), log)):
+            if not (_report_ok(report.get("en", {}), log) and _report_ok(report.get("ja", {}), log)):
                 notes.append("The Writer's text quoted numbers that are not in the evidence, so the template text is shown.")
                 report = None
             else:
@@ -172,6 +177,7 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
         report = {"en": build_report(case, intake, draft, containment, "en"),
                   "ja": build_report(case, intake, draft, containment, "ja")}
 
+    actions = assign_owners(draft.get("actions") or [], case)
     final_verdict = rounds[-1]["verdict"]
     usage = dict(getattr(llm, "usage", {}) or {})
     if usage and usage_before:
@@ -183,7 +189,7 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
         "intake": intake, "evidence": log.public(), "analysis": _analysis_view(tb),
         "draft": {k: v for k, v in draft.items() if k != "hypotheses"}, "hypotheses": hyps,
         "challenger": rounds, "verdict": final_verdict, "containment": _containment_view(containment),
-        "report": report, "usage": usage or None,
+        "report": report, "usage": usage or None, "actions": actions,
     }
     yield ev("done", result=result)
 
@@ -207,5 +213,29 @@ def _analysis_view(tb: Toolbox) -> dict | None:
 def _containment_view(c: dict | None) -> dict | None:
     if not c:
         return None
-    return {k: c[k] for k in ("segment", "segment_label", "suspect_window", "targeted_lots", "blanket_lots",
-                              "by_status", "lots", "note") if k in c}
+    return {k: c[k] for k in ("segment", "segment_label", "segment_label_ja", "suspect_window", "targeted_lots",
+                              "blanket_lots", "targeted_parts", "blanket_parts", "by_status", "lots", "note") if k in c}
+
+
+OWNER_RULES = [
+    (re.compile(r"sampl|inspect|gauge|calibrat|control plan|check", re.I), "Quality", 1),
+    (re.compile(r"dryer|mould|mold|cavity|maintenance|interlock|repair|heater|tool", re.I), "Maintenance", 5),
+]
+
+
+def assign_owners(actions: list[str], case: dict) -> list[dict]:
+    """Owner and due date for each action. Detection fixes are due in 1 day (containment), and equipment fixes in
+    5 days (root-cause deadline). Anything else follows the 20-day corrective-action clock."""
+    try:
+        received = datetime.fromisoformat(case.get("received", ""))
+    except ValueError:
+        received = datetime.now(timezone.utc)
+    out = []
+    for a in actions:
+        owner, days = "Process engineering", 20
+        for rx, o, d in OWNER_RULES:
+            if rx.search(a):
+                owner, days = o, d
+                break
+        out.append({"action": a, "owner": owner, "due": (received + timedelta(days=days)).date().isoformat()})
+    return out

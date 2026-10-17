@@ -19,6 +19,7 @@ from . import __version__
 from .config import settings
 from .data.cases import SEED_CASES, get_seed
 from .pipeline import run_investigation
+from .report_html import render_report
 from .store import get_store, load_plant
 
 WEB = Path(__file__).resolve().parents[1] / "web"
@@ -134,12 +135,25 @@ def list_cases(x_visitor: str | None = Header(default=None)):
     return out
 
 
+def _visitor_key(case_id: str, visitor: str) -> str:
+    return f"{case_id}__{visitor}"
+
+
+def _result_for(case_id: str, visitor: str) -> dict | None:
+    """A visitor sees their own latest live run of a seed case; otherwise the shared stored run."""
+    store = get_store()
+    if get_seed(case_id):
+        mine = store.get_result(_visitor_key(case_id, visitor)) if visitor != "anonymous" else None
+        return mine or store.get_result(case_id)
+    return store.get_result(case_id)
+
+
 @app.get("/api/cases/{case_id}")
 async def get_case(case_id: str, x_visitor: str | None = Header(default=None)):
     visitor = visitor_of(x_visitor)
     case = case_for(case_id, visitor)
     store = get_store()
-    result = store.get_result(case_id)
+    result = _result_for(case_id, visitor)
     if result is None and get_seed(case_id):
         lock = _run_locks.setdefault(case_id, asyncio.Lock())
         async with lock:  # first visit: compute the deterministic baseline once
@@ -219,25 +233,40 @@ async def live(case_id: str, v: str | None = Query(default=None)):
     visitor = visitor_of(v)
     case = case_for(case_id, visitor)
     store = get_store()
-    ok, quota = store.take_quota(visitor)
+    g = llm()
+    # Only Gemini runs cost money, so only they use quota. If today's quota is gone, the run still happens, deterministically.
+    if g is not None:
+        ok, quota = store.take_quota(visitor)
+    else:
+        ok, quota = False, store.quota(visitor)
 
     async def stream():
-        if not ok:
-            msg = ("Today's live-run limit is used up, so the stored run is shown. "
-                   f"Limits: {quota['limit_today']} a day for everyone, {quota['limit_per_visitor']} per visitor.")
+        use = g if ok else None
+        if g is not None and not ok:
+            msg = (f"Today's Gemini runs are used up ({quota['limit_today']} a day for everyone, "
+                   f"{quota['limit_per_visitor']} per visitor), so this run uses the deterministic engine.")
             yield f"data: {json.dumps({'type': 'quota', 'message': msg, 'quota': quota})}\n\n"
-            return
-        yield f"data: {json.dumps({'type': 'quota', 'quota': quota})}\n\n"
+        else:
+            yield f"data: {json.dumps({'type': 'quota', 'quota': quota})}\n\n"
         plant, source = load_plant()
-        g = llm()
         try:
-            async for e in run_investigation(case, plant, source, g, _photos(case), bq_engine()):
+            async for e in run_investigation(case, plant, source, use, _photos(case), bq_engine() if use else None):
                 if e["type"] == "done":
                     r = e["result"]
-                    prev = store.get_result(case_id)
-                    better = (not get_seed(case_id)) or prev is None or r["verdict"] == "APPROVED_FOR_REVIEW"
-                    if better:
+                    if g is not None and not ok:
+                        r["notes"] = ["Gemini quota for today was used up; deterministic engine used."] + r["notes"]
+                    if not get_seed(case_id):
                         store.save_result(case_id, r)
+                    else:
+                        # Seed cases: the shared result is only upgraded once (deterministic baseline → approved Gemini run).
+                        # Everyone else's runs are kept per visitor, so one judge never changes what another sees.
+                        prev = store.get_result(case_id)
+                        upgrade = (r["verdict"] == "APPROVED_FOR_REVIEW" and r["modes"]["investigation"] == "gemini"
+                                   and (prev is None or prev.get("modes", {}).get("investigation") != "gemini"))
+                        if upgrade:
+                            store.save_result(case_id, r)
+                        if visitor != "anonymous":
+                            store.save_result(_visitor_key(case_id, visitor), r)
                 yield f"data: {json.dumps(e, ensure_ascii=False, default=str)}\n\n"
         except Exception as exc:  # noqa: BLE001
             yield f"data: {json.dumps({'type': 'error', 'message': f'The run stopped: {type(exc).__name__}. The stored result is still shown.'})}\n\n"
@@ -267,12 +296,50 @@ def reset(case_id: str, x_visitor: str | None = Header(default=None)):
     return {"ok": True}
 
 
+class Challenge(BaseModel):
+    occurrence: str = Field(min_length=5, max_length=600)
+    escape: str = Field(default="", max_length=600)
+
+
+class _StoredToolbox:
+    """Rebuilds just enough of a run from the stored evidence for the Challenger rules. No model call, no cost."""
+
+    def __init__(self, result: dict):
+        from .tools import EvidenceLog
+        self.log = EvidenceLog()
+        self.log.items = [dict(i) for i in result.get("evidence", [])]
+        a = result.get("analysis") or {}
+        self.last_is_is_not = {"significant": bool(a.get("significant")), "primary_segment": a.get("primary_segment"),
+                               "primary_label": a.get("primary_label")}
+
+
+@app.post("/api/cases/{case_id}/challenge")
+def challenge(case_id: str, body: Challenge, x_visitor: str | None = Header(default=None)):
+    """'Try to break it': run the Challenger's rules against a root-cause claim the visitor writes."""
+    from .challenger import check_draft, verdict
+    visitor = visitor_of(x_visitor)
+    case_for(case_id, visitor)
+    result = _result_for(case_id, visitor)
+    if not result:
+        raise HTTPException(404, "Run the investigation first")
+    tb = _StoredToolbox(result)
+    stored = result.get("draft") or {}
+    cited = list((stored.get("occurrence") or {}).get("evidence") or []) + \
+        [i["id"] for i in tb.log.items if i["tool"] == "stratify"]
+    draft = {"insufficient_evidence": False,
+             "occurrence": {"statement": body.occurrence.strip(), "segment": tb.last_is_is_not["primary_segment"] or {},
+                            "evidence": cited},
+             "escape": {"statement": body.escape.strip(), "evidence": list((stored.get("escape") or {}).get("evidence") or [])}}
+    rules = check_draft(draft, tb)
+    return {"verdict": verdict(rules), "rules": rules}
+
+
 @app.get("/api/cases/{case_id}/report", response_class=HTMLResponse)
 def report(case_id: str, lang: str = Query("en", pattern="^(en|ja)$"), v: str | None = Query(default=None)):
     visitor = visitor_of(v)
     case = case_for(case_id, visitor)
     store = get_store()
-    result = store.get_result(case_id)
+    result = _result_for(case_id, visitor)
     if not result:
         raise HTTPException(404, "Run the investigation first")
     appr = store.approvals(visitor, case_id)
@@ -282,46 +349,11 @@ def report(case_id: str, lang: str = Query("en", pattern="^(en|ja)$"), v: str | 
     return HTMLResponse(render_report(case, result, appr, lang))
 
 
-def render_report(case: dict, result: dict, appr: dict, lang: str) -> str:
-    sec = result["report"].get(lang) or result["report"]["en"]
-    e = html.escape
-    titles = {"en": {"D1": "D1 Team", "D2": "D2 Problem description", "D3": "D3 Containment", "D4": "D4 Root cause: occurrence",
-                     "D4_escape": "D4 Root cause: escape", "D5": "D5 Corrective actions", "D6": "D6 Implement and verify",
-                     "D7": "D7 Prevent recurrence", "D8": "D8 Recognise the team"},
-              "ja": {"D1": "D1 チーム", "D2": "D2 問題の記述", "D3": "D3 暫定処置", "D4": "D4 根本原因（発生）",
-                     "D4_escape": "D4 根本原因（流出）", "D5": "D5 是正処置", "D6": "D6 実施と効果確認",
-                     "D7": "D7 再発防止", "D8": "D8 チームの称賛"}}[lang]
-    rows = []
-    for k in ["D1", "D2", "D3", "D4", "D4_escape", "D5", "D6", "D7", "D8"]:
-        if k not in sec:
-            continue
-        a = appr.get(k[:2]) if k[:2] in SECTIONS else None
-        sign = f"<div class='sig'>✓ {e(a['by'].replace('human:', ''))} · {e(a['at'][:16].replace('T', ' '))} UTC</div>" if a else ""
-        rows.append(f"<section><h2>{e(titles[k])}</h2><p>{e(sec[k])}</p>{sign}</section>")
-    ev = "".join(f"<li><b>{e(i['id'])}</b> {e(i['summary'])} <i>({e(i['source'])})</i></li>" for i in result["evidence"])
-    head = "8D レポート" if lang == "ja" else "8D Report"
-    return f"""<!doctype html><html lang="{lang}"><head><meta charset="utf-8"><title>{head} {e(case['case_id'])}</title>
-<style>body{{font:15px/1.6 system-ui,'Hiragino Sans','Noto Sans JP',sans-serif;max-width:820px;margin:32px auto;padding:0 20px;color:#17202e}}
-h1{{font-size:24px;margin:0}} .meta{{color:#4a5466;font-size:13px;margin:4px 0 20px}} section{{border:1px solid #d3d8e0;border-radius:6px;padding:10px 14px;margin:10px 0}}
-h2{{font-size:14px;margin:0 0 4px;text-transform:uppercase;letter-spacing:.04em;color:#2350b8}} .sig{{color:#1f7349;font-size:13px;margin-top:6px}}
-ol{{font-size:13px;color:#4a5466}} .syn{{background:#fff4d6;border:1px solid #e3c25a;padding:8px 12px;border-radius:6px;font-size:13px}}
-@media print{{.noprint{{display:none}}}}</style></head><body>
-<h1>{head} · {e(case['title'])}</h1>
-<div class="meta">Case {e(case['case_id'])} · {e(case.get('customer', ''))} · generated {e(result['created_at'][:16].replace('T', ' '))} UTC · Root &amp; Escape</div>
-<p class="syn">Synthetic demo data (Google Cloud AI Builder Cup 2026 prototype). Do not use for real decisions.</p>
-{''.join(rows)}<h2 style="margin-top:20px">Evidence</h2><ol>{ev}</ol>
-<p class="noprint"><button onclick="window.print()">Print / save as PDF</button></p></body></html>"""
-
-
 @app.get("/api/benchmark")
 def benchmark():
-    from .benchmark import run
-    global _bench
-    try:
-        return _bench
-    except NameError:
-        _bench = run()
-        return _bench
+    """Precomputed by `python -m rae.benchmark --write`; tests/test_core.py checks the file matches a fresh run."""
+    p = Path(__file__).resolve().parent / "data" / "benchmark.json"
+    return JSONResponse(json.loads(p.read_text(encoding="utf-8")), headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.exception_handler(Exception)

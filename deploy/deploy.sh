@@ -56,14 +56,14 @@ gcloud run deploy "$SERVICE" --source . --region "$REGION" --quiet \
   --service-account "$SA" --allow-unauthenticated \
   --min-instances 0 --max-instances 3 --cpu 1 --memory 1Gi --cpu-boost \
   --timeout 300 --concurrency 20 \
-  --set-env-vars "RAE_BACKEND=gcp,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_ENTERPRISE=true,RAE_USE_LLM=true,RAE_MODEL=$MODEL,RAE_DATASET=$DATASET,RAE_BQ_LOCATION=US,RAE_BUCKET=$BUCKET,RAE_LIVE_RUNS_PER_DAY=20,RAE_RUNS_PER_VISITOR_PER_DAY=3"
+  --set-env-vars "RAE_BACKEND=gcp,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_ENTERPRISE=true,RAE_USE_LLM=true,RAE_MODEL=$MODEL,RAE_DATASET=$DATASET,RAE_BQ_LOCATION=US,RAE_BUCKET=$BUCKET,RAE_LIVE_RUNS_PER_DAY=30,RAE_RUNS_PER_VISITOR_PER_DAY=5"
 URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')
 
 step "7/8 Smoke test"
 curl -fsS "$URL/healthz"; echo
 curl -fsS "$URL/api/meta"; echo
 
-step "8/8 Warm the seed cases with a real Gemini run (uses 3 of today's 20 live runs)"
+step "8/8 Warm the seed cases with a real Gemini run (uses 3 of today's 30 Gemini runs)"
 for CASE in 118 124 121; do
   echo "-- case $CASE"
   curl -sN --max-time 280 "$URL/api/cases/$CASE/live?v=deploy-warmup-$CASE-$(date +%s)" \

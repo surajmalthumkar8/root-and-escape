@@ -81,10 +81,19 @@
     $("#img-defect").alt = c.photo ? "Defect photo" : "No photo supplied";
     $("#img-golden").src = photoUrl(c.golden);
     $("#complaint").textContent = c.complaint;
-    if (!r) { $("#board").style.opacity = 0.5; renderVerdict(null); return; }
-    $("#board").style.opacity = 1;
+    renderClock(c);
+    if (!r) {
+      $("#board").hidden = true; renderVerdict(null);
+      let empty = $("#empty");
+      if (!empty) { empty = document.createElement("div"); empty.id = "empty"; empty.className = "empty"; $("#board").after(empty); }
+      empty.hidden = false;
+      empty.textContent = "Not investigated yet. Press \u201cRun live\u201d to start; each step streams in above.";
+      return;
+    }
+    $("#board").hidden = false;
+    if ($("#empty")) $("#empty").hidden = true;
     const it = r.intake || {};
-    $("#translation").textContent = it.translation_en ? "English: " + it.translation_en : "";
+    $("#translation").textContent = it.translation_en ? `English (${r.modes && r.modes.intake === "gemini" ? "translated by Gemini" : "stored translation"}): ${it.translation_en}` : "";
     $("#cap-defect").textContent = it.photo_observation || "Defect photo";
     const box = $("#box");
     if (it.box_2d && c.photo) {
@@ -105,13 +114,15 @@
     renderD4(r.draft, r);
     renderD3(r.containment, r.draft);
     renderRules(r.challenger || []);
-    const d5 = (r.report && r.report.en && r.report.en.D5) || "";
-    $("#d5").innerHTML = d5 ? `<p class="small">${esc(d5)}</p>` : "";
+    const acts = r.actions || [];
+    $("#d5").innerHTML = acts.length ? `<ul class="acts">${acts.map((a) => `<li>${esc(a.action)}<br><span class="who">${esc(a.owner)} · due ${esc(a.due)}</span></li>`).join("")}</ul>`
+      : `<p class="small">${esc((r.report && r.report.en && r.report.en.D5) || "")}</p>`;
     renderSign(approvals || {});
     renderEvidence(r.evidence || []);
     const m = r.modes || {};
     $("#provenance").textContent = `Data: ${r.data_source}. Intake: ${m.intake}. Investigation: ${m.investigation}. Writer: ${m.writer}.` +
-      (r.model ? ` Model: ${r.model}.` : "") + ` Run ${String(r.created_at).slice(0, 16).replace("T", " ")} UTC in ${r.duration_s}s.`;
+      (r.model ? ` Model: ${r.model}.` : "") + (r.usage && r.usage.calls ? ` Gemini calls: ${r.usage.calls}, tokens in/out: ${r.usage.input_tokens}/${r.usage.output_tokens}.` : "") +
+      ` Run ${String(r.created_at).slice(0, 16).replace("T", " ")} UTC in ${r.duration_s}s.`;
     const notes = r.notes || [];
     $("#notes").hidden = !notes.length;
     $("#notes").textContent = notes.join(" ");
@@ -138,13 +149,17 @@
     $("#heatmap").innerHTML = s;
     const o = a.overall;
     $("#isnot-h").textContent = a.significant ? `IS: ${a.primary_label}` : "No segment stands out";
-    $("#isnot-text").textContent = `${a.defect} rate ${pct(o.rate_test)} in the complaint window vs ${pct(o.rate_control)} in the 28 days before (×${o.ratio}). Cells: % defective by ${hm.row_dim} × ${hm.col_dim}, complaint window.`;
+    const shiftNote = hm.col_dim === "shift" || hm.row_dim === "shift" ? " Shifts: D day 06–14, S swing 14–22, N night 22–06." : "";
+    $("#isnot-text").textContent = `${a.defect} rate ${pct(o.rate_test)} in the complaint window vs ${pct(o.rate_control)} in the 28 days before (×${o.ratio}). Cells: % defective by ${hm.row_dim} × ${hm.col_dim}, complaint window.${shiftNote}`;
     $("#isnot-method").textContent = "Method: " + a.method + (a.bqml_error ? " (BigQuery ML unavailable for this run)" : "");
     const bq = (a.bqml_insights || []).filter((x) => x.segment !== "all").slice(0, 4);
     if (bq.length) {
       const fmt = (x) => (x == null ? "–" : Number(x).toFixed(2));
       $("#isnot-method").insertAdjacentHTML("beforeend", `<br><b>BigQuery ML top contributors:</b> ` +
         bq.map((x) => `${esc(x.segment)} (test/control ×${fmt(x.test_over_control)}, support ${fmt(x.apriori_support)})`).join("; "));
+      const prim = a.primary_segment || {};
+      const agrees = Object.entries(prim).every(([k, v]) => String(bq[0].segment).includes(`${k}=${v}`) || String(bq[0].segment).includes(v));
+      if (a.significant && agrees) $("#isnot-method").insertAdjacentHTML("beforeend", `<br><span class="bqok">✓ BigQuery ML agrees: ${esc(bq[0].segment)}</span>`);
     }
   }
 
@@ -178,13 +193,13 @@
     const c = r.containment;
     el.innerHTML = card("Root cause", `${(r.analysis && r.analysis.primary_label) || ""}: ${firstClause(d.occurrence && d.occurrence.statement)}`) +
       card("People blamed", rejected.length ? `No. ${rejected.map((x) => x.hypothesis).join(", ")} rejected after splitting by press` : "No", rejected.length ? "red" : "") +
-      card("Containment", c ? `Hold ${c.targeted_lots} lots, not ${c.blanket_lots}` : "–", "green") +
+      card("Containment", c ? `Hold ${c.targeted_lots} lots, not ${c.blanket_lots}` + (c.blanket_parts ? ` (−${Math.round(100 - (100 * c.targeted_parts) / c.blanket_parts)}% parts)` : "") : "–", "green") +
       card("Challenger checks", `${passed}/${last.rules.length} passed` + ((r.challenger || []).length > 1 ? ` after ${(r.challenger || []).length} rounds` : ""), last.verdict === "REJECTED" ? "red" : "green");
   }
 
   function firstClause(s) {
     s = String(s || "").replace(/^Occurrence:\s*/i, "");
-    const cut = s.split(/[,;:]/)[0];
+    const cut = s.split(/;|:|, so |, which | \(/)[0];
     return cut.length > 90 ? cut.slice(0, 88) + "…" : cut;
   }
 
@@ -228,7 +243,8 @@
     if (!c) { el.innerHTML = d && d.insufficient_evidence ? `<p class="small">No lot concentration found, so no blanket hold. Ask the customer to sort the stock they have on hand.</p>` : ""; return; }
     const st = c.by_status || {};
     const w = (n) => Math.max(2, Math.round((n / Math.max(c.blanket_lots, 1)) * 100));
-    el.innerHTML = `<p><span class="big">${c.targeted_lots} lots</span> <span class="muted">not ${c.blanket_lots}</span></p>
+    const parts = c.targeted_parts ? `<p class="small">≈ ${Number(c.targeted_parts).toLocaleString()} parts held instead of ${Number(c.blanket_parts).toLocaleString()}.</p>` : "";
+    el.innerHTML = `<p><span class="big">${c.targeted_lots} lots</span> <span class="muted">not ${c.blanket_lots}</span></p>${parts}
       <div class="bars"><div class="bar"><span>targeted</span><i class="hold" style="width:${w(c.targeted_lots)}%"></i><span>${c.targeted_lots}</span></div>
       <div class="bar"><span>blanket</span><i style="width:100%"></i><span>${c.blanket_lots}</span></div></div>
       <p class="small">${esc(c.segment_label)}, made ${esc(c.suspect_window[0])} → ${esc(c.suspect_window[1])}: ${st.at_customer || 0} at customer, ${st.in_transit || 0} in transit, ${st.in_plant || 0} in plant.${c.note ? " " + esc(c.note) + "." : ""}</p>
@@ -292,6 +308,7 @@
     if (state.live) state.live.close();
     const tr = $("#tracker"), feed = $("#feed");
     tr.hidden = false; feed.innerHTML = "";
+    window.scrollTo({ top: 0, behavior: "smooth" });
     document.querySelectorAll(".stages li").forEach((li) => li.className = "");
     $("#run-btn").disabled = true;
     $("#run-note").textContent = "Running…";
@@ -310,6 +327,7 @@
       if (e.type === "quota" && e.message) { add(esc(e.message)); finish("Limit reached"); }
       else if (e.type === "stage") { mark(e.stage); add(`<b>${esc(e.stage)}</b> ${esc(e.label || "")}`); }
       else if (e.type === "intake") add(`<b>intake</b> ${esc(e.intake.photo_observation || "")}`);
+      else if (e.type === "call") add(`<b>Gemini →</b> ${esc(e.name)}(${esc(Object.entries(e.args || {}).map(([k, v]) => k + "=" + (Array.isArray(v) ? v.join("|") : v)).join(", "))})`);
       else if (e.type === "evidence") add(`<b>${esc(e.item.id)}</b> ${esc(e.item.summary)}`);
       else if (e.type === "challenger") { mark("challenger"); add(`<b>challenger</b> round ${e.round.round}: ${esc(e.round.verdict)}${e.round.verdict === "REJECTED" ? " · " + esc(e.round.rules.filter((x) => !x.passed).map((x) => x.rule).join(", ")) : ""}`); }
       else if (e.type === "done") {
@@ -343,10 +361,44 @@
     $("#how-dlg").showModal();
     try {
       const b = await api("/api/benchmark");
-      $("#bench").textContent = `Benchmark (synthetic, deterministic analysis layer): planted cause found in ${b.caused_found}/${b.caused_total} cases; correct "insufficient evidence" in ${b.controls_abstained}/${b.controls_total} controls; containment recall ${b.mean_containment_recall}.`;
-    } catch (err) {}
+      $("#bench").textContent = `Benchmark (synthetic, deterministic analysis layer, untuned seeds): planted cause found in ${b.caused_found}/${b.caused_total} cases (the miss abstained rather than guessing); correct "insufficient evidence" in ${b.controls_abstained}/${b.controls_total} controls; containment recall ${b.mean_containment_recall}.`;
+    } catch (err) { $("#bench").textContent = "Benchmark unavailable right now."; }
   });
   $("#how-close").addEventListener("click", () => $("#how-dlg").close());
+
+  function renderClock(c) {
+    const el = $("#clock");
+    const rec = new Date(c.received);
+    if (isNaN(rec)) { el.innerHTML = ""; return; }
+    const now = new Date();
+    const items = [["D3 containment", 1], ["D4 root cause", 5], ["D5 actions", 20]].map(([k, d]) => {
+      const due = new Date(rec.getTime() + d * 864e5);
+      const h = (due - now) / 36e5;
+      const cls = h < 0 ? "over" : h < 24 ? "soon" : "";
+      const txt = h < 0 ? "overdue" : h < 48 ? `due in ${Math.max(1, Math.round(h))} h` : `due ${due.toISOString().slice(0, 10)}`;
+      return `<span class="${cls}">${esc(k)}: ${esc(txt)}</span>`;
+    });
+    el.innerHTML = items.join("");
+  }
+
+  $("#breakit").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const out = $("#bi-out");
+    out.textContent = "Checking…";
+    try {
+      const r = await api(`/api/cases/${state.current}/challenge`, { method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ occurrence: $("#bi-occ").value, escape: $("#bi-esc").value }) });
+      const bad = r.rules.filter((x) => !x.passed);
+      out.innerHTML = (r.verdict === "REJECTED" ? `<span class="stamp">Rejected</span>` : `<span class="stamp ok">Passed</span>`) +
+        (bad.length ? bad.map((x) => `<div class="rule"><span class="ic no">✗</span><span><b>${esc(x.rule.replaceAll("_", " "))}</b> · ${esc(x.message)}</span></div>`).join("")
+          : `<p class="small">All ${r.rules.length} checks pass. A person still has to sign it.</p>`);
+    } catch (err) { out.textContent = err.message; }
+  });
+
+  window.addEventListener("hashchange", () => {
+    const id = location.hash.slice(1);
+    if (id && id !== state.current && state.cases.some((c) => c.case_id === id)) selectCase(id);
+  });
 
   loadMeta();
   loadCases();

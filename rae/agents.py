@@ -259,7 +259,7 @@ class GeminiAgents:
         return out
 
     # -------------------------------------------------------------------------------------- investigator
-    async def _run_agent(self, tb, case: dict, intake: dict, message: str) -> dict:
+    async def _run_agent(self, tb, case: dict, intake: dict, message: str, on_call=None) -> dict:
         agent = LlmAgent(
             name="investigator", model=self.adk_model,
             instruction=INVESTIGATOR_INSTRUCTION.replace("{case_title}", case["title"]).replace("{defect}", case["defect"])
@@ -275,6 +275,10 @@ class GeminiAgents:
         async for event in runner.run_async(user_id="engineer", session_id=session.id, new_message=msg,
                                             run_config=RunConfig(max_llm_calls=12)):
             self._count(getattr(event, "usage_metadata", None))
+            if on_call:
+                for fc in event.get_function_calls():
+                    if fc.name != "set_model_response":
+                        on_call(fc.name, {k: v for k, v in dict(fc.args or {}).items()})
             if event.error_code:
                 raise RuntimeError(f"{event.error_code}: {event.error_message}")
         s = await runner.session_service.get_session(app_name="root_and_escape", user_id="engineer", session_id=session.id)
@@ -285,8 +289,8 @@ class GeminiAgents:
             draft = DraftOut.model_validate_json(draft).model_dump()
         return _draft_from(draft)
 
-    async def investigate(self, tb, case: dict, intake: dict) -> dict:
-        return await self._run_agent(tb, case, intake, "Investigate this complaint and return the D4 draft.")
+    async def investigate(self, tb, case: dict, intake: dict, on_call=None) -> dict:
+        return await self._run_agent(tb, case, intake, "Investigate this complaint and return the D4 draft.", on_call)
 
     async def revise(self, tb, case: dict, intake: dict, draft: dict, rules: list[dict]) -> dict:
         failed = [f"- {r['rule']}: {r['message']}" for r in rules if not r["passed"]]

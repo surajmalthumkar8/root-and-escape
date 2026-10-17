@@ -36,6 +36,7 @@
       <div>
         <div class="eyebrow" id="case-meta"></div>
         <h2 id="case-title">Loading case…</h2>
+        <div class="clock" id="clock"></div>
       </div>
       <div class="run">
         <button class="btn" id="run-btn" type="button">Run live with Gemini</button>
@@ -63,7 +64,8 @@
           <figure><div class="ph"><img id="img-golden" alt="Golden sample photo"></div><figcaption>Golden sample</figcaption></figure>
         </div>
         <div class="box-actions"><button class="btn ghost small" id="box-ok" type="button">Confirm box</button><span class="small muted" id="box-note"></span></div>
-        <details class="complaint"><summary>Original complaint</summary><pre id="complaint"></pre><p class="small" id="translation"></p></details>
+        <p class="small translation" id="translation"></p>
+        <details class="complaint"><summary>Original complaint</summary><pre id="complaint"></pre></details>
         <dl class="w5" id="w5"></dl>
       </article>
 
@@ -97,6 +99,13 @@
         <span class="dtag">CHALLENGER · RULES</span>
         <h3>Draft checks</h3>
         <div id="rules"></div>
+        <form class="breakit" id="breakit">
+          <label for="bi-occ"><b>Try to break it.</b> Write a root cause and see if the Challenger accepts it.</label>
+          <textarea id="bi-occ" rows="3" maxlength="600">Operator error: night crew B did not follow the work instruction. Retrain crew B.</textarea>
+          <input id="bi-esc" maxlength="600" placeholder="Escape cause (optional)">
+          <button class="btn small" type="submit">Challenge this claim</button>
+          <div id="bi-out" aria-live="polite"></div>
+        </form>
       </article>
 
       <article class="cell" id="c-d5">
@@ -159,6 +168,7 @@
 
 <dialog id="how-dlg" aria-labelledby="how-h">
   <h2 id="how-h">How it works</h2>
+  <p class="small"><b>8D</b> is the eight-step problem-solving report a supplier owes its customer after a defect. Typical clocks: containment in 1 day, root cause in 5, corrective actions in 20.</p>
   <ol class="how">
     <li><b>Intake</b>: Gemini on Agent Platform reads the complaint (any language) and compares the defect photo with a golden sample. It proposes a box; the engineer confirms it.</li>
     <li><b>Investigator</b>: an ADK agent tests hypotheses with tools over BigQuery: the is / is-not analysis (BigQuery ML contribution analysis plus a two-proportion test), a confounder split, process-parameter excursions and inspection changes.</li>
@@ -166,7 +176,10 @@
     <li><b>Writer</b>: Gemini drafts the 8D in English and Japanese. Every percentage and lot count must match a tool result, or the template text is used.</li>
     <li><b>Sign-off</b>: you approve D2–D5. Export is locked until then.</li>
   </ol>
-  <p class="small muted" id="bench"></p>
+  <p class="small"><b>Try:</b> case 118 (crack, with a crew confounder) · case 124 (burr in one cavity) · case 121 (no real cause) ·
+    "+ New" with your own complaint (date codes 30 Aug – 16 Oct 2026) · "Try to break it" under Draft checks.</p>
+  <p class="small"><b>Data:</b> synthetic plant data (seed 42) in BigQuery; synthetic photos, watermarked. <b>Limits:</b> Gemini runs are capped per day; other runs use the deterministic engine and are labelled as such.</p>
+  <p class="small muted" id="bench">Loading benchmark…</p>
   <div class="btn-row"><button class="btn" id="how-close" type="button">Close</button></div>
 </dialog>
 

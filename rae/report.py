@@ -112,7 +112,7 @@ def scripted_investigation(tb: Toolbox) -> dict:
     top = next((s for s in full.get("top_segments", []) if s["filters"] == seg), None)
     rate_txt = (f" The {tb.defect} rate on {A.seg_label(seg)} was {A.pct(top['rate_test'])} in the complaint date codes "
                 f"against {A.pct(top['rate_control'])} before.") if top else ""
-    rate_ja = (f"{A.seg_label(seg)} の不良率は日付コード範囲で {A.pct(top['rate_test'])}、それ以前は {A.pct(top['rate_control'])}。"
+    rate_ja = (f"{A.seg_label_ja(seg)} の不良率は日付コード範囲で {A.pct(top['rate_test'])}、それ以前は {A.pct(top['rate_control'])}。"
                if top else "")
     cont = tb.containment(seg)
     occ_text = (f"Occurrence: {mech['text']}.{rate_txt}" if mech["text"] else
@@ -160,7 +160,7 @@ def build_report(case: dict, intake: dict, draft: dict, containment: dict | None
         c = containment or {}
         st = c.get("by_status", {})
         if ja:
-            sections["D3"] = (f"暫定処置：{c.get('segment_label', '')} の {c.get('suspect_window', ['', ''])[0]}〜{c.get('suspect_window', ['', ''])[1]} "
+            sections["D3"] = (f"暫定処置：{c.get('segment_label_ja') or c.get('segment_label', '')} の {c.get('suspect_window', ['', ''])[0]}〜{c.get('suspect_window', ['', ''])[1]} "
                               f"製造分 {c.get('targeted_lots')} ロットを保留（顧客先 {st.get('at_customer', 0)}、輸送中 {st.get('in_transit', 0)}、"
                               f"社内 {st.get('in_plant', 0)}）。全数保留 {c.get('blanket_lots')} ロットは不要。")
             sections["D4"] = draft.get("occurrence_ja") or "発生原因：" + draft["occurrence"]["statement"]

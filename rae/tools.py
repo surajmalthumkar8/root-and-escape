@@ -106,6 +106,10 @@ class Toolbox:
     def stratify(self, by: str, within: str) -> dict:
         if by not in A.DIMS or within not in A.DIMS or by == within:
             raise ValueError(f"by/within must be two different values from {A.DIMS}")
+        cached = next((i for i in self.log.items if i["tool"] == "stratify" and i["args"] == {"by": by, "within": within}), None)
+        if cached:  # the same split twice adds no new evidence
+            return {"evidence_id": cached["id"], "summary": cached["summary"], "confounded": cached["data"]["confounded"],
+                    "effect_persists_within": cached["data"]["effect_persists_within"]}
         r = A.stratify(self.plant.production, self.defect, by, within, self.start, self.end)
         oc = r["overall_contrast"] or {}
         if r["confounded"]:
@@ -113,8 +117,8 @@ class Toolbox:
         elif r["effect_persists_within"]:
             verdict = f"the difference persists inside {', '.join(r['persisting_strata'])}"
         else:
-            verdict = "no meaningful difference overall"
-        summary = (f"By {by}: {oc.get('high')} vs {oc.get('low')} ×{oc.get('ratio')} overall (z {oc.get('z')}); "
+            verdict = f"no {by} stands out: all {by}s moved together"
+        summary = (f"In the complaint window, {by} {oc.get('high')} vs {oc.get('low')}: ×{oc.get('ratio')} (z {oc.get('z')}); "
                    f"split by {within}, {verdict}.")
         item = self.log.add("stratify", {"by": by, "within": within}, r, summary,
                             "Python over BigQuery table plant_quality.production_lots")
@@ -159,7 +163,8 @@ class Toolbox:
         st = r["by_status"]
         summary = (f"Hold {r['targeted_lots']} lots of {r['segment_label']} made {r['suspect_window'][0]} to "
                    f"{r['suspect_window'][1]} ({st.get('at_customer', 0)} at customer, {st.get('in_transit', 0)} in transit, "
-                   f"{st.get('in_plant', 0)} in plant), instead of a blanket hold of {r['blanket_lots']} lots.")
+                   f"{st.get('in_plant', 0)} in plant; {r['targeted_parts']:,} parts), instead of a blanket hold of "
+                   f"{r['blanket_lots']} lots ({r['blanket_parts']:,} parts).")
         item = self.log.add("containment", {"segment": segment}, r, summary,
                             "Python over BigQuery tables production_lots + shipments")
         return {"evidence_id": item["id"], "summary": summary, "targeted_lots": r["targeted_lots"],

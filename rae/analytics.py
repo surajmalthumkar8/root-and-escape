@@ -66,6 +66,15 @@ def seg_label(filters: dict | None) -> str:
     return " × ".join(f"{k} {v}" for k, v in filters.items())
 
 
+DIM_JA = {"press": "プレス", "cavity": "キャビティ", "shift": "直", "crew": "班", "resin_lot": "樹脂ロット"}
+
+
+def seg_label_ja(filters: dict | None) -> str:
+    if not filters:
+        return "工場全体"
+    return "×".join(f"{DIM_JA.get(k, k)} {v}" for k, v in filters.items())
+
+
 def _seg(test, control, col, filters, base_c, n_all):
     t, c = _filter(test, filters), _filter(control, filters)
     dt, nt = int(t[col].sum()), int(t.units.sum())
@@ -279,10 +288,13 @@ def containment(prod: pd.DataFrame, shipments: pd.DataFrame, defect: str, filter
         lots = lots[lots[k] == filters[k]]
     blanket = shipments[(shipments.prod_date >= ws) & (shipments.prod_date <= last_day)]
     by_status = lots.groupby("status").size().to_dict()
+    units = prod.groupby("lot_id").units.sum()
     return {
-        "segment": dict(filters), "segment_label": seg_label(filters),
+        "segment": dict(filters), "segment_label": seg_label(filters), "segment_label_ja": seg_label_ja(filters),
         "suspect_window": [ws.isoformat(), we.isoformat()],
         "targeted_lots": int(len(lots)), "blanket_lots": int(len(blanket)),
+        "targeted_parts": int(units.reindex(lots.lot_id).fillna(0).sum()),
+        "blanket_parts": int(units.reindex(blanket.lot_id).fillna(0).sum()),
         "by_status": {k: int(v) for k, v in by_status.items()},
         "lots": lots.sort_values(["prod_date", "shift"])[["lot_id", "prod_date", "press", "shift", "shipment_id", "status"]]
                     .assign(prod_date=lambda x: x.prod_date.astype(str)).to_dict("records"),

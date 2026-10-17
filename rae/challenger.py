@@ -74,7 +74,8 @@ def screen_hypotheses(tb: Toolbox) -> list[dict]:
                     out.append(base | {"ruling": "OPEN", "reason": f"the {dim} effect persists inside some {within}s; investigate",
                                        "evidence": [st["evidence_id"]]})
                 else:
-                    out.append(base | {"ruling": "REJECTED", "reason": f"no {dim} effect once split by {within}",
+                    out.append(base | {"ruling": "REJECTED",
+                                       "reason": f"every {dim} rose together; inside each {within}, no {dim} stands out",
                                        "evidence": [st["evidence_id"]]})
                 continue
         if primary:

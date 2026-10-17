@@ -1,4 +1,4 @@
-"""10-case benchmark: 8 planted causes + 2 controls with no cause. The seeds were not tuned to make it pass.
+"""14-case benchmark: 12 planted causes (8 strong, 4 weak) + 2 controls with no cause. Seeds were not tuned.
 
 Scoring
 - Caused cases: the primary segment found must cover the same rows as the planted segment in the complaint
@@ -24,6 +24,11 @@ CASES = [
     ("B08", "scratch", {"press": "P2"}, "2026-10-06", "2026-10-12", 0.02),
     ("B09", "crack", None, "2026-10-06", "2026-10-12", None),
     ("B10", "short_shot", None, "2026-09-29", "2026-10-06", None),
+    # harder: weaker signals (3-7x baseline) and small segments
+    ("B11", "burr", {"press": "P4"}, "2026-10-02", "2026-10-09", 0.008),
+    ("B12", "crack", {"cavity": "C2"}, "2026-09-26", "2026-10-05", 0.010),
+    ("B13", "short_shot", {"press": "P6", "shift": "S"}, "2026-10-01", "2026-10-10", 0.015),
+    ("B14", "scratch", {"press": "P1", "cavity": "C4"}, "2026-10-03", "2026-10-12", 0.012),
 ]
 
 
@@ -79,4 +84,9 @@ def run(seed_base: int = 100) -> dict:
 
 
 if __name__ == "__main__":
-    print(json.dumps(run(), indent=2, default=str))
+    import sys
+    from pathlib import Path
+    out = json.dumps(run(), indent=2, default=str)
+    if "--write" in sys.argv:
+        (Path(__file__).resolve().parent / "data" / "benchmark.json").write_text(out + chr(10), encoding="utf-8")
+    print(out)

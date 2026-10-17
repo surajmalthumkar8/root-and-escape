@@ -65,3 +65,38 @@ def test_input_validation():
     assert out_of_range.status_code == 422
     assert client.get("/api/cases/../../etc", headers=V).status_code == 404
     assert client.post("/api/cases/118/approve", headers=V, json={"section": "D9", "name": "x"}).status_code == 422
+
+
+def test_try_to_break_it_rejects_operator_error():
+    client.get("/api/cases/118", headers=V)
+    r = client.post("/api/cases/118/challenge", headers=V,
+                    json={"occurrence": "Operator error: night crew B did not follow the work instruction. Retrain crew B."})
+    body = r.json()
+    assert r.status_code == 200 and body["verdict"] == "REJECTED"
+    failed = {x["rule"] for x in body["rules"] if not x["passed"]}
+    assert "no_people_blame_without_stratified_effect" in failed and "requires_occurrence_and_escape" in failed
+    ok = client.post("/api/cases/118/challenge", headers=V, json={
+        "occurrence": "Occurrence: the resin dryer on press P4 failed, so the resin was wet.",
+        "escape": "Escape: inspection sampling on press P4 was cut, so the rise was not caught."}).json()
+    assert ok["verdict"] == "APPROVED_FOR_REVIEW"
+    fake = client.post("/api/cases/118/challenge", headers=V, json={
+        "occurrence": "Occurrence: the dryer failed and the crack rate was 12.34%.",
+        "escape": "Escape: inspection sampling was cut."}).json()
+    assert any(x["rule"] == "numbers_come_from_evidence" and not x["passed"] for x in fake["rules"])
+
+
+def test_deterministic_runs_do_not_use_quota_and_never_dead_end():
+    before = client.get("/api/meta", headers={"X-Visitor": "quota-visitor-01"}).json()["quota"]["used_by_you"]
+    for _ in range(7):  # more than the per-visitor limit
+        events = sse("/api/cases/121/live?v=quota-visitor-01")
+        assert events[-1]["type"] == "done"
+    after = client.get("/api/meta", headers={"X-Visitor": "quota-visitor-01"}).json()["quota"]["used_by_you"]
+    assert after == before
+
+
+def test_visitor_runs_do_not_change_what_others_see():
+    shared = client.get("/api/cases/124", headers={"X-Visitor": "viewer-a-000001"}).json()["result"]["created_at"]
+    sse("/api/cases/124/live?v=viewer-b-000001")
+    assert client.get("/api/cases/124", headers={"X-Visitor": "viewer-a-000001"}).json()["result"]["created_at"] == shared
+    mine = client.get("/api/cases/124", headers={"X-Visitor": "viewer-b-000001"}).json()["result"]["created_at"]
+    assert mine != shared
