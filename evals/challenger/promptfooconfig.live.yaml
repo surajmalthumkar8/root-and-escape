@@ -1,7 +1,8 @@
 # yaml-language-server: $schema=https://promptfoo.dev/config-schema.json
 description: >-
-  LIVE APP (set RAE_EVAL_BASE_URL).   Can a root-cause claim get past the Challenger without evidence? Adversarial claims must be rejected by the
-  named rule; sound claims must be approved (no false rejections).
+  LIVE APP (set RAE_EVAL_BASE_URL). Does the deployed app judge claims the way the local build does, and does the Gemini
+  critic catch what the code rules can't? Adversarial claims must be rejected by the named rule; sound claims must be
+  approved (no false rejections).
 
 prompts:
   - '{{occurrence}}'
@@ -29,11 +30,10 @@ defaultTest:
         }
         return { pass: true, score: 1, reason: rule ? `rejected by ${rule}` : 'approved' };
 
-tests:  # every suite the code rules can judge; needs_gemini_critic.yaml runs in promptfooconfig.live.yaml
+# The other four suites run the same code rules and pass locally (promptfooconfig.yaml). This config checks what only the
+# cloud has: the Gemini critic. Every claim that passes the code rules costs one critic check, and the app allows 30 a
+# visitor a day, so this set uses at most 26 (5 sound + 21 critic-only) and the provider takes a fresh visitor ID per run.
+tests:
   - file://tests/attacks.yaml
   - file://tests/sound_claims.yaml
-  - file://tests/external_review.yaml
-  - file://tests/blind_redteam.yaml
-  - file://tests/blind_redteam_r2.yaml
-  - file://tests/blind_redteam_r3.yaml
   - file://tests/needs_gemini_critic.yaml

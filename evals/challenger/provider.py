@@ -11,11 +11,13 @@ import logging
 import os
 import sys
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
-VISITOR = "promptfoo-redteam"
+# A fresh ID per run: the live app allows each visitor 30 Gemini critic checks a day, so a re-run would hit the cap.
+VISITOR = os.getenv("RAE_EVAL_VISITOR") or f"promptfoo-{int(time.time())}"
 _client = None
 
 
