@@ -69,6 +69,7 @@ main{min-width:0;display:flex;flex-direction:column;gap:14px}
 .box.ok{border-style:solid;border-color:var(--ok)}
 figcaption{font:500 12px var(--mono);color:var(--ink-3);margin-top:4px}
 .box-actions{display:flex;gap:10px;align-items:center}
+.box-actions .btn{white-space:nowrap;flex:none}
 details.complaint summary{cursor:pointer;font-size:13.5px;color:var(--cobalt)}
 details.complaint pre{white-space:pre-wrap;font:13px/1.6 var(--ja);background:var(--code);padding:10px;border-radius:6px;margin:8px 0}
 .w5{display:grid;grid-template-columns:auto 1fr;gap:4px 12px;margin:0;font-size:14px}
@@ -186,6 +187,7 @@ dialog input,dialog textarea,dialog select{width:100%;padding:8px 10px;border:1p
 .coach h3{font-size:16px}
 .coach p{margin:0;font-size:14px;color:var(--ink-2)}
 .coach .btn-row{justify-content:flex-end}
+@media (min-width:1101px){.coach{left:max(16px,calc((100vw - 1360px) / 2 + 16px));transform:none;width:250px;bottom:16px}}  /* over the sidebar, clear of the board */
 
 /* challenger cell: checks next to "try to break it" */
 .split{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:20px}
@@ -228,3 +230,4 @@ table.isnot td.is{background:var(--stamp-soft)}
 .foot a{color:var(--cobalt)}
 @media (prefers-reduced-motion:reduce){.cell{transition:none}}
 .link.inline{font-size:inherit;padding:0;font-weight:600}
+.coach-top{gap:8px}.coach-top .link{white-space:nowrap}

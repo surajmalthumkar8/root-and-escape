@@ -4,7 +4,7 @@ An 8D root-cause workbench for supplier quality engineers. Give it a customer co
 
 Built for the Google Cloud AI Builder Cup 2026 (Hack2skill), Manufacturing theme: intelligent operations and industrial efficiency.
 
-Live app: <https://root-and-escape-vd37f5upcq-uc.a.run.app> (no sign-in) · Demo video: {{link}} · Deck: {{link}}
+Live app: <https://root-and-escape-vd37f5upcq-uc.a.run.app> (no sign-in)
 
 ![The 8D board for case 118](docs/media/board.png)
 
@@ -39,7 +39,7 @@ This is the product as it would be announced to a supplier quality team, followe
 
 When a customer reports defective parts, a supplier quality engineer has days to explain what went wrong and why inspection missed it. Most of that time goes into pulling records out of separate systems, and the answer that is easiest to write is often wrong.
 
-Root & Escape reads the complaint in the customer's language and compares the defect photo with a good part. It then tests every suspect (press, cavity, shift, crew, resin lot) against production, process and inspection records, and separates the cause from things that only look guilty. In the demo case a night crew looks almost seven times worse, until the split by press shows it simply works the faulty press more often. The draft names two root causes, why the defect happened and why it escaped, holds 24 lots instead of 216, and is written in English and Japanese. Every number in it traces to a stored query result, and a quality engineer approves each section before export.
+Root & Escape reads the complaint in the customer's language and compares the defect photo with a good part. It then tests every suspect (press, cavity, shift, crew, resin lot) against production, process and inspection records, and separates the cause from things that only look guilty. In the demo case one crew's crack rate is almost seven times another's, until the split by press shows that crew simply works the faulty press more often. The draft names two root causes, why the defect happened and why it escaped, holds 24 lots instead of 216, and is written in English and Japanese. Every number in it traces to a stored query result, and a quality engineer approves each section before export.
 
 ### Customer FAQ
 

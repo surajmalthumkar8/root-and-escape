@@ -36,6 +36,25 @@
     evidence: ["Evidence", "Each E-number is one stored tool result, such as a query or a statistical test. Click an E-number anywhere on the page to jump to it."],
     datecodes: ["Date codes", "The production dates moulded into the parts. They tell you which days' output is suspect."],
   };
+  const RULES = {
+    analysis_was_run: "The analysis was run",
+    no_claim_without_signal: "No cause without a signal",
+    no_abstain_with_signal: "No \"insufficient evidence\" when there is a signal",
+    abstention_names_no_cause: "An abstention names no cause",
+    requires_occurrence_and_escape: "Both causes are given",
+    evidence_must_resolve: "Every citation exists",
+    escape_must_explain_detection: "The escape explains why inspection missed it",
+    escape_in_evidence: "The escape matches the inspection records",
+    no_people_blame_without_stratified_effect: "No blame on people without proof",
+    segment_matches_is_is_not: "It names the place the data points to",
+    mechanism_named_or_open: "It names a mechanism, or says it's open",
+    cause_is_in_the_plant_data: "The cause is something the plant records",
+    mechanism_in_evidence: "The mechanism shows in the process data",
+    mechanism_fits_defect: "The mechanism can cause this defect",
+    numbers_come_from_evidence: "Every number is in the evidence",
+    gemini_coherence_check: "Gemini critic: the claim holds together",
+  };
+  const ruleName = (id) => RULES[id] || String(id).replaceAll("_", " ");
   const term = (key, text) => `<span class="term" data-term="${key}" tabindex="0">${esc(text)}</span>`;
 
   async function api(path, opts = {}) {
@@ -92,6 +111,8 @@
     state.boxOk = false;
     try { history.replaceState(null, "", "#" + id); } catch (e) {}
     document.querySelectorAll("#case-list button").forEach((b) => b.classList.toggle("on", b.dataset.id === id));
+    const ul = $("#case-list"), on = ul.querySelector("button.on");
+    if (on && ul.scrollWidth > ul.clientWidth) ul.scrollTo({ left: on.parentElement.offsetLeft - ul.offsetLeft, behavior: motion() });
     $("#case-title").textContent = "Loading…";
     try {
       const data = await api(`/api/cases/${encodeURIComponent(id)}`);
@@ -134,7 +155,7 @@
       box.classList.toggle("ok", state.boxOk);
       $("#box-ok").hidden = false;
       $("#box-note").textContent = state.boxOk ? "Box confirmed by you."
-        : (r.modes && r.modes.intake === "gemini" ? "Gemini's proposed box." : "Stored example box (deterministic mode).") + " Confirm it, or use your own judgement.";
+        : (r.modes && r.modes.intake === "gemini" ? "Gemini proposed this box." : "This box was saved with the example.") + " Check that it covers the defect, then confirm it.";
     } else { box.hidden = true; $("#box-ok").hidden = true; $("#box-note").textContent = c.photo ? "No defect box proposed." : ""; }
     const d2 = it.d2 || {};
     $("#w5").innerHTML = ["what", "where", "when", "how_many"].map((k) => d2[k] ? `<dt>${esc(k.replace("_", " "))}</dt><dd>${esc(d2[k])}</dd>` : "").join("");
@@ -265,7 +286,7 @@
     const clause = firstClause(d.occurrence && d.occurrence.statement);
     el.innerHTML = card("Root cause", label && !clause.toLowerCase().includes(label.toLowerCase()) ? `${label}: ${clause}` : clause) +
       card("People blamed", rejected.length ? `None. ${rejected.map((x) => x.hypothesis).join(", ")} looked worse but were rejected after splitting by press` : "None", "green") +
-      card("Containment", c ? `Hold ${c.targeted_lots} lots, not ${c.blanket_lots}` + (c.blanket_parts ? ` (−${Math.round(100 - (100 * c.targeted_parts) / c.blanket_parts)}% parts)` : "") : "–", "green") +
+      card("Containment", c ? `Hold ${c.targeted_lots} lots, not ${c.blanket_lots}` + (c.blanket_parts ? ` · ${Math.round(100 - (100 * c.targeted_parts) / c.blanket_parts)}% fewer parts held` : "") : "–", "green") +
       card("Challenger checks", `${passed}/${last.rules.length} passed` + ((r.challenger || []).length > 1 ? ` after ${(r.challenger || []).length} rounds` : ""), last.verdict === "REJECTED" ? "red" : "green");
   }
 
@@ -282,7 +303,7 @@
     if (!sec) { el.innerHTML = ""; return; }
     const names = reportLang === "ja"
       ? { D1: "D1 チーム", D2: "D2 問題", D3: "D3 暫定処置", D4: "D4 発生原因", D4_escape: "D4 流出原因", D5: "D5 是正処置", D6: "D6 効果確認", D7: "D7 再発防止", D8: "D8 称賛" }
-      : { D1: "D1 Team", D2: "D2 Problem", D3: "D3 Containment", D4: "D4 Occurrence", D4_escape: "D4 Escape", D5: "D5 Actions", D6: "D6 Verify", D7: "D7 Prevent", D8: "D8 Recognise" };
+      : { D1: "D1 Team", D2: "D2 Problem", D3: "D3 Containment", D4: "D4 Occurrence", D4_escape: "D4 Escape", D5: "D5 Actions", D6: "D6 Verify", D7: "D7 Prevent", D8: "D8 Close" };
     el.className = "report " + reportLang;
     el.innerHTML = Object.keys(names).filter((k) => sec[k]).map((k) => `<dt>${esc(names[k])}</dt><dd>${esc(sec[k])}</dd>`).join("");
   }
@@ -327,8 +348,9 @@
   }
 
   function renderRules(rounds) {
-    $("#rules").innerHTML = rounds.map((rd) => `<div class="round">Round ${rd.round} · draft by ${esc(rd.by)} · <span class="stamp ${rd.verdict === "REJECTED" ? "" : "ok"}">${rd.verdict === "REJECTED" ? "Rejected" : "Passed"}</span></div>` +
-      rd.rules.map((x) => `<div class="rule"><span class="ic ${x.passed ? "ok" : "no"}">${x.passed ? "✓" : "✗"}</span><span><b>${esc(x.rule.replaceAll("_", " "))}</b> · ${esc(x.message)}</span></div>`).join("")).join("");
+    const by = (b) => (b === "deterministic" ? "the rule engine" : /gemini/.test(b) ? "Gemini" : b);
+    $("#rules").innerHTML = rounds.map((rd) => `<div class="round">Round ${rd.round} · drafted by ${esc(by(rd.by))} · <span class="stamp ${rd.verdict === "REJECTED" ? "" : "ok"}">${rd.verdict === "REJECTED" ? "Rejected" : "Passed"}</span></div>` +
+      rd.rules.map((x) => `<div class="rule"><span class="ic ${x.passed ? "ok" : "no"}">${x.passed ? "✓" : "✗"}</span><span><b>${esc(ruleName(x.rule))}</b> · ${esc(x.message)}</span></div>`).join("")).join("");
   }
 
   function renderSign(appr) {
@@ -356,7 +378,7 @@
     if (calls.length) steps.push(`<b>Investigator · ${esc(model)} via ADK</b> chose ${calls.length} tool calls: ${calls.map(fmt).join(" → ")}.`);
     else steps.push(`<b>Investigator</b> · scripted policy (deterministic mode): ${esc((r.evidence || []).map((e) => e.tool).filter((t, i, a) => a.indexOf(t) === i).join(" → "))}.`);
     (r.challenger || []).forEach((rd, i) => {
-      const bad = (rd.rules || []).filter((x) => !x.passed).map((x) => x.rule.replaceAll("_", " "));
+      const bad = (rd.rules || []).filter((x) => !x.passed).map((x) => ruleName(x.rule).toLowerCase());
       steps.push(`<b>Challenger · round ${rd.round}</b>: ${rd.verdict === "APPROVED_FOR_REVIEW" ? "approved for review" : "rejected"} (${(rd.rules || []).length - bad.length}/${(rd.rules || []).length} rules)${bad.length ? ": " + esc(bad.join(", ")) : ""}.`);
       const rev = (r.trace || []).filter((t) => t.stage === `revise after round ${rd.round}`);
       if (i < (r.challenger || []).length - 1) steps.push(rd.by === "deterministic" || m.investigation === "gemini+scripted" && !rev.length
@@ -456,7 +478,7 @@
       else if (e.type === "intake") add(`<b>intake</b> ${esc(e.intake.photo_observation || "")}`);
       else if (e.type === "call") add(`<b>Gemini →</b> ${esc(e.name)}(${esc(Object.entries(e.args || {}).map(([k, v]) => k + "=" + (Array.isArray(v) ? v.join("|") : v)).join(", "))})`);
       else if (e.type === "evidence") add(`<b>${esc(e.item.id)}</b> ${esc(e.item.summary)}`);
-      else if (e.type === "challenger") { mark("challenger"); add(`<b>challenger</b> round ${e.round.round}: ${esc(e.round.verdict)}${e.round.verdict === "REJECTED" ? " · " + esc(e.round.rules.filter((x) => !x.passed).map((x) => x.rule).join(", ")) : ""}`); }
+      else if (e.type === "challenger") { mark("challenger"); add(`<b>challenger</b> round ${e.round.round}: ${esc(e.round.verdict)}${e.round.verdict === "REJECTED" ? " · " + esc(e.round.rules.filter((x) => !x.passed).map((x) => ruleName(x.rule)).join(", ")) : ""}`); }
       else if (e.type === "done") {
         document.querySelectorAll(".stages li").forEach((li) => li.className = "done");
         if (state.current === id) { state.data.result = e.result; state.data.approvals = {}; render(); }  // a new run needs new signatures
@@ -496,10 +518,10 @@
     try {
       const b = await api("/api/benchmark");
       const miss = b.caused_total - b.caused_found;
-      $("#bench").textContent = `Benchmark (synthetic plants, analysis layer): planted cause found in ${b.caused_found}/${b.caused_total} cases` +
-        (miss ? ` (${miss === 1 ? "the miss" : "the misses"} abstained rather than guessing)` : "") +
-        `; correct "insufficient evidence" in ${b.controls_abstained}/${b.controls_total} controls; containment recall ${b.mean_containment_recall}. ` +
-        `End to end on 31 planted-truth plants, every 8D passes the Challenger with grounded numbers and no invented mechanism; on a held-out blind red-team round, 89% of never-seen claims were ruled correctly, and all 451 claims found so far are regression tests.`;
+      $("#bench").textContent = `How well it works, on synthetic test plants: it found the planted cause in ${b.caused_found} of ${b.caused_total}` +
+        (miss ? ` (${miss === 1 ? "the miss" : "the misses"} said "insufficient evidence" rather than guess)` : "") +
+        `, claimed no cause on ${b.controls_abstained} of ${b.controls_total} plants that had none, and the hold caught ${Math.round(100 * b.mean_containment_recall)}% of the affected lots. ` +
+        `End to end on 31 test plants, every 8D passed the Challenger with no invented number or mechanism. In a held-out blind red-team round, 89% of never-seen claims were judged correctly, and every one of the 451 tricky claims found so far is now a test.`;
     } catch (err) { $("#bench").textContent = "Benchmark unavailable right now."; }
   });
   $("#how-close").addEventListener("click", () => $("#how-dlg").close());
@@ -518,6 +540,7 @@
     const top = r.bottom + 6 + h > window.innerHeight ? r.top - h - 6 : r.bottom + 6;
     Object.assign(gloss.style, { left: left + "px", top: Math.max(8, top) + "px" });
     gloss.dataset.for = el.dataset.term;
+    gloss.shownAt = Date.now();
   }
   const hideGloss = () => { gloss.hidden = true; gloss.dataset.for = ""; };
   document.addEventListener("mouseover", (e) => { const t = e.target.closest(".term"); if (t) showGloss(t); });
@@ -526,7 +549,9 @@
   document.addEventListener("focusout", (e) => { if (e.target.closest(".term")) hideGloss(); });
   document.addEventListener("click", (e) => {  // touch screens have no hover: a tap toggles it
     const t = e.target.closest(".term");
-    if (t) { if (gloss.dataset.for === t.dataset.term && !gloss.hidden) hideGloss(); else showGloss(t); }
+    if (!t) return;
+    if (gloss.dataset.for === t.dataset.term && !gloss.hidden) { if (Date.now() - (gloss.shownAt || 0) > 500) hideGloss(); }
+    else showGloss(t);
   });
   window.addEventListener("scroll", hideGloss, { passive: true });
 
@@ -593,7 +618,7 @@
     const st = {
       D1: { cls: "drafted", s: "In the draft" },
       D2: signed("D2") || drafted,
-      D3: signed("D3") || (dr.insufficient_evidence ? { cls: "open", s: "No hold needed" } : drafted),
+      D3: signed("D3") || (dr.insufficient_evidence ? { cls: "open", s: "Customer sort" } : drafted),
       D4: signed("D4") || (dr.insufficient_evidence ? { cls: "open", s: "No cause claimed" } : (dr.open_points || []).length ? { cls: "open", s: "Open points" } : drafted),
       D5: signed("D5") || drafted,
       D6: { cls: "drafted", s: "In the draft" }, D7: { cls: "drafted", s: "In the draft" },
@@ -649,7 +674,7 @@
         body: JSON.stringify({ occurrence: $("#bi-occ").value, escape: $("#bi-esc").value }) });
       const bad = r.rules.filter((x) => !x.passed);
       out.innerHTML = (r.verdict === "REJECTED" ? `<span class="stamp">Rejected</span>` : `<span class="stamp ok">Passed</span>`) +
-        (bad.length ? bad.map((x) => `<div class="rule"><span class="ic no">✗</span><span><b>${esc(x.rule.replaceAll("_", " "))}</b> · ${esc(x.message)}</span></div>`).join("")
+        (bad.length ? bad.map((x) => `<div class="rule"><span class="ic no">✗</span><span><b>${esc(ruleName(x.rule))}</b> · ${esc(x.message)}</span></div>`).join("")
           : `<p class="small">All ${r.rules.length} checks pass. A person still has to sign it.</p>`) +
         (r.critic === "gemini" || r.critic === "skipped" ? "" : `<p class="small muted">${{ off: "The Gemini critic is off in this mode, so contradictions and filler are not checked; the code rules above still are.",
           quota: "Today's Gemini critic checks are used up, so contradictions and filler were not checked this time.",

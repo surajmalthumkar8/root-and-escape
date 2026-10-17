@@ -516,8 +516,8 @@ def check_draft(draft: dict, tb: Toolbox) -> list[dict]:
                    and i["data"].get("effect_persists_within") and not i["data"].get("confounded")
                    and i["id"] in cited]
         rule("no_people_blame_without_stratified_effect", bool(support),
-             "People blamed without evidence: REJECTED. A cause about people (in either the occurrence or the escape) "
-             "needs a stratified effect that survives inside each press, and the evidence doesn't show one.",
+             "This blames people, but the split by press doesn't back it. A cause about people, in the occurrence "
+             "or the escape, needs an effect that survives inside each press, and the evidence doesn't show one.",
              "The people-related cause is backed by an effect that persists after stratification.")
     if r["primary_segment"]:
         seg = occ.get("segment") or {}
@@ -546,7 +546,7 @@ def check_draft(draft: dict, tb: Toolbox) -> list[dict]:
         rule("mechanism_in_evidence", not absent,
              f"The process data{(' for press ' + press) if press else ''} does not show {names}. "
              "Name only a mechanism that the evidence flags.",
-             f"The named mechanism ({names}) is flagged in the process data.")
+             f"The process data flags the named mechanism: {names}.")
         defect = getattr(tb, "defect", None)
         if defect:
             words = A.DEFECT_WORDS.get(defect, defect)
@@ -555,7 +555,7 @@ def check_draft(draft: dict, tb: Toolbox) -> list[dict]:
             rule("mechanism_fits_defect", not unfit,
                  f"{fnames[0].upper() + fnames[1:]} does not usually cause {words}. Name a mechanism that can produce "
                  f"{words}, or say the mechanism is not yet confirmed.",
-                 f"The named mechanism ({fnames}) can cause {words}.")
+                 f"The named mechanism can cause {words}: {fnames}.")
     ok, bad = _numbers_ok([occ_text, esc_text], log, complaint)
     rule("numbers_come_from_evidence", ok,
          f"These numbers do not appear in any evidence: {bad}. Quote tool results only.",
