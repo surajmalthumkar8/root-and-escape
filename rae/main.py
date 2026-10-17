@@ -482,7 +482,9 @@ class _StoredToolbox:
 
 @app.post("/api/cases/{case_id}/challenge")
 def challenge(case_id: str, body: Challenge, x_visitor: str | None = Header(default=None)):
-    """'Try to break it': run the Challenger's rules against a root-cause claim the visitor writes."""
+    """'Try to break it': run the Challenger's rules against a root-cause claim the visitor writes.
+    The claim is given the run's evidence IDs, but it only gets the analysed segment if it names that segment
+    (for example "P4"). A claim about the wrong press, or about nothing in the data, fails."""
     from .challenger import check_draft, verdict
     visitor = visitor_of(x_visitor)
     case_for(case_id, visitor)
@@ -493,7 +495,10 @@ def challenge(case_id: str, body: Challenge, x_visitor: str | None = Header(defa
     stored = result.get("draft") or {}
     cited = list((stored.get("occurrence") or {}).get("evidence") or []) + \
         [i["id"] for i in tb.log.items if i["tool"] == "stratify"]
-    seg = (tb.last_is_is_not or {}).get("primary_segment") or {}
+    prim = (tb.last_is_is_not or {}).get("primary_segment") or {}
+    names_it = bool(prim) and all(re.search(rf"(?<![A-Za-z0-9]){re.escape(str(v))}(?![A-Za-z0-9])", body.occurrence, re.I)
+                                  for v in prim.values())
+    seg = prim if names_it else {}
     draft = {"insufficient_evidence": False,
              "occurrence": {"statement": body.occurrence.strip(), "segment": seg, "evidence": cited},
              "escape": {"statement": body.escape.strip(), "evidence": list((stored.get("escape") or {}).get("evidence") or [])}}

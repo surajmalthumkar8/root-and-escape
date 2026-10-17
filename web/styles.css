@@ -136,6 +136,9 @@ dialog input,dialog textarea,dialog select{width:100%;padding:8px 10px;border:1p
 .clock span{font:600 11.5px/1 var(--mono);padding:5px 8px;border-radius:99px;background:var(--code);color:var(--ink-2)}
 .clock span.soon{background:var(--warn-soft);color:var(--warn)}.clock span.over{background:var(--stamp-soft);color:var(--stamp)}
 .translation{background:var(--code);border-radius:6px;padding:8px 10px;margin:0}
+.translation:empty{display:none}
+.plain{margin:2px 0 10px;font-size:15.5px;color:var(--ink-2);max-width:78ch}
+.plain a{font-weight:600}
 .breakit{display:flex;flex-direction:column;gap:6px;margin-top:10px;border-top:1px dashed var(--rule-2);padding-top:10px}
 .breakit label{font-size:13.5px}
 .breakit textarea,.breakit input{width:100%;padding:7px 9px;border:1px solid var(--rule-2);border-radius:6px;background:var(--sheet);font-size:13.5px}
@@ -145,4 +148,4 @@ dialog input,dialog textarea,dialog select{width:100%;padding:8px 10px;border:1p
 .acts li{font-size:13.5px;border-left:3px solid var(--rule-2);padding-left:8px}
 .acts .who{font:600 11.5px var(--mono);color:var(--ink-3)}
 .empty{grid-column:1/-1;background:var(--sheet);border:1px dashed var(--rule-2);border-radius:10px;padding:24px;text-align:center;color:var(--ink-2)}
-@media (max-width:780px){.brand p,#how-btn{display:none}.top{padding-top:6px;padding-bottom:6px}.brand h1{font-size:19px}.status .pill.warn{display:none}}
+@media (max-width:780px){.brand p{display:none}.top{position:static;padding-top:6px;padding-bottom:6px}.brand h1{font-size:19px}}

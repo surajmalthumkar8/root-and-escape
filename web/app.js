@@ -86,6 +86,7 @@
     const photoUrl = (name) => (!name ? "" : name.startsWith("U-") ? `/api/photos/${encodeURIComponent(name)}?v=${encodeURIComponent(visitor)}` : `/static/photos/${encodeURIComponent(name)}`);
     $("#img-defect").src = photoUrl(c.photo) || "";
     $("#img-defect").alt = c.photo ? "Defect photo" : "No photo supplied";
+    $("#img-defect").hidden = !c.photo;  // no broken-image icon when the complaint came without a photo
     $("#img-golden").src = photoUrl(c.golden);
     $("#complaint").textContent = c.complaint;
     renderClock(c);
@@ -109,7 +110,8 @@
       box.hidden = false;
       box.classList.toggle("ok", state.boxOk);
       $("#box-ok").hidden = false;
-      $("#box-note").textContent = state.boxOk ? "Box confirmed by you." : "Gemini's proposed box. Confirm it, or use your own judgement.";
+      $("#box-note").textContent = state.boxOk ? "Box confirmed by you."
+        : (r.modes && r.modes.intake === "gemini" ? "Gemini's proposed box." : "Stored example box (deterministic mode).") + " Confirm it, or use your own judgement.";
     } else { box.hidden = true; $("#box-ok").hidden = true; $("#box-note").textContent = c.photo ? "No defect box proposed." : ""; }
     const d2 = it.d2 || {};
     $("#w5").innerHTML = ["what", "where", "when", "how_many"].map((k) => d2[k] ? `<dt>${esc(k.replace("_", " "))}</dt><dd>${esc(d2[k])}</dd>` : "").join("");
@@ -141,6 +143,7 @@
     const cw = 52, ch = 26, left = 52, top = 22;
     const W = left + hm.cols.length * cw + 4, H = top + hm.rows.length * ch + 4;
     let s = `<svg class="hm" viewBox="0 0 ${W} ${H}" role="img" aria-label="Defect rate by ${esc(hm.row_dim)} and ${esc(hm.col_dim)} in the complaint window">`;
+    s += `<text x="4" y="14" font-size="9.5" fill="var(--ink-3)">% bad</text>`;
     hm.cols.forEach((col, j) => { s += `<text x="${left + j * cw + cw / 2}" y="14" text-anchor="middle" font-size="10.5" fill="var(--ink-3)">${esc(col)}</text>`; });
     hm.rows.forEach((row, i) => {
       s += `<text x="${left - 6}" y="${top + i * ch + 17}" text-anchor="end" font-size="10.5" fill="var(--ink-3)">${esc(row)}</text>`;
@@ -183,7 +186,21 @@
       (expl.length ? `<li class="explained"><b>${expl.length} side effects explained:</b> ${esc(expl.map((x) => x.hypothesis).join(", "))} look elevated only because they include the primary segment.</li>` : "");
   }
 
+  function renderPlain(r) {
+    const el = $("#plain"), c = (state.data && state.data.case) || {};
+    if (!r) { el.hidden = true; return; }
+    const what = esc(String(c.defect || "defect").replace("_", " "));
+    const lots = r.containment && r.containment.targeted_lots;
+    el.innerHTML = (r.draft && r.draft.insufficient_evidence
+      ? `A customer reported a ${what} problem. The plant data shows no cause, so the agents say so instead of guessing.`
+      : `A customer reported a ${what} problem. The agents found why it happened, why inspection missed it` +
+        (lots ? `, and which ${lots} lots to hold.` : ".")) +
+      ` Every claim links to its evidence. <a href="#c-rules">Try to break it ↓</a>`;
+    el.hidden = false;
+  }
+
   function renderVerdict(r) {
+    renderPlain(r);
     const el = $("#verdict");
     if (!r) { el.innerHTML = ""; return; }
     const d = r.draft || {}, last = (r.challenger || []).slice(-1)[0] || { rules: [] };
@@ -193,20 +210,22 @@
       el.innerHTML = card("Root cause", "Insufficient evidence: none claimed", "green") +
         card("Why", "No press, cavity, shift, crew or resin lot stands out") +
         card("Containment", "No blanket hold; customer sorts stock") +
-        card("Challenger checks", `${passed}/${last.rules.length} passed`, "green");
+        card("Challenger checks", `${passed}/${last.rules.length} passed (no signal, so the cause checks don't apply)`, "green");
       return;
     }
     const rejected = (r.hypotheses || []).filter((x) => x.ruling === "REJECTED" && /^(crew|shift)/.test(x.hypothesis));
     const c = r.containment;
-    el.innerHTML = card("Root cause", `${(r.analysis && r.analysis.primary_label) || ""}: ${firstClause(d.occurrence && d.occurrence.statement)}`) +
-      card("People blamed", rejected.length ? `No. ${rejected.map((x) => x.hypothesis).join(", ")} rejected after splitting by press` : "No", rejected.length ? "red" : "") +
+    const label = (r.analysis && r.analysis.primary_label) || "";
+    const clause = firstClause(d.occurrence && d.occurrence.statement);
+    el.innerHTML = card("Root cause", label && !clause.toLowerCase().includes(label.toLowerCase()) ? `${label}: ${clause}` : clause) +
+      card("People blamed", rejected.length ? `None. ${rejected.map((x) => x.hypothesis).join(", ")} looked worse but were rejected after splitting by press` : "None", "green") +
       card("Containment", c ? `Hold ${c.targeted_lots} lots, not ${c.blanket_lots}` + (c.blanket_parts ? ` (−${Math.round(100 - (100 * c.targeted_parts) / c.blanket_parts)}% parts)` : "") : "–", "green") +
       card("Challenger checks", `${passed}/${last.rules.length} passed` + ((r.challenger || []).length > 1 ? ` after ${(r.challenger || []).length} rounds` : ""), last.verdict === "REJECTED" ? "red" : "green");
   }
 
   function firstClause(s) {
     s = String(s || "").replace(/^Occurrence:\s*/i, "");
-    const cut = s.split(/;|:|, so |, which | \(/)[0];
+    const cut = s.split(/;|: |, so |, which | \(/)[0];  // ": " so times such as 22:00 are not cut
     return cut.length > 90 ? cut.slice(0, 88) + "…" : cut;
   }
 
@@ -391,8 +410,10 @@
     const rec = new Date(c.received);
     if (isNaN(rec)) { el.innerHTML = ""; return; }
     const now = new Date();
+    const demo = !String(c.case_id).startsWith("U-");  // demo cases have fixed dates; don't let them turn "overdue" while judges look
     const items = [["D3 containment", 1], ["D4 root cause", 5], ["D5 actions", 20]].map(([k, d]) => {
       const due = new Date(rec.getTime() + d * 864e5);
+      if (demo) return `<span>${esc(k)}: due ${esc(due.toISOString().slice(0, 10))}</span>`;
       const h = (due - now) / 36e5;
       const cls = h < 0 ? "over" : h < 24 ? "soon" : "";
       const txt = h < 0 ? "overdue" : h < 48 ? `due in ${Math.max(1, Math.round(h))} h` : `due ${due.toISOString().slice(0, 10)}`;

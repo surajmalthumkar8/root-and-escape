@@ -196,7 +196,7 @@ Method (follow in order):
 5. Optionally call past_8d with 2-4 keywords for read-across.
 
 Write:
-- occurrence_statement: start with "Occurrence:". State the physical mechanism and the segment. Copy every percentage exactly as it appears in a tool summary.
+- occurrence_statement: start with "Occurrence:". State the physical mechanism and the segment. Copy every percentage exactly as it appears in a tool summary. Do not mention crews, shifts or people in it; rejected people hypotheses are reported separately.
 - escape_statement: start with "Escape:". Explain why inspection or detection did not catch the defect (sampling, gauge, control plan).
 - occurrence_evidence / escape_evidence: the evidence IDs (E-01, E-02, ...) of the tool results that support each statement.
 - segment_*: the primary segment reported by is_is_not, e.g. segment_press="P4"; empty strings for unused fields.

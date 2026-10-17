@@ -3,7 +3,7 @@
 Yields events for the live UI. Each Gemini step has a deterministic fallback, and the result records which mode
 actually produced each stage, so the UI never claims Gemini did something it didn't.
 
-Time budget: the whole run must finish inside Cloud Run's 300 s request timeout. Each Gemini stage gets what is
+Time budget: the whole run must finish well inside Cloud Run's request timeout (600 s in deploy.sh). Each Gemini stage gets what is
 left of a 230 s budget; when a stage runs out of time it falls back to the deterministic engine.
 """
 from __future__ import annotations
@@ -41,7 +41,7 @@ def deterministic_intake(case: dict) -> dict:
         return {**canned, "source": "stored reading (deterministic mode)"}
     text = case.get("complaint", "")
     m = re.search(r"(\d[\d,]*)\s*(?:of|/|個中|中)\s*(\d[\d,]*)", text)
-    how_many = f"{m.group(1)} of {m.group(2)}" if m else "not stated"
+    how_many = f"{m.group(1).strip(',')} of {m.group(2).strip(',')}" if m else "not stated"
     return {
         "translation_en": None, "defect_type": case["defect"], "box_2d": None,
         "photo_observation": "Photo not read in deterministic mode.",

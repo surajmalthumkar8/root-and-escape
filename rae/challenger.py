@@ -13,8 +13,10 @@ from . import analytics as A
 from .tools import EvidenceLog, Toolbox
 
 PEOPLE_RE = re.compile(
-    r"\b(operator|operators|crew|human error|retrain|re-train|night shift|worker|careless|training|staff|inspector error)\b"
-    r"|作業者|オペレーター|人為|夜勤|班|教育不足",
+    r"\b(operators?|crews?|human|humans|people|persons?|personnel|employees?|workers?|staff|inspector error"
+    r"|mistakes?|forgot|forgotten|forgetting|negligen\w*|careless\w*|retrain\w*|re-train\w*|training"
+    r"|night[- ]?shifts?|nights)\b"
+    r"|作業者|オペレーター|人為|夜勤|班|教育不足|ミス|うっかり",
     re.I,
 )
 DETECTION_RE = re.compile(

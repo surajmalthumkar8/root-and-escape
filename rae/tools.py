@@ -90,6 +90,12 @@ class Toolbox:
         self.prefetch_contribution()
         return self._bq_future.result(timeout=max(0.0, self._bq_deadline - time.monotonic()))
 
+    def _add(self, tool: str, args: dict, data: dict, summary: str, source: str) -> dict:
+        """Log a tool result. Sources name BigQuery only when the data really came from BigQuery."""
+        if (self.plant.meta or {}).get("source") != "bigquery":
+            source = source.replace("BigQuery tables", "local synthetic tables").replace("BigQuery table", "local synthetic table")
+        return self.log.add(tool, args, data, summary, source)
+
     # ---- tools -----------------------------------------------------------------------------------------
     def is_is_not(self) -> dict:
         r = A.is_is_not(self.plant.production, self.defect, self.start, self.end)
@@ -116,7 +122,7 @@ class Toolbox:
         else:
             summary = (f"{self.defect} rate {_p(o['rate_test'])} in date codes {self.start}–{self.end} vs "
                        f"{_p(o['rate_control'])} before (×{o['ratio']}). No segment passes the significance test.")
-        item = self.log.add("is_is_not", {"defect": self.defect, "test": [str(self.start), str(self.end)]}, r, summary, source)
+        item = self._add("is_is_not", {"defect": self.defect, "test": [str(self.start), str(self.end)]}, r, summary, source)
         return {"evidence_id": item["id"], "summary": summary, "significant": r["significant"],
                 "primary_segment": r["primary_segment"],
                 "significant_segments": [{"segment": s["label"], "rate_test": _p(s["rate_test"]),
@@ -140,7 +146,7 @@ class Toolbox:
             verdict = f"no {by} stands out: all {by}s moved together"
         summary = (f"In the complaint window, {by} {oc.get('high')} vs {oc.get('low')}: ×{oc.get('ratio')} (z {oc.get('z')}); "
                    f"split by {within}, {verdict}.")
-        item = self.log.add("stratify", {"by": by, "within": within}, r, summary,
+        item = self._add("stratify", {"by": by, "within": within}, r, summary,
                             "Python over BigQuery table plant_quality.production_lots")
         return {"evidence_id": item["id"], "summary": summary, "confounded": r["confounded"],
                 "effect_persists_within": r["effect_persists_within"]}
@@ -158,7 +164,7 @@ class Toolbox:
             parts.append(f"mould ran past the {r['pm']['limit']:,}-shot maintenance limit from {r['pm']['first_over_limit']} "
                          f"(max {r['pm']['max_shots']:,} shots)")
         summary = f"Press {press}: " + ("; ".join(parts) if parts else "no process parameter moved outside its normal range.")
-        item = self.log.add("param_excursions", {"press": press}, r, summary,
+        item = self._add("param_excursions", {"press": press}, r, summary,
                             "Python over BigQuery table plant_quality.process_params")
         return {"evidence_id": item["id"], "summary": summary, "flagged": r["flagged"]}
 
@@ -171,7 +177,7 @@ class Toolbox:
             parts.append(f"gauge {g['gauge_id']} overdue for calibration since {g['cal_due']} "
                          f"({g['days_overdue_at_end']} days by the end of the window)")
         summary = f"Press {press} inspection: " + ("; ".join(parts) if parts else "no change to sampling or gauges.")
-        item = self.log.add("inspection_changes", {"press": press}, r, summary,
+        item = self._add("inspection_changes", {"press": press}, r, summary,
                             "Python over BigQuery table plant_quality.inspection_log")
         return {"evidence_id": item["id"], "summary": summary, "detection_weakened": r["detection_weakened"]}
 
@@ -185,7 +191,7 @@ class Toolbox:
                    f"{r['suspect_window'][1]} ({st.get('at_customer', 0)} at customer, {st.get('in_transit', 0)} in transit, "
                    f"{st.get('in_plant', 0)} in plant; {r['targeted_parts']:,} parts), instead of a blanket hold of "
                    f"{r['blanket_lots']} lots ({r['blanket_parts']:,} parts).")
-        item = self.log.add("containment", {"segment": segment}, r, summary,
+        item = self._add("containment", {"segment": segment}, r, summary,
                             "Python over BigQuery tables production_lots + shipments")
         return {"evidence_id": item["id"], "summary": summary, "targeted_lots": r["targeted_lots"],
                 "blanket_lots": r["blanket_lots"]}
@@ -194,5 +200,5 @@ class Toolbox:
         r = A.past_8d_lookup(self.plant.past_8d, self.defect, keywords)
         summary = ("Similar past 8Ds: " + "; ".join(f"{m['case_id']}: {m['lesson']}" for m in r["matches"])
                    if r["matches"] else "No similar past 8D found.")
-        item = self.log.add("past_8d", {"keywords": keywords or []}, r, summary, "BigQuery table plant_quality.past_8d")
+        item = self._add("past_8d", {"keywords": keywords or []}, r, summary, "BigQuery table plant_quality.past_8d")
         return {"evidence_id": item["id"], "summary": summary}

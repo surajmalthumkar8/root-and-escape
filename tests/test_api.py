@@ -204,3 +204,27 @@ def test_stream_sends_heartbeats_during_quiet_stretches(monkeypatch):
         lines = [x for x in r.iter_lines() if x]
     assert ": ping" in lines
     assert json.loads([x for x in lines if x.startswith("data: ")][-1][6:])["type"] == "done"
+
+
+def test_try_to_break_it_rejects_the_judges_bypasses():
+    client.get("/api/cases/118", headers=V)
+    esc_ok = "Escape: inspection sampling on press P4 was cut, so the rise was not caught."
+    tries = {
+        "Gremlins sabotaged the machine at midnight.": "segment_matches_is_is_not",
+        "Occurrence: the press P1 mould wore out.": "segment_matches_is_is_not",
+        "Occurrence: on press P4 the person running the machine on nights made a mistake.": "no_people_blame_without_stratified_effect",
+        "Occurrence: press P4 night-shift people forgot to check the dryer.": "no_people_blame_without_stratified_effect",
+    }
+    for claim, rule in tries.items():
+        body = client.post("/api/cases/118/challenge", headers=V, json={"occurrence": claim, "escape": esc_ok}).json()
+        failed = {x["rule"] for x in body["rules"] if not x["passed"]}
+        assert body["verdict"] == "REJECTED" and rule in failed, (claim, failed)
+    # naming both parts of a two-part segment is required (case 124: press P2 x cavity C3)
+    client.get("/api/cases/124", headers=V)
+    half = client.post("/api/cases/124/challenge", headers=V, json={
+        "occurrence": "Occurrence: the press P2 mould ran past its maintenance limit.",
+        "escape": "Escape: gauge G-02 was overdue for calibration, so inspection missed the burrs."}).json()
+    full = client.post("/api/cases/124/challenge", headers=V, json={
+        "occurrence": "Occurrence: the press P2 mould ran past its maintenance limit, and cavity C3 makes the burrs.",
+        "escape": "Escape: gauge G-02 was overdue for calibration, so inspection missed the burrs."}).json()
+    assert half["verdict"] == "REJECTED" and full["verdict"] == "APPROVED_FOR_REVIEW", (half["rules"], full["rules"])
