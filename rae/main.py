@@ -198,8 +198,9 @@ def index():
     return FileResponse(WEB / "index.html", headers={"Cache-Control": "no-cache"})
 
 
-@app.get("/healthz")
-def healthz():
+# Not /healthz: Cloud Run's front end answers paths ending in "z" itself (404) and never forwards them to the app.
+@app.get("/api/health")
+def health():
     return {"ok": True, "version": __version__}
 
 
@@ -350,24 +351,36 @@ async def _with_heartbeat(agen, every: float | None = None):
     """Yield the generator's items, plus None whenever nothing arrived for `every` seconds. A quiet stretch (one long
     Gemini call) then still sends bytes, so no proxy drops the stream as idle."""
     every = every or HEARTBEAT_S
-    nxt = None
+    q: asyncio.Queue = asyncio.Queue()
+    end = object()
+
+    # The whole generator runs in ONE task, so it keeps one context from start to finish: the pipeline's ContextVar
+    # (the run's token counter) is set in its first step and reset in its last. A task per step would give each step
+    # a fresh copy of the context, so the reset would raise ValueError and later steps would not see the counter.
+    async def pump():
+        try:
+            async for item in agen:
+                await q.put(item)
+            await q.put(end)
+        except Exception as exc:  # noqa: BLE001  (handed to the consumer, which re-raises it)
+            await q.put(exc)
+
+    task = asyncio.ensure_future(pump())
     try:
         while True:
-            if nxt is None:
-                nxt = asyncio.ensure_future(agen.__anext__())
-            done, _ = await asyncio.wait({nxt}, timeout=every)
-            if not done:
+            try:
+                item = await asyncio.wait_for(q.get(), timeout=every)
+            except asyncio.TimeoutError:
                 yield None
                 continue
-            step, nxt = nxt, None
-            try:
-                item = step.result()
-            except StopAsyncIteration:
+            if item is end:
                 return
+            if isinstance(item, Exception):
+                raise item
             yield item
     finally:
-        if nxt is not None and not nxt.done():
-            nxt.cancel()  # the client left: cancelling the pending step lets the pipeline stop its Gemini work
+        if not task.done():
+            task.cancel()  # the client left: cancelling the run lets the pipeline stop its Gemini work
 
 
 @app.get("/api/cases/{case_id}/live")

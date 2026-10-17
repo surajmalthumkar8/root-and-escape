@@ -186,3 +186,23 @@ def test_pure_interaction_is_found_with_a_stricter_bar():
     p = generate(seed=113, planted_story=False, extra=[Planted("scratch", seg, start, end, 0.012)])
     r = A.is_is_not(p.production, "scratch", start, end)
     assert r["significant"] and r["primary_segment"] == seg and r["refined_by"] == "interaction"
+
+
+def test_writer_check_accepts_real_numbers_and_names_invented_ones(plant):
+    """Found on the first cloud run: Gemini's report was replaced by the template for quoting real numbers."""
+    from rae.pipeline import _report_ok
+    tb = toolbox(plant, "118")
+    draft = scripted_investigation(tb)
+    cont = next(i for i in tb.log.items if i["tool"] == "containment")["data"]
+    st = cont["by_status"]
+    at_c, in_t = (st.get("at_customer") or st.get("customer"), st.get("in_transit") or st.get("transit"))
+    at_c, in_t = (at_c["lots"] if isinstance(at_c, dict) else at_c), (in_t["lots"] if isinstance(in_t, dict) else in_t)
+    base = build_report(get_seed("118"), {"d2": {}}, draft, cont, "en")
+    good = dict(base, D3=f"Hold {cont['targeted_lots']} lots of press P4: {at_c} lots at the customer and {in_t} lots in transit.",
+                D4=base["D4"] + " The customer found 37 cracked clips out of 2,400 parts.")
+    ja = dict(base, D3=f"プレスP4の{cont['targeted_lots']}ロット（顧客先{at_c}ロット、輸送中{in_t}ロット）を保留します。")
+    ok, bad = _report_ok(good, tb.log, get_seed("118"))
+    assert ok, bad
+    assert _report_ok(ja, tb.log, get_seed("118"))[0]
+    ok, bad = _report_ok(dict(base, D3=f"Hold {cont['targeted_lots'] + 1} lots of press P4."), tb.log, get_seed("118"))
+    assert not ok and bad == [f"{cont['targeted_lots'] + 1} lots"]

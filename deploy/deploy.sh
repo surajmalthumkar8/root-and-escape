@@ -88,7 +88,7 @@ gcloud run deploy "$SERVICE" --source . --region "$REGION" --quiet \
 URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')
 
 step "8/9 Smoke test"
-curl -fsS "$URL/healthz"; echo
+curl -fsS "$URL/api/health"; echo   # not /healthz: Cloud Run reserves paths ending in "z"
 META=$(curl -fsS "$URL/api/meta")
 echo "$META"
 echo "$META" | python3 -c "import sys,json; m=json.load(sys.stdin); sys.exit(0 if m['gemini'] else 1)" || \

@@ -41,9 +41,10 @@ class EvidenceLog:
         return [float(m.group(1)) for i in self.items for m in re.finditer(r"(\d+(?:\.\d+)?)\s?%", i["summary"])]
 
     def lot_counts(self) -> list[int]:
-        """Every lot count quoted in evidence."""
+        """Every lot count quoted in evidence, including the hold split by status ("21 at customer, 3 in transit")."""
         return [int(m.group(1).replace(",", "")) for i in self.items
-                for m in re.finditer(r"(\d[\d,]*)\s+lots?\b", i["summary"], re.I)]
+                for m in re.finditer(r"(\d[\d,]*)\s+(?:lots?\b|(?=(?:at|in)\s+(?:the\s+)?(?:customer|transit|plant)\b))",
+                                     i["summary"], re.I)]
 
     def public(self) -> list[dict]:
         return [public_item(i) for i in self.items]

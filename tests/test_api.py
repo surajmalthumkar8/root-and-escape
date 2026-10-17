@@ -14,7 +14,7 @@ def sse(path):
 
 
 def test_health_and_meta():
-    assert client.get("/healthz").json()["ok"]
+    assert client.get("/api/health").json()["ok"]
     m = client.get("/api/meta", headers=V).json()
     assert m["gemini"] is False and m["synthetic"] is True
 
@@ -204,6 +204,36 @@ def test_stream_sends_heartbeats_during_quiet_stretches(monkeypatch):
         lines = [x for x in r.iter_lines() if x]
     assert ": ping" in lines
     assert json.loads([x for x in lines if x.startswith("data: ")][-1][6:])["type"] == "done"
+
+
+def test_stream_keeps_one_context_for_the_whole_run(monkeypatch):
+    """Found on the first cloud run: the pipeline sets a ContextVar (the token counter) and resets it at the end. If
+    the heartbeat wrapper runs each step in a new task, the reset raises ValueError after "done" and later steps
+    never see the counter."""
+    import asyncio
+    import contextvars
+    import rae.main as main_mod
+    var = contextvars.ContextVar("test_run_var", default=None)
+    seen = []
+
+    async def run(case, *a, **k):
+        token = var.set({"calls": 0})
+        try:
+            yield {"type": "stage", "stage": "intake"}
+            await asyncio.sleep(0.12)  # long enough for a heartbeat in between
+            seen.append(var.get())
+            yield {"type": "done", "result": {"case_id": case["case_id"], "created_at": "2026-10-17T00:00:00+00:00",
+                                              "verdict": "REJECTED", "modes": {"investigation": "deterministic"},
+                                              "notes": []}}
+        finally:
+            var.reset(token)
+
+    monkeypatch.setattr(main_mod, "run_investigation", run)
+    monkeypatch.setattr(main_mod, "HEARTBEAT_S", 0.05)
+    events = sse("/api/cases/121/live?v=context-visitor-01")
+    assert [e["type"] for e in events][-1] == "done", events
+    assert not [e for e in events if e["type"] == "error"], events
+    assert seen == [{"calls": 0}]
 
 
 def test_try_to_break_it_rejects_the_judges_bypasses():

@@ -61,10 +61,13 @@ def valid_box(box) -> list[int] | None:
     return b
 
 
-def _report_ok(sections: dict, log: EvidenceLog) -> bool:
+def _report_ok(sections: dict, log: EvidenceLog, case: dict) -> tuple[bool, list[str]]:
+    """The Writer's numbers must come from the evidence or the complaint, the same sources the Challenger accepts."""
     texts = [v for k, v in sections.items() if k in ("D3", "D4", "D4_escape") and isinstance(v, str)]
-    ok, _ = _numbers_ok(texts, log)
-    return ok and all(sections.get(k) for k in ("D2", "D3", "D4", "D5"))
+    sources = (case.get("complaint") or "", f"{case.get('date_code_start', '')} {case.get('date_code_end', '')}")
+    ok, bad = _numbers_ok(texts, log, sources)
+    missing = [k for k in ("D2", "D3", "D4", "D5") if not sections.get(k)]
+    return ok and not missing, bad + [f"empty {k}" for k in missing]
 
 
 async def run_investigation(case: dict, plant, plant_source: str, llm=None, photos: dict | None = None,
@@ -204,8 +207,12 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
         if llm and deadline - time.time() > 15:
             try:
                 report = await asyncio.wait_for(llm.write(case, intake, draft, containment, log), timeout=left(60))
-                if not (_report_ok(report.get("en", {}), log) and _report_ok(report.get("ja", {}), log)):
-                    notes.append("The Writer's text quoted numbers that are not in the evidence, so the template text is shown.")
+                checks = [_report_ok(report.get(lang, {}), log, case) for lang in ("en", "ja")]
+                if not all(ok for ok, _ in checks):
+                    bad = list(dict.fromkeys(b for _, bs in checks for b in bs))
+                    log_.warning("case %s: Writer text rejected: %s", case.get("case_id"), bad)
+                    notes.append(f"The Writer's text quoted numbers that are not in the evidence ({', '.join(bad[:5])}), "
+                                 "so the template text is shown.")
                     report = None
                 else:
                     modes["writer"] = "gemini"
