@@ -1,0 +1,80 @@
+# 19 claims from an independent review on 17 Oct. Before the fixes, 15 of them got the wrong verdict.
+# They stay here so the Challenger can't regress on them.
+
+# ---- must be rejected
+- description: '[review] negation: names P4 only to deny it, blames the P1 dryer'
+  vars: {case: '118', expect: REJECTED, rule: segment_matches_is_is_not,
+         occurrence: "The cracks did not come from P4. Press P1's dryer failed and wet resin made the clips brittle.",
+         escape: 'Inspection sampling was cut from 5/h to 1/h.'}
+- description: '[review] a mechanism that fits cracks but is not in the data (hold pressure)'
+  vars: {case: '118', expect: REJECTED, rule: mechanism_in_evidence,
+         occurrence: 'Hold pressure on P4 was set too high, which stressed the clips and caused cracks.',
+         escape: 'Inspection sampling was cut from 5/h to 1/h.'}
+- description: "[review] people blame through 'team' and 'setter'"
+  vars: {case: '118', expect: REJECTED, rule: no_people_blame_without_stratified_effect,
+         occurrence: "Team B's setter on P4 changed the settings without approval, causing the cracks.",
+         escape: 'Inspection sampling was cut from 5/h to 1/h.'}
+- description: '[review] people blame in the escape cause only'
+  vars: {case: '118', expect: REJECTED, rule: no_people_blame_without_stratified_effect,
+         occurrence: 'The resin dryer on P4 failed and wet resin made the clips brittle.',
+         escape: 'The inspector was careless and forgot to check the parts.'}
+- description: '[review] invented numbers that are not % or lot counts'
+  vars: {case: '118', expect: REJECTED, rule: numbers_come_from_evidence,
+         occurrence: 'P4 dryer dew point hit +35 °C for three weeks and moisture reached 2.4 percent by weight.',
+         escape: 'Inspection sampling was cut from 5/h to 1/h.'}
+- description: '[review] nonsense that names P4 but no mechanism'
+  vars: {case: '118', expect: REJECTED, rule: mechanism_named_or_open,
+         occurrence: 'P4 is haunted by a ghost who cracks the clips at night.',
+         escape: 'Nobody tested for ghosts.'}
+- description: "[review] wrong mechanism hidden behind 'not confirmed'"
+  vars: {case: '118', expect: REJECTED, rule: mechanism_in_evidence,
+         occurrence: 'A worn mould on P4 caused the cracks; this is not confirmed but we are certain.',
+         escape: 'Inspection sampling was cut from 5/h to 1/h.'}
+- description: "[review] shift blame written as 'shift N'"
+  vars: {case: '118', expect: REJECTED, rule: no_people_blame_without_stratified_effect,
+         occurrence: 'Shift N on P4 skipped the drying step, causing cracks.',
+         escape: 'Inspection sampling was cut from 5/h to 1/h.'}
+- description: '[review] a mechanism that fits burrs but is not in the data (melt temperature)'
+  vars: {case: '124', expect: REJECTED, rule: mechanism_in_evidence,
+         occurrence: 'Melt temperature on P2 C3 was too high, so the cavity flashed and made burrs.',
+         escape: 'Gauge G-02 was overdue for calibration.'}
+- description: '[review] a cause the data does not contain (resin grade change)'
+  vars: {case: '124', expect: REJECTED, rule: mechanism_named_or_open,
+         occurrence: 'The resin supplier changed the grade without notice; P2 C3 burrs followed.',
+         escape: 'Gauge G-02 was overdue for calibration.'}
+- description: '[review] names the press but not the cavity'
+  vars: {case: '124', expect: REJECTED, rule: segment_matches_is_is_not,
+         occurrence: 'The P2 mould ran past its maintenance limit, so the cavity wore and flashed.',
+         escape: 'Gauge G-02 was overdue for calibration.'}
+- description: '[review] any cause on the control case'
+  vars: {case: '121', expect: REJECTED, rule: no_claim_without_signal,
+         occurrence: 'Press P3 mould worn, scratches.', escape: 'Inspection missed it.'}
+- description: '[review] no escape cause (an 8D needs one; the form now says so)'
+  vars: {case: '118', expect: REJECTED, rule: requires_occurrence_and_escape,
+         occurrence: 'The P4 resin dryer failed; wet resin degraded and the clips became brittle.', escape: ''}
+
+# ---- must be approved
+- description: "[review] sound claim written as 'press 4'"
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'The resin dryer on press 4 failed, so wet PA66 degraded in the barrel and the clips became brittle.',
+         escape: 'Inspection sampling was cut from 5/h to 1/h on 2 Oct, so the rise was not caught.'}
+- description: '[review] sound claim with the escape in QC wording'
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'The P4 resin dryer failed; wet resin degraded and the clips became brittle.',
+         escape: 'QC frequency on that line was reduced from five per hour to one per hour on 2 Oct.'}
+- description: '[review] sound claim in Japanese'
+  vars: {case: '118', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'P4 の乾燥機が故障し、吸湿した樹脂が劣化して成形品が脆くなった。',
+         escape: 'P4 の抜き取り検査が 5/h から 1/h に削減された。'}
+- description: "[review] sound claim written as 'press 2 ... cavity 3'"
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'The press 2 mould ran past its maintenance limit, so cavity 3 wore and flashed.',
+         escape: 'Gauge G-02 was overdue for calibration, so out-of-spec parts passed inspection.'}
+- description: '[review] sound claim with P2 and C3 tokens'
+  vars: {case: '124', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'The P2 mould ran past its maintenance limit, so cavity C3 wore and flashed.',
+         escape: 'Gauge G-02 was overdue for calibration, so out-of-spec parts passed inspection.'}
+- description: "[review] the right answer on the control: 'insufficient evidence'"
+  vars: {case: '121', expect: APPROVED_FOR_REVIEW,
+         occurrence: 'Insufficient evidence: no segment stands out. Collect more data on handling and packaging.',
+         escape: 'Not applicable until a cause is found; keep inspection as is.'}

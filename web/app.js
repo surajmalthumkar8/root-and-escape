@@ -128,6 +128,7 @@
       : `<p class="small">${esc((r.report && r.report.en && r.report.en.D5) || "")}</p>`;
     renderSign(approvals || {});
     renderEvidence(r.evidence || []);
+    renderTrace(r);
     const m = r.modes || {};
     $("#provenance").textContent = `Data: ${r.data_source}. Intake: ${m.intake}. Investigation: ${m.investigation}. Writer: ${m.writer}.` +
       (r.model ? ` Model: ${r.model}.` : "") + (r.usage && r.usage.calls ? ` Gemini calls: ${r.usage.calls}, tokens in/out: ${r.usage.input_tokens}/${r.usage.output_tokens}.` : "") +
@@ -297,6 +298,29 @@
     $("#exp-en").title = $("#exp-ja").title = all ? "" : "Approve D2–D5 first";
   }
 
+  function renderTrace(r) {
+    const m = r.modes || {}, model = r.model || "Gemini";
+    const fmt = (t) => `${esc(t.tool)}(${esc(Object.entries(t.args || {}).map(([k, v]) => k + "=" + (Array.isArray(v) ? v.join("|") : v)).join(", "))})`;
+    const steps = [];
+    const hasPhoto = !!(state.data && state.data.case && state.data.case.photo);
+    steps.push(m.intake === "gemini" ? `<b>Intake · ${esc(model)}</b> read the complaint${r.intake && r.intake.translation_en ? " (translated it to English)" : ""}` +
+        (hasPhoto ? " and compared the defect photo with the golden sample." : ".")
+      : `<b>Intake</b> · stored reading (deterministic mode).`);
+    const calls = (r.trace || []).filter((t) => t.stage === "investigate");
+    if (calls.length) steps.push(`<b>Investigator · ${esc(model)} via ADK</b> chose ${calls.length} tool calls: ${calls.map(fmt).join(" → ")}.`);
+    else steps.push(`<b>Investigator</b> · scripted policy (deterministic mode): ${esc((r.evidence || []).map((e) => e.tool).filter((t, i, a) => a.indexOf(t) === i).join(" → "))}.`);
+    (r.challenger || []).forEach((rd, i) => {
+      const bad = (rd.rules || []).filter((x) => !x.passed).map((x) => x.rule.replaceAll("_", " "));
+      steps.push(`<b>Challenger · round ${rd.round}</b>: ${rd.verdict === "APPROVED_FOR_REVIEW" ? "approved for review" : "rejected"} (${(rd.rules || []).length - bad.length}/${(rd.rules || []).length} rules)${bad.length ? ": " + esc(bad.join(", ")) : ""}.`);
+      const rev = (r.trace || []).filter((t) => t.stage === `revise after round ${rd.round}`);
+      if (i < (r.challenger || []).length - 1) steps.push(rd.by === "deterministic" || m.investigation === "gemini+scripted" && !rev.length
+        ? `<b>Revision</b> · the scripted policy rewrote the draft.` : `<b>Revision · ${esc(model)}</b> fixed the draft${rev.length ? " after " + rev.map(fmt).join(" → ") : ""}.`);
+    });
+    steps.push(m.writer === "gemini" ? `<b>Writer · ${esc(model)}</b> drafted the 8D in English and Japanese; every percentage and lot count was checked against the evidence.`
+      : `<b>Writer</b> · template text${m.intake === "gemini" ? " (the Writer's numbers failed the check or it timed out)" : " (deterministic mode)"}.`);
+    $("#trace-list").innerHTML = steps.map((x) => `<li>${x}</li>`).join("");
+  }
+
   function renderEvidence(items) {
     $("#evidence").innerHTML = items.map((i) => `<li id="ev-${esc(i.id)}"><b>${esc(i.id)}</b> ${esc(i.summary)} <span class="src">(${esc(i.source)})</span></li>`).join("");
   }
@@ -405,7 +429,7 @@
       $("#bench").textContent = `Benchmark (synthetic plants, analysis layer): planted cause found in ${b.caused_found}/${b.caused_total} cases` +
         (miss ? ` (${miss === 1 ? "the miss" : "the misses"} abstained rather than guessing)` : "") +
         `; correct "insufficient evidence" in ${b.controls_abstained}/${b.controls_total} controls; containment recall ${b.mean_containment_recall}. ` +
-        `End to end on 31 planted-truth plants, every 8D passes the Challenger with grounded numbers and no invented mechanism; 22 adversarial claims are all rejected.`;
+        `End to end on 31 planted-truth plants, every 8D passes the Challenger with grounded numbers and no invented mechanism; 46 red-team claims, 19 of them from an outside review, are ruled correctly.`;
     } catch (err) { $("#bench").textContent = "Benchmark unavailable right now."; }
   });
   $("#how-close").addEventListener("click", () => $("#how-dlg").close());

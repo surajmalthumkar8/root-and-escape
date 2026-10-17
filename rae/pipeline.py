@@ -75,6 +75,7 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
     notes: list[str] = []
     modes = {"intake": "deterministic", "investigation": "deterministic", "writer": "deterministic"}
     usage: dict = {}
+    trace: list[dict] = []  # every Gemini tool call, kept so a stored run shows how the agent worked
     usage_token = None
     if llm is not None:
         from .agents import RUN_USAGE
@@ -123,6 +124,7 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
                     if getter in done:
                         item = getter.result()
                         if "_call" in item:
+                            trace.append({"stage": "investigate", "tool": item["_call"], "args": item["args"]})
                             yield ev("call", name=item["_call"], args=item["args"])
                         else:
                             yield ev("evidence", item=public_item(item))
@@ -165,7 +167,8 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
             revised = None
             if llm and modes["investigation"] == "gemini" and rnd < MAX_ROUNDS - 1 and deadline - time.time() > 70:
                 try:
-                    revised = await asyncio.wait_for(llm.revise(tb, case, intake, draft, res), timeout=left(60))
+                    on_rev = lambda name, args, r=rnd: trace.append({"stage": f"revise after round {r}", "tool": name, "args": args})  # noqa: E731
+                    revised = await asyncio.wait_for(llm.revise(tb, case, intake, draft, res, on_call=on_rev), timeout=left(60))
                 except Exception as exc:  # noqa: BLE001
                     notes.append(f"Revision failed ({_short(exc)}).")
                     log_.warning("case %s: revision failed: %s", case.get("case_id"), _short(exc))
@@ -224,7 +227,7 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
             "intake": intake, "evidence": log.public(), "analysis": _analysis_view(tb),
             "draft": {k: v for k, v in draft.items() if k != "hypotheses"}, "hypotheses": hyps,
             "challenger": rounds, "verdict": rounds[-1]["verdict"], "containment": _containment_view(containment),
-            "report": report, "usage": dict(usage) or None, "actions": actions,
+            "report": report, "usage": dict(usage) or None, "actions": actions, "trace": trace,
         }
         yield ev("done", result=result)
     finally:

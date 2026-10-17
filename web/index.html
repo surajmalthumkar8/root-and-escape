@@ -103,7 +103,7 @@
         <form class="breakit" id="breakit">
           <label for="bi-occ"><b>Try to break it.</b> Write a root cause and see if the Challenger accepts it.</label>
           <textarea id="bi-occ" rows="3" maxlength="600">Operator error: night crew B did not follow the work instruction. Retrain crew B.</textarea>
-          <input id="bi-esc" maxlength="600" placeholder="Escape cause (optional)">
+          <input id="bi-esc" maxlength="600" placeholder="Escape cause (required): why inspection missed it">
           <button class="btn small" type="submit">Challenge this claim</button>
           <div id="bi-out" aria-live="polite"></div>
         </form>
@@ -141,6 +141,7 @@
         <span class="dtag">EVIDENCE</span>
         <h3>Every claim traces to one of these</h3>
         <ol class="evidence" id="evidence"></ol>
+        <details class="trace" id="trace" open><summary>How the agents worked on this run</summary><ol id="trace-list"></ol></details>
         <p class="small muted" id="provenance"></p>
       </article>
     </div>

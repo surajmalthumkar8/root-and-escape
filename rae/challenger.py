@@ -13,20 +13,23 @@ from . import analytics as A
 from .tools import EvidenceLog, Toolbox
 
 PEOPLE_RE = re.compile(
-    r"\b(operators?|crews?|human|humans|people|persons?|personnel|employees?|workers?|staff|inspector error"
+    r"\b(operators?|crews?|human|humans|people|persons?|personnel|employees?|workers?|staff|inspectors?|inspector error"
+    r"|teams?|setters?|technicians?|line leaders?|supervisors?|foreman|foremen|new hires?|trainees?"
     r"|mistakes?|forgot|forgotten|forgetting|negligen\w*|careless\w*|retrain\w*|re-train\w*|training"
-    r"|night[- ]?shifts?|nights)\b"
-    r"|作業者|オペレーター|人為|夜勤|班|教育不足|ミス|うっかり",
+    r"|night[- ]?shifts?|nights|shifts?\s+[DNS]|crews?\s+[A-Z])\b"
+    r"|作業者|作業員|担当者|検査員|オペレーター|人為|夜勤|班|教育不足|ミス|うっかり",
     re.I,
 )
 DETECTION_RE = re.compile(
-    r"sampl|inspect|gauge|calibrat|control plan|check|detect|test|audit|検査|ゲージ|校正|抜き取り|管理計画|検出",
+    r"sampl|inspect|gauge|calibrat|control plan|check|detect|test|audit|\bQC\b|quality control|\bAQL\b"
+    r"|検査|ゲージ|校正|抜き取り|管理計画|検出|品質管理",
     re.I,
 )
-# How an occurrence statement names a mechanism, keyed like A.MECHANISM_DEFECTS.
+# How an occurrence statement names a mechanism, keyed like A.MECHANISM_EFFECTS.
 MECHANISM_RE = {
     "dryer_dew_point_c": re.compile(r"dryer|dew[- ]?point|moisture|wet resin|乾燥|露点|吸湿", re.I),
-    "mold_shots_since_pm": re.compile(r"\bmou?lds?\b[^.;]*\b(wear|wore|worn|maintenance|shots?)\b|maintenance limit|摩耗|保全上限", re.I),
+    "mold_shots_since_pm": re.compile(r"\bmou?lds?\b[^.;]*\b(wear|wore|worn|maintenance|shots?)\b"
+                                      r"|\b(worn|wearing|worn-out|damaged)\s+mou?lds?\b|maintenance limit|摩耗|保全上限", re.I),
     "melt_temp_c": re.compile(r"melt temp|溶融温度|樹脂温度", re.I),
     "hold_pressure_bar": re.compile(r"hold(ing)? pressure|packing pressure|保圧", re.I),
     "cycle_time_s": re.compile(r"cycle time|cooling time|サイクルタイム|冷却時間", re.I),
@@ -34,8 +37,50 @@ MECHANISM_RE = {
 MECHANISM_NAMES = {"dryer_dew_point_c": "wet resin (dryer)", "mold_shots_since_pm": "a worn mould",
                    "melt_temp_c": "melt temperature", "hold_pressure_bar": "hold pressure", "cycle_time_s": "cycle time"}
 UNCONFIRMED_RE = re.compile(r"not yet confirmed|not confirmed|未確定", re.I)
-PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s?%")
+CERTAINTY_RE = re.compile(r"\b(certain|definitely|clearly|obviously|we know|no doubt|sure)\b|確実|間違いなく", re.I)
+INSUFFICIENT_RE = re.compile(r"insufficient evidence|no (root )?cause (found|stands out|is supported)|証拠不十分", re.I)
+PCT_RE = re.compile(r"(\d+(?:\.\d+)?)\s?(?:%|percent\b|per cent\b|パーセント)", re.I)
 LOTS_RE = re.compile(r"(\d[\d,]*)\s*(?:lots?\b|ロット)", re.I)
+UNIT_RE = re.compile(r"([-−+]?\d[\d,]*(?:\.\d+)?)\s?(?:°\s?C|℃|σ|/\s?h\b)|×\s?(\d+(?:\.\d+)?)", re.I)
+NUM_RE = re.compile(r"[-−]?\d[\d,]*(?:\.\d+)?")
+
+# Ways a segment value is written: P4, press 4, プレス4, 4号機; C3, cavity 3, キャビティ3; shift N; crew B; R-2291.
+SEGMENT_RES = {
+    "press": re.compile(r"\bpress(?:es)?\s*#?\s*P?(\d)\b|\bP(\d)\b|プレス\s*P?(\d)|(\d)\s*号機", re.I),
+    "cavity": re.compile(r"\bcavit(?:y|ies)\s*#?\s*C?(\d)\b|\bC(\d)\b|キャビティ\s*C?(\d)", re.I),
+    "shift": re.compile(r"\bshifts?\s+([DNS])\b"),
+    "crew": re.compile(r"\bcrews?\s+([A-Z])\b"),
+    "resin_lot": re.compile(r"\b(R-\d{3,5})\b"),
+}
+SEGMENT_PREFIX = {"press": "P", "cavity": "C", "shift": "", "crew": "", "resin_lot": ""}
+NEGATION_RE = re.compile(r"\b(not|no|never|unlike|except|excluding|other than|rather than)\b|n't\b|ではなく|以外", re.I)
+
+
+def segment_mentions(text: str) -> dict[str, set]:
+    """Segment values a statement names, ignoring negated ones ("did not come from P4", "unlike P1")."""
+    text = text or ""
+    out: dict[str, set] = {}
+    for dim, rx in SEGMENT_RES.items():
+        for m in rx.finditer(text):
+            before = re.split(r"[,.;:!?。、]", text[max(0, m.start() - 30):m.start()])[-1]  # negation stops at a clause break
+            before = UNCONFIRMED_RE.sub("", before)  # "not yet confirmed on press P4" still names P4
+            if NEGATION_RE.search(before):
+                continue
+            val = next(g for g in m.groups() if g)
+            out.setdefault(dim, set()).add(f"{SEGMENT_PREFIX[dim]}{val}" if not val.startswith(SEGMENT_PREFIX[dim]) else val)
+    return out
+
+
+def names_segment(text: str, seg: dict) -> tuple[bool, str]:
+    """True if the statement names every part of `seg` and no other value of the same dimension."""
+    m = segment_mentions(text)
+    missing = [f"{k} {v}" for k, v in seg.items() if v not in m.get(k, set())]
+    other = sorted(f"{k} {x}" for k, v in seg.items() for x in m.get(k, set()) if x != v)
+    if missing:
+        return False, f"it doesn't name {', '.join(missing)}"
+    if other:
+        return False, f"it also names {', '.join(other)}"
+    return True, ""
 
 
 def _subset(a: dict, b: dict) -> bool:
@@ -105,16 +150,23 @@ def screen_hypotheses(tb: Toolbox) -> list[dict]:
 
 
 def _numbers_ok(texts: list[str], log: EvidenceLog) -> tuple[bool, list[str]]:
+    """Every percentage, lot count, °C, σ, per-hour rate and × ratio in the texts must appear in a tool result."""
     pcts, lots = log.percentages(), set(log.lot_counts())
+    evid = [float(x.replace("−", "-").replace(",", "")) for i in log.items for x in NUM_RE.findall(i.get("summary") or "")]
     bad = []
     for t in texts:
-        for m in PCT_RE.finditer(t or ""):
+        t = t or ""
+        for m in PCT_RE.finditer(t):
             x = float(m.group(1))
             if not any(abs(x - e) <= 0.05 for e in pcts):
                 bad.append(m.group(0))
-        for m in LOTS_RE.finditer(t or ""):
+        for m in LOTS_RE.finditer(t):
             if int(m.group(1).replace(",", "")) not in lots:
                 bad.append(m.group(0))
+        for m in UNIT_RE.finditer(t):
+            x = float((m.group(1) or m.group(2)).replace("−", "-").replace("+", "").replace(",", ""))
+            if not any(abs(x - e) <= max(0.051, abs(e) * 0.001) for e in evid):
+                bad.append(m.group(0).strip())
     return (not bad), bad
 
 
@@ -155,33 +207,52 @@ def check_draft(draft: dict, tb: Toolbox) -> list[dict]:
     rule("escape_must_explain_detection", bool(DETECTION_RE.search(esc.get("statement") or "")),
          "The escape cause must explain why inspection or detection did not catch the defect.",
          "The escape cause names a detection weakness.")
-    if PEOPLE_RE.search(occ.get("statement") or ""):
+    occ_text, esc_text = occ.get("statement") or "", esc.get("statement") or ""
+    if PEOPLE_RE.search(occ_text) or PEOPLE_RE.search(esc_text):
         support = [i for i in log.items if i["tool"] == "stratify" and i["args"].get("by") in A.PEOPLE_DIMS
                    and i["data"].get("effect_persists_within") and not i["data"].get("confounded")
                    and i["id"] in cited]
         rule("no_people_blame_without_stratified_effect", bool(support),
-             "Operator error: REJECTED. A people-related cause needs a stratified effect that survives inside each "
-             "press. The evidence shows the crew difference disappears once split by press.",
+             "People blamed without evidence: REJECTED. A cause about people (in either the occurrence or the escape) "
+             "needs a stratified effect that survives inside each press, and the evidence doesn't show one.",
              "The people-related cause is backed by an effect that persists after stratification.")
-    occ_text = occ.get("statement") or ""
-    named = [k for k, rx in MECHANISM_RE.items() if rx.search(occ_text)]
-    defect = getattr(tb, "defect", None)
-    if named and defect and not UNCONFIRMED_RE.search(occ_text):
-        names = " or ".join(MECHANISM_NAMES[k] for k in named)
-        words = A.DEFECT_WORDS.get(defect, defect)
-        rule("mechanism_fits_defect", any(defect in A.MECHANISM_DEFECTS[k] for k in named),
-             f"{names[0].upper() + names[1:]} does not usually cause {words}. Name a mechanism that can produce {words}, "
-             "or say the mechanism is not yet confirmed.",
-             f"The named mechanism ({names}) is a typical cause of {words}.")
-    if r is not None and r["primary_segment"]:
+    if r["primary_segment"]:
         seg = occ.get("segment") or {}
-        rule("segment_matches_is_is_not", bool(seg) and (_subset(r["primary_segment"], seg) or _subset(seg, r["primary_segment"])),
-             f"The occurrence must name the segment the is / is-not analysis found ({r['primary_label']}).",
-             f"The occurrence matches the analysed segment ({r['primary_label']}).")
-    ok, bad = _numbers_ok([occ.get("statement"), esc.get("statement")], log)
+        ok_fields = bool(seg) and (_subset(r["primary_segment"], seg) or _subset(seg, r["primary_segment"]))
+        ok_text, why = names_segment(occ_text, r["primary_segment"])
+        rule("segment_matches_is_is_not", ok_fields and ok_text,
+             f"The occurrence must name the segment the is / is-not analysis found ({r['primary_label']})"
+             + (f", but {why}." if why else "."),
+             f"The occurrence names the analysed segment ({r['primary_label']}).")
+    named = [k for k, rx in MECHANISM_RE.items() if rx.search(occ_text)]
+    is_open = bool(UNCONFIRMED_RE.search(occ_text)) and not CERTAINTY_RE.search(occ_text)  # "not confirmed, but certain"
+    rule("mechanism_named_or_open", bool(named) or is_open,
+         "Name the physical mechanism the process data shows, or say the mechanism is not yet confirmed. "
+         "A cause with no mechanism can't be checked.",
+         "The occurrence names a mechanism or marks it as not yet confirmed.")
+    if named:
+        press = (r["primary_segment"] or {}).get("press")
+        flagged = {f for i in log.items if i["tool"] == "param_excursions"
+                   and (press is None or i["args"].get("press") == press) for f in (i["data"].get("flagged") or [])}
+        absent = [k for k in named if k not in flagged]
+        names = " and ".join(MECHANISM_NAMES[k] for k in absent or named)
+        rule("mechanism_in_evidence", not absent,
+             f"The process data{(' for press ' + press) if press else ''} does not show {names}. "
+             "Name only a mechanism that the evidence flags.",
+             f"The named mechanism ({names}) is flagged in the process data.")
+        defect = getattr(tb, "defect", None)
+        if defect:
+            words = A.DEFECT_WORDS.get(defect, defect)
+            unfit = [k for k in named if defect not in A.MECHANISM_DEFECTS[k]]
+            fnames = " and ".join(MECHANISM_NAMES[k] for k in unfit or named)
+            rule("mechanism_fits_defect", not unfit,
+                 f"{fnames[0].upper() + fnames[1:]} does not usually cause {words}. Name a mechanism that can produce "
+                 f"{words}, or say the mechanism is not yet confirmed.",
+                 f"The named mechanism ({fnames}) can cause {words}.")
+    ok, bad = _numbers_ok([occ_text, esc_text], log)
     rule("numbers_come_from_evidence", ok,
          f"These numbers do not appear in any evidence: {bad}. Quote tool results only.",
-         "Every percentage and lot count matches a tool result.")
+         "Every percentage, lot count, °C, σ and rate matches a tool result.")
     return res
 
 

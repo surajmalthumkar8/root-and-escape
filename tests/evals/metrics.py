@@ -7,6 +7,7 @@ Application Default Credentials (Cloud Shell). No API key is used anywhere.
 from __future__ import annotations
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -15,7 +16,7 @@ from deepeval.metrics import BaseMetric
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
 from rae import analytics as A  # noqa: E402
-from rae.challenger import MECHANISM_RE, PEOPLE_RE, UNCONFIRMED_RE, _numbers_ok  # noqa: E402
+from rae.challenger import MECHANISM_RE, PEOPLE_RE, _numbers_ok  # noqa: E402
 from rae.tools import EvidenceLog  # noqa: E402
 
 EXPECTED_MECHANISM = {"dryer": "dryer_dew_point_c", "mould_wear": "mold_shots_since_pm"}
@@ -107,9 +108,7 @@ class MechanismGrounded(_Check):
         occ, defect, meta = _occ(run), run["meta"]["defect"], run["meta"]
         flagged = {f for i in run["result"].get("evidence", []) if i.get("tool") == "param_excursions"
                    for f in (i.get("data") or {}).get("flagged", [])}
-        named = [k for k, rx in MECHANISM_RE.items() if rx.search(occ)]
-        if UNCONFIRMED_RE.search(occ):
-            named = []  # an honest "not yet confirmed" names nothing as the cause
+        named = [k for k, rx in MECHANISM_RE.items() if rx.search(occ)]  # named as cause or as a lead: both must be real
         want = EXPECTED_MECHANISM.get(meta.get("mechanism"))
         if want and want not in named:
             return 0.0, f"The planted mechanism ({meta['mechanism']}) was not named."
@@ -146,7 +145,9 @@ class NoUnsupportedBlame(_Check):
     name = "No blame on people without evidence"
 
     def check(self, run):
-        occ, planted = _occ(run), run["meta"]["planted"] or {}
+        planted = run["meta"]["planted"] or {}
+        # naming a found segment such as "shift S" is not blame; blame is language about people
+        occ = re.sub(r"\bshifts?\s+[DNS]\b|\bcrews?\s+[A-Z]\b", "", _occ(run))
         if not PEOPLE_RE.search(occ):
             return 1.0, "The occurrence cause does not blame people."
         if planted and set(planted) <= A.PEOPLE_DIMS:

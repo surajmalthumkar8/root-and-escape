@@ -308,13 +308,13 @@ class GeminiAgents:
     async def investigate(self, tb, case: dict, intake: dict, on_call=None) -> dict:
         return await self._run_agent(tb, case, intake, "Investigate this complaint and return the D4 draft.", on_call)
 
-    async def revise(self, tb, case: dict, intake: dict, draft: dict, rules: list[dict]) -> dict:
+    async def revise(self, tb, case: dict, intake: dict, draft: dict, rules: list[dict], on_call=None) -> dict:
         failed = [f"- {r['rule']}: {r['message']}" for r in rules if not r["passed"]]
         evidence = "\n".join(f"{i['id']}: {i['summary']}" for i in tb.log.items)
         msg = ("The Challenger rejected your draft. Fix exactly these problems and return the full corrected draft. "
                "You may call tools again.\nFailed rules:\n" + "\n".join(failed) +
                f"\n\nPrevious draft:\n{json.dumps(draft, ensure_ascii=False)[:3000]}\n\nEvidence so far:\n{evidence[:6000]}")
-        return await self._run_agent(tb, case, intake, msg)
+        return await self._run_agent(tb, case, intake, msg, on_call=on_call)
 
     # -------------------------------------------------------------------------------------------- writer
     async def write(self, case: dict, intake: dict, draft: dict, containment: dict | None, log) -> dict:

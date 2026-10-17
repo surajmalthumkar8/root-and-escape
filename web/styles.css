@@ -150,3 +150,6 @@ dialog input,dialog textarea,dialog select{width:100%;padding:8px 10px;border:1p
 .empty{grid-column:1/-1;background:var(--sheet);border:1px dashed var(--rule-2);border-radius:10px;padding:24px;text-align:center;color:var(--ink-2)}
 @media (max-width:780px){.brand p{display:none}.top{position:static;padding-top:6px;padding-bottom:6px}.brand h1{font-size:19px}}
 .openpts{margin:8px 0 0;background:var(--warn-soft);border:1px solid var(--warn);border-radius:8px;padding:7px 10px;font-size:13.5px}
+.trace{margin-top:10px;border:1px solid var(--rule-2);border-radius:8px;padding:6px 10px;background:var(--sheet)}
+.trace summary{cursor:pointer;font-weight:600;font-size:13.5px}
+.trace ol{margin:6px 0 2px;padding-left:20px;display:flex;flex-direction:column;gap:4px;font-size:13.5px}

@@ -486,23 +486,28 @@ def challenge(case_id: str, body: Challenge, x_visitor: str | None = Header(defa
     """'Try to break it': run the Challenger's rules against a root-cause claim the visitor writes.
     The claim is given the run's evidence IDs, but it only gets the analysed segment if it names that segment
     (for example "P4"). A claim about the wrong press, or about nothing in the data, fails."""
-    from .challenger import check_draft, verdict
+    from .challenger import INSUFFICIENT_RE, check_draft, names_segment, verdict
     visitor = visitor_of(x_visitor)
     case_for(case_id, visitor)
     result = _result_for(case_id, visitor)
     if not result:
         raise HTTPException(404, "Run the investigation first")
     tb = _StoredToolbox(result)
-    stored = result.get("draft") or {}
-    cited = list((stored.get("occurrence") or {}).get("evidence") or []) + \
-        [i["id"] for i in tb.log.items if i["tool"] == "stratify"]
+    occ_text, esc_text = body.occurrence.strip(), body.escape.strip()
     prim = (tb.last_is_is_not or {}).get("primary_segment") or {}
-    names_it = bool(prim) and all(re.search(rf"(?<![A-Za-z0-9]){re.escape(str(v))}(?![A-Za-z0-9])", body.occurrence, re.I)
-                                  for v in prim.values())
-    seg = prim if names_it else {}
-    draft = {"insufficient_evidence": False,
-             "occurrence": {"statement": body.occurrence.strip(), "segment": seg, "evidence": cited},
-             "escape": {"statement": body.escape.strip(), "evidence": list((stored.get("escape") or {}).get("evidence") or [])}}
+    # the analysed segment is attached only if the claim names it (P4, press 4, プレス4...) and no other value
+    seg = prim if prim and names_segment(occ_text, prim)[0] else {}
+
+    def ids(tool: str) -> list[str]:
+        return [i["id"] for i in tb.log.items if i["tool"] == tool]
+
+    # evidence is attached by what the claim talks about; any E-xx the claim cites itself is checked as written
+    own = sorted(set(re.findall(r"\bE-\d{2,3}\b", f"{occ_text} {esc_text}")))
+    occ_ev = ids("is_is_not")[:1] + ids("param_excursions") + ids("stratify") + own
+    esc_ev = (ids("inspection_changes") or ids("is_is_not")[:1]) + own
+    draft = {"insufficient_evidence": bool(INSUFFICIENT_RE.search(occ_text)),
+             "occurrence": {"statement": occ_text, "segment": seg, "evidence": occ_ev},
+             "escape": {"statement": esc_text, "evidence": esc_ev}}
     rules = check_draft(draft, tb)
     return {"verdict": verdict(rules), "rules": rules}
 

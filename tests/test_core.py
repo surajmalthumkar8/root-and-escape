@@ -159,7 +159,8 @@ def test_mechanism_must_fit_the_defect(plant):
     assert "resin maker's limit" in good["occurrence"]["statement"]
     for claim, ok in (("Occurrence: the press P4 mould wore past its maintenance limit, so it flashed.", False),
                       ("Occurrence: the resin dryer on press P4 failed, so the resin was wet.", True),
-                      ("Occurrence: mechanism not yet confirmed on press P4; the mould is worn.", True)):
+                      ("Occurrence: mechanism not yet confirmed on press P4; the mould is worn.", False),  # no loophole
+                      ("Occurrence: mechanism not yet confirmed on press P4; no logged parameter explains it.", True)):
         res = check_draft({**good, "occurrence": {**good["occurrence"], "statement": claim}}, tb)
         rule = [r for r in res if r["rule"] == "mechanism_fits_defect"]
         assert (not rule or rule[0]["passed"]) == ok, (claim, rule)

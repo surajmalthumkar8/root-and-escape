@@ -98,3 +98,10 @@ def test_operator_error_is_rejected_then_revised():
     assert any(r["rule"] == "no_people_blame_without_stratified_effect" and not r["passed"] for r in rounds[0]["rules"])
     assert rounds[-1]["verdict"] == "APPROVED_FOR_REVIEW"
     assert "operator error" not in done["draft"]["occurrence"]["statement"]
+
+
+def test_stored_run_keeps_the_agent_trace():
+    done = run(make_agents(BAD))[-1]["result"]
+    calls = [t["tool"] for t in done["trace"] if t["stage"] == "investigate"]
+    assert calls == ["is_is_not", "param_excursions", "inspection_changes", "stratify", "containment"]
+    assert len(done["challenger"]) == 2  # rejected, revised by the agent, approved

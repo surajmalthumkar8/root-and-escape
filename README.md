@@ -119,9 +119,9 @@ Every stage has a deterministic fallback, and the result records which mode prod
 
 | Risk | Control | Code | Tested |
 |---|---|---|---|
-| Blaming people without evidence | `no_people_blame_without_stratified_effect`: a cause about people (crew, shift, operator, "mistake", "forgot", and the Japanese equivalents, matched by a word list) needs an effect that survives inside each press | `rae/challenger.py` | `test_challenger_rejects_operator_error`, `test_operator_error_is_rejected_then_revised` |
+| Blaming people without evidence | `no_people_blame_without_stratified_effect`: a cause about people, in the occurrence **or** the escape (crew, shift N, operator, team, setter, inspector, "mistake", "forgot", and the Japanese equivalents, matched by a word list) needs an effect that survives inside each press | `rae/challenger.py` | `test_challenger_rejects_operator_error`, `test_operator_error_is_rejected_then_revised` |
 | Missing escape cause | `requires_occurrence_and_escape`, `escape_must_explain_detection` | `rae/challenger.py` | `test_challenger_rejects_missing_escape_and_fake_numbers` |
-| Invented numbers | `numbers_come_from_evidence`: every % and lot count must match a tool result. The Writer's text is rejected and replaced by templates if it fails. | `rae/challenger.py`, `rae/pipeline.py` | same test |
+| Invented numbers | `numbers_come_from_evidence`: every %, "percent", lot count, °C, σ, per-hour rate and × ratio must match a tool result. The Writer's text is rejected and replaced by templates if it fails. | `rae/challenger.py`, `rae/pipeline.py` | same test |
 | Claiming a cause where there is no signal | `no_claim_without_signal` | `rae/challenger.py` | `test_case_121_abstains`, `test_claim_without_signal_is_rejected` |
 | Dodging the work: answering "insufficient evidence" when there is a signal, or skipping the analysis | `no_abstain_with_signal`, `analysis_was_run` | `rae/challenger.py` | `test_abstaining_when_there_is_a_signal_is_rejected`, `test_draft_without_analysis_is_rejected` |
 | Citations that don't exist | `evidence_must_resolve` | `rae/challenger.py` | same test |
@@ -131,9 +131,10 @@ Every stage has a deterministic fallback, and the result records which mode prod
 | Abuse of the free engine | Deterministic runs: 40 per visitor and 2,000 a day; a per-network limit of 20 runs per 10 minutes; 50 cases per visitor; photos over 8 MB or 40 megapixels are refused before decoding | `rae/main.py`, `rae/store.py` | `test_deterministic_runs_have_an_abuse_cap`, `test_per_ip_limit`, `test_photo_upload_limits_and_ownership` |
 | A judge changing what others see | Approvals and live runs are stored per visitor. The shared seed result is upgraded once, to an approved Gemini run that reached the same finding as the baseline | `rae/main.py`, `rae/store.py` | `test_export_locked_until_signed`, `test_visitor_runs_do_not_change_what_others_see`, `test_shared_seed_result_only_upgrades_to_the_same_finding` |
 | Signing something you didn't see | A sign-off is bound to the exact run on screen. A new run clears it, and signing a stale run is refused | `rae/main.py` | `test_signatures_belong_to_the_run_they_were_given_to` |
-| Naming a mechanism that can't cause this defect | `mechanism_fits_defect`: the occurrence may only name a mechanism that is a typical or possible cause of this defect type (a worn mould explains burrs, not cracks). The scripted engine names only typical causes and reports a possible one as a lead to check | `rae/analytics.py` (`MECHANISM_EFFECTS`), `rae/challenger.py` | `test_mechanism_must_fit_the_defect` |
+| A mechanism that isn't in the data, or can't cause this defect | Three rules. `mechanism_named_or_open`: the occurrence names a physical mechanism or says it is not yet confirmed (and "not confirmed, but we are certain" doesn't count). `mechanism_in_evidence`: the process data for that press flags it. `mechanism_fits_defect`: it is a typical or possible cause of this defect type (a worn mould explains burrs, not cracks). The scripted engine names only typical causes and reports a possible one as a lead to check | `rae/analytics.py` (`MECHANISM_EFFECTS`), `rae/challenger.py` | `test_mechanism_must_fit_the_defect`, promptfoo suite |
+| Naming the wrong place | `segment_matches_is_is_not`: the claim must name every part of the analysed segment, in any common spelling (P4, press 4, プレス4, 4号機; C3, cavity 3), and no other value of it. A negated mention ("did not come from P4") doesn't count | `rae/challenger.py` (`names_segment`) | promptfoo suite |
 | Inventing a cause the data doesn't show | When the data locates the defect but no logged parameter or inspection change explains it, the draft says "mechanism not yet confirmed" or "escape not yet identified", lists what to check, and shows it as an open point | `rae/report.py`, `web/app.js` | `test_located_but_unexplained_cause_is_reported_as_open_not_invented` |
-| Untested claims | "Try to break it": any visitor can submit a root cause and see the same rules applied, at no model cost. The claim gets the run's evidence IDs, but only gets the analysed segment if it names it, so a claim about the wrong press or about nothing in the data fails | `rae/main.py` `/challenge` | `test_try_to_break_it_rejects_operator_error` |
+| Untested claims | "Try to break it": any visitor can submit a root cause and see the same rules applied, at no model cost. The server attaches the evidence for what the claim talks about (the analysis, process data, stratification, inspection records); any E-number the claim cites itself must exist. "Insufficient evidence" is accepted as an answer, and is right on case 121 | `rae/main.py` `/challenge` | `test_try_to_break_it_rejects_operator_error` |
 
 ### Evaluation
 
@@ -161,7 +162,7 @@ Three eval layers, each runnable without an agent. Every number below is from a 
 
 The same suite runs the real Gemini agents, with an optional Gemini judge (GEval) for the clarity of the written 8D, in Cloud Shell: `RAE_EVALS=1 RAE_EVAL_MODE=gemini RAE_EVAL_JUDGE=gemini deepeval test run tests/evals/test_rae_e2e.py`. Gemini-mode score: {{run after deploy}}.
 
-**3. Red-team eval of the Challenger with [promptfoo](https://www.promptfoo.dev/)** (`evals/challenger/`, promptfoo 0.120.19). 22 adversarial root-cause claims must each be rejected by the intended rule: people-blame in English and Japanese, the wrong press, nonsense, invented numbers, missing or non-detection escape causes, a mechanism that can't cause the defect, prompt injection, and causes claimed on the control case. 5 sound claims must be approved, so the suite also catches false rejections. **Result: 27 / 27.** The assertion itself was calibrated first (`calibration.yaml`: 2 known passes, 2 known failures). Set `RAE_EVAL_BASE_URL` to run the same claims against the live app.
+**3. Red-team eval of the Challenger with [promptfoo](https://www.promptfoo.dev/)** (`evals/challenger/`, promptfoo 0.120.19). 22 adversarial root-cause claims must each be rejected by the intended rule: people-blame in English and Japanese, the wrong press, nonsense, invented numbers, missing or non-detection escape causes, a mechanism that can't cause the defect, prompt injection, and causes claimed on the control case. 5 sound claims must be approved, so the suite also catches false rejections. An outside review then added 19 claims, 15 of which the Challenger got wrong at the time; they are now in `tests/external_review.yaml`. **Result: 46 / 46** on the committed suite. The assertion itself was calibrated first (`calibration.yaml`: 2 known passes, 2 known failures). Set `RAE_EVAL_BASE_URL` to run the same claims against the live app.
 
 **What the evals found, and what changed** (three rounds on 17 Oct):
 
@@ -234,7 +235,7 @@ We made stratification non-optional:
 - every people-related hypothesis is automatically split by press;
 - the Challenger rejects any people-blame that doesn't survive the split.
 
-The agent can't talk its way past it, and a judge can try in the "Try to break it" box.
+The agent can't get a people cause past these rules without stratified evidence. Judges can try in the "Try to break it" box, and every attack an outside reviewer found has become a regression test (see Evaluation).
 
 ## Cost and limits
 

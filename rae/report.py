@@ -138,6 +138,8 @@ def scripted_investigation(tb: Toolbox) -> dict:
         pe = tb.log.items[-1]
         tb.inspection_changes(press)
         ic = tb.log.items[-1]
+    # a segment that is a shift or crew must show its effect survives a split by press before it may be named
+    people_ids = [tb.stratify(d, "press")["evidence_id"] for d in seg if d in A.PEOPLE_DIMS]
     label, label_ja = A.seg_label(seg), A.seg_label_ja(seg)
     if press:
         mech, esc = mechanism(pe, tb.defect), escape_text(ic)
@@ -170,7 +172,7 @@ def scripted_investigation(tb: Toolbox) -> dict:
     return {
         "insufficient_evidence": False,
         "occurrence": {"statement": f"Occurrence: {mech['text']}.{rate_txt}", "segment": seg,
-                       "evidence": [is_id] + ([pe["id"]] if pe else [])},
+                       "evidence": [is_id] + ([pe["id"]] if pe else []) + people_ids},
         "escape": {"statement": f"Escape: {esc['text']}.", "evidence": [ic["id"]] if ic else [is_id]},
         "occurrence_ja": f"発生原因：{mech.get('text_ja', '')}。{rate_ja}",
         "escape_ja": f"流出原因：{esc['text_ja']}。",
