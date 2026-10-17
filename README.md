@@ -301,6 +301,13 @@ The deploy script:
 
 It exits non-zero and lists anything that needs a look.
 
+```bash
+# Check every part afterwards (read-only; starts no Gemini run and prints no secrets)
+bash scripts/verify_cloud.sh
+```
+
+It checks billing, the APIs, the service account's roles, and that no service-account key or API key exists. It also checks Firestore, the bucket, the BigQuery tables, the Cloud Run settings and public access, the live app (Gemini and BigQuery ML on, and which engine each seed case's stored run used), recent errors and the budget, printing PASS, WARN or FAIL for each.
+
 ## Security
 - **No secrets in this repo.** Gemini, BigQuery, Firestore and Cloud Storage all authenticate through the Cloud Run service account (Application Default Credentials).
 - **Least-privilege roles:** `aiplatform.user`, `bigquery.jobUser`, `bigquery.dataViewer`, `datastore.user`, `logging.logWriter`, and `storage.objectAdmin` on one bucket.
