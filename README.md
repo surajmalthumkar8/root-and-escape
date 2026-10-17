@@ -25,9 +25,10 @@ Gemini agents turn a customer complaint and a defect photo into an evidence-back
    - **"People blamed: No. Crew B rejected after splitting by press"**;
    - **Hold 24 lots, not 216**;
    - the Challenger checks passed.
-3. Click **Run live with Gemini** to watch the agents work. Each tool result streams in with its evidence ID. Live runs are capped at 20 a day for all visitors and 3 per visitor.
-4. Open **Case 121**. The honest answer there is *insufficient evidence*, and the app says so instead of inventing a cause.
-5. Toggle **日本語** in the 8D draft. Sign D2–D5 to unlock the export.
+3. Click **Run live with Gemini** to watch the agents work. Each Gemini tool call and each result stream in with an evidence ID. Gemini runs are capped at 30 a day for all visitors and 5 per visitor; past the cap, the run still happens on the deterministic engine and is labelled that way.
+4. Under **Draft checks**, use **Try to break it**: submit the pre-filled *"Operator error: night crew B…"* and watch the Challenger reject it, with the rule and evidence it uses.
+5. Open **Case 121**. The honest answer there is *insufficient evidence*, and the app says so instead of inventing a cause.
+6. Toggle **日本語** in the 8D draft. Sign D2–D5 to unlock the export (a printable 8D with photos, owners, due dates, lot list and signatures).
 
 ## The problem
 
@@ -114,22 +115,25 @@ Every stage has a deterministic fallback, and the result records which mode prod
 | Citations that don't exist | `evidence_must_resolve` | `rae/challenger.py` | same test |
 | Model writing SQL | No free-form SQL tool. BigQuery ML runs with fixed, validated arguments | `rae/bq.py` | — |
 | Prompt injection in the complaint | Complaint is wrapped as data and the instruction says to ignore it; tools are an allow-list; Challenger rules are code | `rae/agents.py` | sample input 5 below |
-| Runaway cost | Global 20 live runs a day, 3 per visitor, max 12 LLM calls per run, max 3 instances | `rae/store.py`, `rae/agents.py`, `deploy/deploy.sh` | `test_live_run_streams_and_finishes` |
-| A judge changing what others see | Approvals are stored per visitor | `rae/store.py` | `test_export_locked_until_signed` |
+| Runaway cost | Gemini: 30 runs a day globally and 5 per visitor (a Firestore transaction), then deterministic fallback; max 12 LLM calls per run; max 3 instances; $50 Agent Platform spend cap | `rae/store.py`, `rae/agents.py`, `deploy/deploy.sh` | `test_live_run_streams_and_finishes` |
+| A judge changing what others see | Approvals and live runs are stored per visitor; the shared seed result is upgraded once, to an approved Gemini run | `rae/main.py`, `rae/store.py` | `test_export_locked_until_signed`, `test_visitor_runs_do_not_change_what_others_see` |
+| Untested claims | "Try to break it": any visitor can submit a root cause and see the same rules applied, at no model cost | `rae/main.py` `/challenge` | `test_try_to_break_it_rejects_operator_error` |
 
 ### Evaluation
 
-**10-case benchmark** (`python -m rae.benchmark`):
-- 8 planted causes and 2 controls with no cause, generated with seeds that were not tuned.
+**14-case benchmark** (`python -m rae.benchmark`; results in `rae/data/benchmark.json`, and a test checks the file matches a fresh run):
+- 12 planted causes: 8 strong at 10–20× baseline, and 4 weak at 3–7× baseline or in small segments.
+- 2 controls with no cause.
+- Seeds were not tuned.
 - Scored by row overlap with the planted segment, plus containment recall.
 
 | Check | Result |
 |---|---|
-| Planted cause found (≥ 0.8 overlap) | **8 / 8** |
+| Planted cause found (≥ 0.8 overlap) | **11 / 12** |
 | Correct "insufficient evidence" on controls | **2 / 2** |
-| Containment recall (affected lots inside the hold) | **1.00** |
+| Containment recall (affected lots inside the hold) | **0.90** |
 
-This scores the deterministic analysis layer on **synthetic data with strong planted signals** (2.5–5% vs 0.2–0.4% baseline). Real plants are noisier. Gemini's own runs are checked by the Challenger on every live run, and the result shows how many rounds each draft needed.
+The one miss (B14: a weak signal in one cavity of one press) **abstained rather than guessing**, which is the failure mode you want in quality work. This scores the deterministic analysis layer on synthetic data; real plants are noisier. Gemini's own runs are checked by the Challenger on every live run, and the result shows how many rounds each draft needed.
 
 ## Data sources
 
@@ -157,15 +161,25 @@ This scores the deterministic analysis layer on **synthetic data with strong pla
 
 ### Known limitations
 - **Synthetic data only.** No MES or QMS is connected; exports are printable HTML.
-- **Live runs are capped** at 20 a day for everyone and 3 per visitor, to keep cost predictable for the whole judging window. Stored results always load.
+- **Gemini runs are capped** at 30 a day for everyone and 5 per visitor, to keep cost predictable for the whole judging window. After that, runs use the deterministic engine (labelled). Stored results always load.
 - **Photo checks are qualitative.** The box is a proposal the engineer confirms; **no dimensional measurement** is claimed. Multimodal models still trail human experts on fine defect localisation ([MMAD benchmark](https://arxiv.org/abs/2410.09453)).
 - **Cold starts.** The first request after idle can take a few seconds while the container starts.
 - **Live runs take time.** A live run takes about {{N}} s (several Gemini calls); progress streams while you wait.
 
+## The hard problem we solved
+
+**Confounding.** In case 118, the obvious suspect, night crew B, really does show a crack rate about 5× higher. A dashboard, or a model asked "what's the root cause?", would blame the crew. The real cause is press 4's dryer: crew B simply works press 4 more often.
+
+We made stratification non-optional:
+- every people-related hypothesis is automatically split by press;
+- the Challenger rejects any people-blame that doesn't survive the split.
+
+The agent can't talk its way past it, and a judge can try in the "Try to break it" box.
+
 ## Cost and limits
 
 The estimated 60-day total is **about $14**, with the caps above. Cloud Run, Firestore, BigQuery and Cloud Storage stay inside their free tiers. The real costs are:
-- **Gemini:** about $0.03 per live run.
+- **Gemini:** about $0.03 per live run (at most 30 a day).
 - **BigQuery ML:** CREATE MODEL bills at 50× the bytes scanned, about $0.003 per run.
 
 Budget setup used:
@@ -178,7 +192,7 @@ Budget setup used:
 ```bash
 # Local, no cloud needed (deterministic mode, synthetic data)
 uv venv .venv && uv pip install -r requirements-dev.txt
-.venv/bin/python -m pytest -q tests          # 17 tests, including ADK with a scripted fake model
+.venv/bin/python -m pytest -q tests          # 20 tests, including ADK with a scripted fake model
 .venv/bin/python -m uvicorn rae.main:app --port 8088
 ```
 
