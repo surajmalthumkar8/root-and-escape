@@ -9,3 +9,6 @@ var/
 *.key.json
 *-sa.json
 credentials*.json
+var-*/
+var-*.json
+.venv-deploy/
