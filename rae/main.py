@@ -330,8 +330,44 @@ def photo(name: str, v: str | None = Query(default=None)):
     return Response(got[0], media_type=got[1], headers={"Cache-Control": "private, max-age=3600"})
 
 
+def _take_quota(store, visitor: str, kind: str) -> tuple[bool, dict | None]:
+    """If the quota store itself fails, fail safe: no Gemini run (it costs money), but the free engine still runs."""
+    try:
+        return store.take_quota(visitor, kind)
+    except Exception:  # noqa: BLE001
+        log.exception("quota check failed (%s)", kind)
+        return kind == "det", None
+
+
 def _sse(e: dict) -> str:
     return f"data: {json.dumps(e, ensure_ascii=False, default=str)}\n\n"
+
+
+HEARTBEAT_S = 15.0
+
+
+async def _with_heartbeat(agen, every: float | None = None):
+    """Yield the generator's items, plus None whenever nothing arrived for `every` seconds. A quiet stretch (one long
+    Gemini call) then still sends bytes, so no proxy drops the stream as idle."""
+    every = every or HEARTBEAT_S
+    nxt = None
+    try:
+        while True:
+            if nxt is None:
+                nxt = asyncio.ensure_future(agen.__anext__())
+            done, _ = await asyncio.wait({nxt}, timeout=every)
+            if not done:
+                yield None
+                continue
+            step, nxt = nxt, None
+            try:
+                item = step.result()
+            except StopAsyncIteration:
+                return
+            yield item
+    finally:
+        if nxt is not None and not nxt.done():
+            nxt.cancel()  # the client left: cancelling the pending step lets the pipeline stop its Gemini work
 
 
 @app.get("/api/cases/{case_id}/live")
@@ -347,11 +383,16 @@ async def live(case_id: str, request: Request, v: str | None = Query(default=Non
     # Only Gemini runs cost money, so they have the tight quota. When it is used up the run still happens,
     # deterministically, under a much looser cap that only exists to stop abuse.
     if ip_ok and g is not None:
-        ok, quota = await asyncio.to_thread(store.take_quota, visitor)
+        ok, quota = await asyncio.to_thread(_take_quota, store, visitor, "gemini")
     if ip_ok and not ok:
-        det_ok, _ = await asyncio.to_thread(store.take_quota, visitor, "det")
+        det_ok, _ = await asyncio.to_thread(_take_quota, store, visitor, "det")
     if quota is None:
-        quota = await asyncio.to_thread(store.quota, visitor)
+        try:
+            quota = await asyncio.to_thread(store.quota, visitor)
+        except Exception:  # noqa: BLE001
+            log.exception("quota read failed")
+            quota = {"used_today": None, "limit_today": settings.live_runs_per_day,
+                     "used_by_you": None, "limit_per_visitor": settings.runs_per_visitor_per_day}
 
     async def stream():
         if not (ok or det_ok):
@@ -370,7 +411,10 @@ async def live(case_id: str, request: Request, v: str | None = Query(default=Non
         try:
             plant, source = await asyncio.to_thread(load_plant)
             photos = await asyncio.to_thread(_photos, case)
-            async for e in run_investigation(case, plant, source, use, photos, bq_engine() if use else None):
+            async for e in _with_heartbeat(run_investigation(case, plant, source, use, photos, bq_engine() if use else None)):
+                if e is None:
+                    yield ": ping\n\n"  # an SSE comment: browsers ignore it, proxies see traffic
+                    continue
                 if e["type"] == "done":
                     r = e["result"]
                     if g is not None and not ok:
@@ -387,7 +431,7 @@ async def live(case_id: str, request: Request, v: str | None = Query(default=Non
                         "message": f"The run stopped: {type(exc).__name__}. The stored result is still shown."})
 
     return StreamingResponse(stream(), media_type="text/event-stream",
-                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+                             headers={"Cache-Control": "no-cache, no-transform", "X-Accel-Buffering": "no"})
 
 
 class Approval(BaseModel):

@@ -17,15 +17,23 @@ PROBLEMS=()
 
 step() { printf '\n\033[1m== %s\033[0m\n' "$*"; }
 warn() { printf '\033[33mWARNING: %s\033[0m\n' "$*"; PROBLEMS+=("$*"); }
-# A new service account takes a few seconds to become visible to IAM, so policy bindings are retried.
-retry() { local n=0; until "$@"; do n=$((n + 1)); [ "$n" -ge 6 ] && return 1; echo "  retrying in 10 s ($n/5)"; sleep 10; done; }
+# IAM changes take "typically 2 minutes, potentially 7 minutes or longer" to propagate, and a brand-new service
+# account can be invisible for a while, so policy bindings are retried with backoff (about 4 minutes in total).
+retry() {
+  local n=0 delay=5
+  until "$@"; do
+    n=$((n + 1)); [ "$n" -ge 9 ] && return 1
+    echo "  not ready yet; retrying in ${delay} s ($n/8)"; sleep "$delay"; delay=$((delay * 2 > 40 ? 40 : delay * 2))
+  done
+}
 
 gcloud config set project "$PROJECT_ID" >/dev/null
 gcloud config set run/region "$REGION" >/dev/null
 
 step "1/9 Enable APIs"
-gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com \
-  aiplatform.googleapis.com bigquery.googleapis.com firestore.googleapis.com storage.googleapis.com
+# Compute Engine is enabled only so its default service account exists: source deploys build with it.
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com compute.googleapis.com \
+  aiplatform.googleapis.com bigquery.googleapis.com firestore.googleapis.com storage.googleapis.com iam.googleapis.com
 
 step "2/9 Runtime service account (least privilege; no keys are created)"
 gcloud iam service-accounts describe "$SA" >/dev/null 2>&1 || \
@@ -36,7 +44,7 @@ for role in roles/aiplatform.user roles/bigquery.jobUser roles/bigquery.dataView
 done
 PN=$(gcloud projects describe "$PROJECT_ID" --format='value(projectNumber)')
 # Source deploys build with the default compute service account, which needs the Cloud Run builder role.
-if ! gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${PN}-compute@developer.gserviceaccount.com" \
+if ! retry gcloud projects add-iam-policy-binding "$PROJECT_ID" --member="serviceAccount:${PN}-compute@developer.gserviceaccount.com" \
   --role=roles/run.builder --condition=None --quiet >/dev/null 2>&1; then
   warn "Could not grant roles/run.builder to ${PN}-compute@developer.gserviceaccount.com. If the build in step 7 fails with a permission error, grant it in IAM and re-run."
 fi
@@ -55,7 +63,7 @@ retry gcloud storage buckets add-iam-policy-binding "gs://$BUCKET" --member="ser
   --role=roles/storage.objectAdmin >/dev/null
 
 step "5/9 Load the synthetic plant data into BigQuery"
-python3 -m venv .venv-deploy
+python3 -m venv .venv-deploy 2>/dev/null || virtualenv -p python3 .venv-deploy
 # shellcheck disable=SC1091
 . .venv-deploy/bin/activate
 pip install -q "pandas>=2.2,<3" "numpy>=2,<3" "google-cloud-bigquery==3.46.2" "db-dtypes>=1.3" pyarrow
@@ -75,7 +83,7 @@ step "7/9 Build and deploy to Cloud Run (scale to zero, max 3 instances)"
 gcloud run deploy "$SERVICE" --source . --region "$REGION" --quiet \
   --service-account "$SA" --allow-unauthenticated \
   --min-instances 0 --max-instances 3 --cpu 1 --memory 1Gi --cpu-boost \
-  --timeout 300 --concurrency 20 \
+  --timeout 600 --concurrency 20 \
   --set-env-vars "RAE_BACKEND=gcp,GOOGLE_CLOUD_PROJECT=$PROJECT_ID,GOOGLE_CLOUD_LOCATION=global,GOOGLE_GENAI_USE_ENTERPRISE=true,RAE_USE_LLM=true,RAE_MODEL=$MODEL,RAE_DATASET=$DATASET,RAE_BQ_LOCATION=US,RAE_BUCKET=$BUCKET,RAE_LIVE_RUNS_PER_DAY=30,RAE_RUNS_PER_VISITOR_PER_DAY=5"
 URL=$(gcloud run services describe "$SERVICE" --region "$REGION" --format='value(status.url)')
 

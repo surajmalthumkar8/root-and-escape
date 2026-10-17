@@ -123,3 +123,26 @@ def test_benchmark_meets_bar_and_published_file_is_honest():
     assert b["mean_containment_recall"] >= 0.85
     published = json.loads((Path(__file__).resolve().parents[1] / "rae" / "data" / "benchmark.json").read_text(encoding="utf-8"))
     assert json.loads(json.dumps(b, default=str)) == published  # the UI shows exactly what the code produces
+
+
+def test_bigquery_ml_is_prefetched_and_waited_for_at_most_once(plant, monkeypatch):
+    import time
+    import rae.tools as T
+    calls = []
+
+    def slow_engine(defect, start, end):
+        calls.append(defect)
+        time.sleep(0.5)
+        return [{"segment": "press=P4"}]
+
+    monkeypatch.setattr(T, "BQML_WAIT_S", 0.1)
+    tb = Toolbox(plant, get_seed("118"), EvidenceLog(), slow_engine)
+    tb.prefetch_contribution()
+    t0 = time.monotonic()
+    tb.is_is_not()
+    tb.is_is_not()  # the second call must not wait again or start a second BigQuery job
+    assert time.monotonic() - t0 < 0.4 and calls == ["crack"]
+    assert "did not answer" in tb.last_is_is_not["bqml_error"]
+    fast = Toolbox(plant, get_seed("118"), EvidenceLog(), lambda d, s, e: [{"segment": "press=P4"}])
+    fast.is_is_not()
+    assert fast.last_is_is_not["bqml_insights"] and "BigQuery ML" in fast.last_is_is_not["method"]

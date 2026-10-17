@@ -85,6 +85,10 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
         log_.warning("case %s: %s fallback: %s", case.get("case_id"), stage, _short(exc))
 
     try:
+        log = EvidenceLog()
+        tb = Toolbox(plant, case, log, contribution_engine)
+        tb.prefetch_contribution()  # BigQuery ML works in the background while intake runs
+
         # ---- Intake ----------------------------------------------------------------------------------
         yield ev("stage", stage="intake", status="running", label="Intake agent reads the complaint and photos")
         intake = None
@@ -100,8 +104,6 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
         yield ev("intake", intake=intake)
 
         # ---- Investigation ---------------------------------------------------------------------------
-        log = EvidenceLog()
-        tb = Toolbox(plant, case, log, contribution_engine)
         sent = 0
         yield ev("stage", stage="investigate", status="running", label="Investigator agent tests hypotheses against plant data")
         draft = None

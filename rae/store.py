@@ -227,24 +227,22 @@ class GcpStore(LocalStore):
         self._appr_ref(visitor, case_id).delete()
 
     def take_quota(self, visitor, kind="gemini"):
+        """Lock-free: count the run first, then check, and give the slot back if it went over the cap.
+        It can never grant more than the cap (every granted run stays counted) and never waits on a lock.
+        A transaction was tried first; on the Firestore emulator it hit lock timeouts with only 3 runs at once."""
         day_key = utc_day() if kind == "gemini" else f"{utc_day()}-det"
         lim_total, lim_v = _limits(kind)
         ref = self.db.collection("quota").document(day_key)
-        transaction = self.db.transaction()
-
-        @self.fs.transactional
-        def txn(t):
-            snap = ref.get(transaction=t)
-            q = snap.to_dict() if snap.exists else {"total": 0, "visitors": {}}
-            used_v = q.get("visitors", {}).get(visitor, 0)
-            ok = q.get("total", 0) < lim_total and used_v < lim_v
-            if ok:
-                q["total"] = q.get("total", 0) + 1
-                q.setdefault("visitors", {})[visitor] = used_v + 1
-                t.set(ref, q)
-            return ok, q
-
-        ok, q = txn(transaction)
+        inc = self.fs.Increment
+        ref.set({"total": inc(1), "visitors": {visitor: inc(1)}}, merge=True)
+        q = ref.get().to_dict() or {}
+        q.setdefault("visitors", {})
+        used_v = q["visitors"].get(visitor, 0)
+        ok = q.get("total", 0) <= lim_total and used_v <= lim_v
+        if not ok:
+            ref.set({"total": inc(-1), "visitors": {visitor: inc(-1)}}, merge=True)
+            q["total"] = q.get("total", 1) - 1
+            q["visitors"][visitor] = used_v - 1
         return ok, (self._quota_view(q, visitor) if kind == "gemini" else self.quota(visitor))
 
     def quota(self, visitor):

@@ -2,11 +2,16 @@
 must cite one of these IDs."""
 from __future__ import annotations
 
+import concurrent.futures as cf
 import re
+import time
 from datetime import date
 
 from . import analytics as A
 from .data.generator import END, PlantData
+
+_BQ_POOL = cf.ThreadPoolExecutor(max_workers=2, thread_name_prefix="bqml")
+BQML_WAIT_S = 75.0  # the longest a run waits for BigQuery ML before going on with the local test alone
 
 
 class EvidenceLog:
@@ -71,6 +76,19 @@ class Toolbox:
         self.end = date.fromisoformat(case["date_code_end"][:10])
         self.contribution_engine = contribution_engine  # optional BigQuery ML engine
         self.last_is_is_not: dict | None = None
+        self._bq_future: cf.Future | None = None
+        self._bq_deadline = 0.0
+
+    def prefetch_contribution(self) -> None:
+        """Start BigQuery ML at the beginning of the run, because it takes tens of seconds. It then overlaps with
+        intake instead of blocking the Investigator's first tool call. It runs at most once per run."""
+        if self.contribution_engine is not None and self._bq_future is None:
+            self._bq_future = _BQ_POOL.submit(self.contribution_engine, self.defect, self.start, self.end)
+            self._bq_deadline = time.monotonic() + BQML_WAIT_S
+
+    def _contribution(self):
+        self.prefetch_contribution()
+        return self._bq_future.result(timeout=max(0.0, self._bq_deadline - time.monotonic()))
 
     # ---- tools -----------------------------------------------------------------------------------------
     def is_is_not(self) -> dict:
@@ -78,13 +96,15 @@ class Toolbox:
         source = "Python two-proportion test over BigQuery table plant_quality.production_lots"
         if self.contribution_engine is not None:
             try:
-                bq = self.contribution_engine(self.defect, self.start, self.end)
+                bq = self._contribution()
                 if bq:
                     r["bqml_insights"] = bq
                     r["method"] = "BigQuery ML contribution analysis + two-proportion test"
                     source = "BigQuery ML CONTRIBUTION_ANALYSIS (ML.GET_INSIGHTS) on plant_quality.production_lots"
+            except cf.TimeoutError:
+                r["bqml_error"] = f"BigQuery ML did not answer within {BQML_WAIT_S:.0f} s; the local test was used."
             except Exception as exc:  # BigQuery ML is optional: the local engine always runs
-                r["bqml_error"] = str(exc)[:300]
+                r["bqml_error"] = f"{type(exc).__name__}: {str(exc)[:280]}"
         self.last_is_is_not = r
         o = r["overall"]
         if r["significant"]:

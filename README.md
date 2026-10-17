@@ -79,8 +79,8 @@ flowchart LR
 | **Agent Development Kit (ADK) 2.12** | The Investigator: `LlmAgent` + 6 function tools + `output_schema`, run with `InMemoryRunner`, capped at 10 LLM calls per agent run (45 s per call, 230 s for the whole investigation). It revises when the Challenger rejects a draft. |
 | **BigQuery** | Five tables of synthetic plant data (lots × cavities, process parameters, inspection log, shipments, past 8Ds). |
 | **BigQuery ML: contribution analysis** | The 8D is / is-not done in SQL. `CONTRIBUTION_METRIC = 'SUM(defects)/SUM(units)'` over press, cavity, shift, crew and resin lot, test window vs the prior 28 days. It runs inside a BigQuery session with fixed arguments (the model never writes SQL), and is cached per window. |
-| **Cloud Run** | The `*.run.app` URL judges open. Scales to zero, max 3 instances, 300 s timeout, Server-Sent Events. |
-| **Firestore** | Cases, results, per-visitor approvals (one judge can't change another's view) and the transactional daily quota. |
+| **Cloud Run** | The `*.run.app` URL judges open. Scales to zero, max 3 instances, 600 s request timeout (runs are budgeted to 230 s), Server-Sent Events with a 15 s heartbeat. |
+| **Firestore** | Cases, results, per-visitor approvals (one judge can't change another's view) and the daily quota (atomic counters, no locks). |
 | **Cloud Storage** | Uploaded defect photos, re-encoded with metadata stripped. |
 
 ## Gen AI design
@@ -116,7 +116,7 @@ Every stage has a deterministic fallback, and the result records which mode prod
 | Citations that don't exist | `evidence_must_resolve` | `rae/challenger.py` | same test |
 | Model writing SQL | No free-form SQL tool. BigQuery ML runs with fixed, validated arguments | `rae/bq.py` | — |
 | Prompt injection in the complaint | Complaint is wrapped as data and the instruction says to ignore it; tools are an allow-list; Challenger rules are code | `rae/agents.py` | sample input 5 below |
-| Runaway cost | Gemini: 30 runs a day globally and 5 per visitor (a Firestore transaction), then deterministic fallback; max 10 LLM calls per agent run; every Gemini stage has a timeout inside a 230 s run budget; max 3 instances; $50 Agent Platform spend cap | `rae/store.py`, `rae/agents.py`, `rae/pipeline.py`, `deploy/deploy.sh` | `test_live_run_streams_and_finishes`, `test_deterministic_runs_do_not_use_quota_and_never_dead_end` |
+| Runaway cost | Gemini: 30 runs a day globally and 5 per visitor (atomic Firestore counters that can never grant past the cap), then deterministic fallback; max 10 LLM calls per agent run; every Gemini stage has a timeout inside a 230 s run budget; max 3 instances; $50 Agent Platform spend cap | `rae/store.py`, `rae/agents.py`, `rae/pipeline.py`, `deploy/deploy.sh` | `test_live_run_streams_and_finishes`, `test_deterministic_runs_do_not_use_quota_and_never_dead_end` |
 | Abuse of the free engine | Deterministic runs: 40 per visitor and 2,000 a day; a per-network limit of 20 runs per 10 minutes; 50 cases per visitor; photos over 8 MB or 40 megapixels are refused before decoding | `rae/main.py`, `rae/store.py` | `test_deterministic_runs_have_an_abuse_cap`, `test_per_ip_limit`, `test_photo_upload_limits_and_ownership` |
 | A judge changing what others see | Approvals and live runs are stored per visitor. The shared seed result is upgraded once, to an approved Gemini run that reached the same finding as the baseline | `rae/main.py`, `rae/store.py` | `test_export_locked_until_signed`, `test_visitor_runs_do_not_change_what_others_see`, `test_shared_seed_result_only_upgrades_to_the_same_finding` |
 | Signing something you didn't see | A sign-off is bound to the exact run on screen. A new run clears it, and signing a stale run is refused | `rae/main.py` | `test_signatures_belong_to_the_run_they_were_given_to` |
@@ -195,8 +195,14 @@ Budget setup used:
 ```bash
 # Local, no cloud needed (deterministic mode, synthetic data)
 uv venv .venv && uv pip install -r requirements-dev.txt
-.venv/bin/python -m pytest -q tests          # 27 tests, including ADK with a scripted fake model
+.venv/bin/python -m pytest -q tests          # 29 tests, including ADK with a scripted fake model
 .venv/bin/python -m uvicorn rae.main:app --port 8088
+```
+
+```bash
+# The cloud storage code (Firestore quota, results, approvals, cases) checked against the real Firestore emulator
+npx firebase-tools emulators:start --only firestore --project demo-rae      # needs Java 21+
+FIRESTORE_EMULATOR_HOST=127.0.0.1:8085 .venv/bin/python scripts/check_gcp_paths.py .
 ```
 
 ```bash

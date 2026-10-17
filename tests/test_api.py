@@ -186,3 +186,21 @@ def test_shared_seed_result_only_upgrades_to_the_same_finding():
     assert not upgrades_shared({**gem, "analysis": {"primary_segment": {"press": "P1"}}}, base)  # different finding
     assert not upgrades_shared({**gem, "draft": {"insufficient_evidence": True}}, base)
     assert not upgrades_shared(gem, gem)                                                    # only once
+
+
+def test_stream_sends_heartbeats_during_quiet_stretches(monkeypatch):
+    import asyncio
+    import rae.main as main_mod
+
+    async def slow_run(case, *a, **k):
+        yield {"type": "stage", "stage": "intake"}
+        await asyncio.sleep(0.35)  # a long Gemini call with nothing to report
+        yield {"type": "done", "result": {"case_id": case["case_id"], "created_at": "2026-10-17T00:00:00+00:00",
+                                          "verdict": "REJECTED", "modes": {"investigation": "deterministic"}, "notes": []}}
+
+    monkeypatch.setattr(main_mod, "run_investigation", slow_run)
+    monkeypatch.setattr(main_mod, "HEARTBEAT_S", 0.05)
+    with client.stream("GET", "/api/cases/121/live?v=heartbeat-visitor-1") as r:
+        lines = [x for x in r.iter_lines() if x]
+    assert ": ping" in lines
+    assert json.loads([x for x in lines if x.startswith("data: ")][-1][6:])["type"] == "done"
