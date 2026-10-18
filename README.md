@@ -35,6 +35,8 @@ Root & Escape does the data work and shows its evidence, so Priya spends her tim
 
 The demo plant is synthetic but laid out like a real moulding shop: 15 presses, and each part runs on its own presses with its own resin and customer. Every table has a `part_no` column, and a complaint is only checked against the rows of its own part. The CL-204 data is exactly what it was before the other three parts were added, so case 118's numbers did not move.
 
+![The four parts of the demo plant, each with its own presses, customer and complaint](docs/media/plant.png)
+
 | Part | What it is | Presses | Customer | Complaint | What the data says |
 |---|---|---|---|---|---|
 | CL-204 | Snap clip, PA66 nylon. Holds the wire harness to the car body | P1 to P6, 4 cavities | OEM-J, Japan | 118: cracks | Press P4's resin dryer ran wet; sampling there was cut. Crew B looks guilty and is cleared |
