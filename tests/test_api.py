@@ -25,7 +25,7 @@ def test_plant_series_shows_the_dryer_excursion():
     wet = [v for ts, v in s["points"] if "2026-10-06" <= ts[:10] <= "2026-10-11"]
     dry = [v for ts, v in s["points"] if ts[:10] < "2026-09-30"]
     assert min(wet) > s["spec_max"] > max(dry)  # P4's dryer runs wet only in the complaint window
-    assert client.get("/api/plant/series?press=P9").status_code == 404
+    assert client.get("/api/plant/series?press=P99").status_code == 404
     assert client.get("/api/plant/series?press=P4&param=secret").status_code == 400
 
 
@@ -310,3 +310,25 @@ def test_gemini_critic_checks_what_code_rules_cannot(monkeypatch):
     assert good["critic"] == "gemini" and good["verdict"] == "APPROVED_FOR_REVIEW"
     bad = client.post("/api/cases/118/challenge", headers=V, json={"occurrence": "Operator error on press P4.", "escape": esc}).json()
     assert bad["critic"] == "skipped"  # code rules already rejected it; no Gemini call is spent
+
+
+def test_products_and_the_live_service_check():
+    p = client.get("/api/plant/products").json()["products"]
+    assert [x["part_no"] for x in p] == ["CL-204", "HX-310", "BC-115", "GR-88"]
+    assert all(x["lots"] > 0 and x["cases"] for x in p)
+    s = client.get("/api/stack").json()["services"]
+    assert set(s) == {"run", "bigquery", "bqml", "firestore", "storage", "adk", "firebase", "gemini"}
+    assert s["bigquery"]["ok"] and "lot rows" in s["bigquery"]["proof"]
+    assert all("proof" in v for v in s.values())
+
+
+def test_an_upload_can_name_another_part():
+    r = client.post("/api/cases", headers=V, data={
+        "complaint": "Short shots on HX-310 housings, 9 of 600 pieces, latch wall missing.", "defect": "short_shot",
+        "date_code_start": "2026-10-05", "date_code_end": "2026-10-11", "part_no": "HX-310"})
+    cid = r.json()["case_id"]
+    c = client.get(f"/api/cases/{cid}", headers=V).json()["case"]
+    assert c["part_no"] == "HX-310" and c["golden"] == "golden_hx310.png"
+    assert client.post("/api/cases", headers=V, data={
+        "complaint": "Short shots on a part we do not make here at all.", "defect": "short_shot",
+        "date_code_start": "2026-10-05", "date_code_end": "2026-10-11", "part_no": "ZZ-999"}).status_code == 422

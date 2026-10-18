@@ -54,9 +54,15 @@ def mechanism(pe: dict | None, defect: str | None = None) -> dict:
                 "action_ja": f"摩耗したキャビティを修理し、プレス {press} を {pm['limit']:,} ショットで停止する保全インターロックを追加する"}
     for p in pe["data"]["params"]:
         if p["flag"] and fits(p["param"]):
+            s = p["shift_sigma"]
+            way, way_ja = ("above", "高い") if s > 0 else ("below", "低い")
+            name, _, unit = p["label"].partition(" (")
+            unit = unit.rstrip(")")
             return {"kind": "param", "keywords": [p["param"].split("_")[0]],
-                    "text": f"{p['label']} on press {press} moved {p['shift_sigma']}σ from normal",
-                    "text_ja": f"プレス {press} の {p['label']} が平常から {p['shift_sigma']}σ 変動した",
+                    "text": (f"{name} on press {press} averaged {p['test_mean']} {unit} against a normal "
+                             f"{p['control_mean']} {unit}, {abs(s)}σ {way} normal, from {_when(p['first_out'])} to {_when(p['last_out'])}"),
+                    "text_ja": (f"プレス {press} の {name} が平均 {p['test_mean']} {unit}（平常 {p['control_mean']} {unit}）で、"
+                                f"平常より {abs(s)}σ {way_ja}（{_when(p['first_out'])}〜{_when(p['last_out'])}）"),
                     "action": f"Restore {p['label']} on press {press} to its validated window and add an alarm",
                     "action_ja": f"プレス {press} の {p['label']} を検証済みの範囲に戻し、アラームを追加する"}
     possible = [f for f in flagged if defect in A.MECHANISM_EFFECTS.get(f, {}).get("possible", set())]

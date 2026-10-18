@@ -14,7 +14,7 @@ from pathlib import Path
 import pandas as pd
 
 from .config import settings
-from .data.generator import PlantData, generate, past_8d_table
+from .data.generator import PlantData, generate_plant, past_8d_table
 
 _lock = threading.Lock()
 
@@ -64,7 +64,7 @@ def _read_plant() -> PlantData:
         proc["prod_ts"] = pd.to_datetime(proc["prod_ts"]).dt.tz_localize(None)
         return PlantData(prod, proc, insp, ship, past if len(past) else past_8d_table(),
                          meta={"synthetic": True, "source": "bigquery"})
-    return generate(42)
+    return generate_plant(42)
 
 
 def result_summary(result: dict | None) -> dict | None:

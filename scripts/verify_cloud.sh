@@ -118,7 +118,7 @@ PY
   else
     fail "/api/meta does not answer"
   fi
-  for CASE in 118 124 121; do
+  for CASE in 118 124 121 131 142 153; do
     CJ=$(curl -fsS --max-time 60 "$URL/api/cases/$CASE" -H "X-Visitor: verify-check-0001" 2>/dev/null)
     if [ -z "$CJ" ]; then fail "case $CASE does not load"; continue; fi
     report < <(CASE_JSON="$CJ" CASE="$CASE" python3 - <<'PY'
@@ -150,12 +150,25 @@ else
   warn "no Firebase Hosting site at $WEB yet: run  bash deploy/firebase.sh"
 fi
 
-head_ "8 Errors in the last 6 hours"
+head_ "8 Live service check (/api/stack, the same check the overview page runs)"
+if [ -n "$URL" ] && SJ=$(curl -fsS --max-time 60 "$URL/api/stack" 2>/dev/null); then
+  report < <(STACK_JSON="$SJ" python3 - <<'PY'
+import json, os
+s = json.loads(os.environ["STACK_JSON"]).get("services") or {}
+for k, v in s.items():
+    print("PASS" if v.get("ok") and v.get("live") else ("WARN" if v.get("ok") else "FAIL"), f"{k}: {v.get('proof')}")
+PY
+)
+else
+  fail "/api/stack does not answer"
+fi
+
+head_ "9 Errors in the last 6 hours"
 ERRS=$(q gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"$SERVICE\" AND severity>=ERROR" \
   --freshness=6h --limit=8 --format='value(timestamp,textPayload)')
 if [ -z "$ERRS" ]; then pass "no errors logged"; else warn "recent errors (newest first):"; cut -c1-220 <<<"$ERRS" | sed 's/^/      /'; fi
 
-head_ "9 Budget"
+head_ "10 Budget"
 if [ -n "$BA" ] && B=$(q gcloud billing budgets list --billing-account="$BA" --format='value(displayName)') && [ -n "$B" ]; then
   pass "budget(s): $(tr '\n' ',' <<<"$B" | sed 's/,$//')"
 else

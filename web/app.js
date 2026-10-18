@@ -509,6 +509,8 @@
       $("#f-start").value = a; $("#f-end").value = b;
       found.push(`date codes ${fmtDay(a)} to ${fmtDay(b)}` + (a < "2026-08-30" || b > "2026-10-16" ? " (outside the demo window, so change them)" : ""));
     }
+    const part = text.match(/\b(CL-204|HX-310|BC-115|GR-88)\b/i);
+    if (part && $("#f-part")) { $("#f-part").value = part[1].toUpperCase(); found.push(`the part: ${part[1].toUpperCase()}`); }
     const hit = DEFECT_WORDS.find(([, rx]) => rx.test(text));
     if (hit) { $("#f-defect").value = hit[0]; found.push(`the defect: ${hit[0].replace("_", " ")}`); }
     const subj = text.match(/^\s*(?:subject|件名|제목|เรื่อง|विषय|perihal)\s*[:：]\s*(.+)$/im);

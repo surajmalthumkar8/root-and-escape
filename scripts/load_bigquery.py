@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from rae.data.generator import generate  # noqa: E402
+from rae.data.generator import generate_plant  # noqa: E402
 
 
 def main() -> None:
@@ -30,7 +30,7 @@ def main() -> None:
     ds.description = "Root & Escape demo: SYNTHETIC injection-moulding plant data (seed 42). Not real plant data."
     client.create_dataset(ds, exists_ok=True)
 
-    plant = generate(42)
+    plant = generate_plant(42)  # CL-204 plus the three other parts
     for name, df in plant.tables().items():
         df = df.copy()
         for c in df.columns:

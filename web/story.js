@@ -83,7 +83,7 @@
       html: true,
       act: `<button class="btn big" type="button" data-st="1">See how, in six steps</button>
             <button class="btn ghost big" type="button" data-bench="${CASE}">Open the workbench</button>
-            <p class="st-more">Judging it? <a class="link inline" href="#test" data-nav="lab">Test it yourself</a> with 13 ready-made checks.</p>`,
+            <p class="st-more">Judging it? <a class="link inline" href="#test" data-nav="lab">Test it yourself</a> with 17 ready-made checks.</p>`,
       draw: (el) => { el.innerHTML = hero() + coverFacts(); },
     }),
     () => ({

@@ -6,12 +6,15 @@ plain `def` handlers already run in FastAPI's thread pool.
 from __future__ import annotations
 
 import asyncio
+import importlib.metadata
 import io
 import json
 import logging
+import os
 import re
 import threading
 import time
+import urllib.request
 import uuid
 from collections import deque
 from datetime import datetime, timezone
@@ -27,6 +30,7 @@ from . import __version__
 from .analytics import PARAM_SPEC_MAX, PARAMS
 from .config import settings
 from .data.cases import SEED_CASES, get_seed
+from .data.generator import PART_NO, PART_NOS, PRODUCTS
 from .pipeline import run_investigation
 from .report_html import render_report
 from .store import get_store, load_plant, plant_source_label
@@ -238,6 +242,7 @@ def list_cases(x_visitor: str | None = Header(default=None)):
     for c in cases:
         s = summ.get(c["case_id"]) or {}
         out.append({"case_id": c["case_id"], "title": c["title"], "defect": c["defect"], "received": c["received"],
+                    "part_no": c.get("part_no") or PART_NO, "customer": c.get("customer"),
                     "seed": bool(get_seed(c["case_id"])), "verdict": s.get("verdict"),
                     "insufficient": bool(s.get("insufficient")), "modes": s.get("modes")})
     return out
@@ -264,13 +269,16 @@ async def get_case(case_id: str, x_visitor: str | None = Header(default=None)):
 @app.post("/api/cases")
 async def create_case(request: Request, complaint: str = Form(..., max_length=4000), defect: str = Form(...),
                       date_code_start: str = Form(...), date_code_end: str = Form(...),
-                      title: str = Form("", max_length=120), photo: UploadFile | None = File(default=None),
+                      title: str = Form("", max_length=120), part_no: str = Form(PART_NO, max_length=12),
+                      photo: UploadFile | None = File(default=None),
                       x_visitor: str | None = Header(default=None)):
     visitor = visitor_of(x_visitor)
     if visitor == "anonymous":
         raise HTTPException(400, "Missing visitor id. Reload the page.")
     if defect not in DEFECTS:
         raise HTTPException(422, f"defect must be one of {DEFECTS}")
+    if part_no not in PART_NOS:
+        raise HTTPException(422, f"part must be one of {', '.join(PART_NOS)}")
     try:
         s = datetime.fromisoformat(date_code_start).date()
         e = datetime.fromisoformat(date_code_end).date()
@@ -301,7 +309,8 @@ async def create_case(request: Request, complaint: str = Form(..., max_length=40
             "customer": "Your test customer", "defect": defect,
             "received": datetime.now(timezone.utc).isoformat(timespec="seconds"),
             "date_code_start": s.isoformat(), "date_code_end": e.isoformat(), "language": "auto",
-            "complaint": complaint.strip(), "photo": photo_name, "golden": "golden_cl204.png", "visitor": visitor}
+            "complaint": complaint.strip(), "photo": photo_name, "part_no": part_no, "visitor": visitor,
+            "golden": next((c["golden"] for c in SEED_CASES if c.get("part_no") == part_no), "golden_cl204.png")}
     await asyncio.to_thread(store.save_case, case)
     return {"case_id": case_id}
 
@@ -598,6 +607,171 @@ async def plant_series(press: str = Query(..., max_length=8), param: str = Query
         "points": [[ts.strftime("%Y-%m-%dT%H:%M"), round(float(v), 2)] for ts, v in zip(proc.prod_ts, proc[param])],
         "daily_rate": [[d.isoformat(), round(float(r.d) / float(r.n), 5) if r.n else None] for d, r in daily.iterrows()],
     }, headers={"Cache-Control": "public, max-age=3600"})
+
+
+# ------------------------------------------------------------------------------------------ live service check
+# The overview page asks this to prove each Google Cloud service is really in use. Every check is small (one count
+# query, one document read, one object listing, a one-word Gemini call) and the answer is cached for a minute.
+_STARTED = time.time()
+_stack_cache: dict = {}
+_stack_lock = asyncio.Lock()
+
+
+def _metadata(path: str) -> str:
+    try:
+        req = urllib.request.Request(f"http://metadata.google.internal/computeMetadata/v1/{path}",
+                                     headers={"Metadata-Flavor": "Google"})
+        with urllib.request.urlopen(req, timeout=1.0) as r:
+            return r.read().decode()[:200]
+    except Exception:  # noqa: BLE001  (not on Google Cloud)
+        return ""
+
+
+def _check(fn) -> dict:
+    t0 = time.monotonic()
+    try:
+        out = fn()
+        out.setdefault("ok", True)
+    except Exception as exc:  # noqa: BLE001  (a failed check is shown, never raised)
+        out = {"ok": False, "proof": f"Check failed: {type(exc).__name__}: {str(exc)[:160]}"}
+    out["ms"] = int((time.monotonic() - t0) * 1000)
+    return out
+
+
+def _check_run() -> dict:
+    svc = os.getenv("K_SERVICE")
+    if not svc:
+        return {"live": False, "proof": "Running on a local machine, not on Cloud Run."}
+    region = _metadata("instance/region").rsplit("/", 1)[-1] or "its region"
+    up = int(time.time() - _STARTED) // 60
+    return {"live": True, "proof": f"Service {svc}, revision {os.getenv('K_REVISION', '?')}, in {region}. "
+                                   f"This instance started {up} min ago and scales to zero when idle."}
+
+
+def _check_bigquery() -> dict:
+    if not settings.gcp:
+        plant, _ = load_plant()
+        n = plant.production.groupby("part_no").size()
+        return {"live": False, "proof": f"Local copy of the tables: {len(plant.production):,} lot rows for {len(n)} parts."}
+    from google.cloud import bigquery
+    client = bigquery.Client(project=settings.project, location=settings.bq_location)
+    job = client.query(f"SELECT part_no, COUNT(*) AS n FROM `{settings.project}.{settings.dataset}.production_lots` "
+                       "GROUP BY part_no ORDER BY part_no",
+                       job_config=bigquery.QueryJobConfig(use_query_cache=False, maximum_bytes_billed=100 * 1024 * 1024))
+    rows = list(job.result(timeout=20))
+    per = ", ".join(f"{r['part_no']} {r['n']:,}" for r in rows)
+    return {"live": True, "proof": f"Counted {sum(r['n'] for r in rows):,} lot rows in {settings.dataset}.production_lots "
+                                   f"just now ({per}). Job {job.job_id[:14]}..., "
+                                   f"{(job.total_bytes_processed or 0) / 1e6:.2f} MB scanned."}
+
+
+def _check_bqml() -> dict:
+    if not bq_engine():
+        return {"live": False, "proof": "Off in this mode. The local two-proportion test does the same job."}
+    from . import bq
+    if bq.LAST:
+        m = int((time.time() - bq.LAST["at"]) / 60)
+        return {"live": True, "proof": f"{m} min ago this instance ran CREATE TEMP MODEL (CONTRIBUTION_ANALYSIS) for "
+                                       f"{bq.LAST['defect'].replace('_', ' ')} on {bq.LAST['part']}: "
+                                       f"{bq.LAST['insights']} insights in {bq.LAST['seconds']} s."}
+    r = get_store().get_result("118") or {}
+    n = len((r.get("analysis") or {}).get("bqml_insights") or [])
+    return {"live": True, "proof": (f"The stored run of case 118 holds {n} insights from ML.GET_INSIGHTS. " if n else "")
+                                   + "It runs again at the start of every live investigation."}
+
+
+def _check_firestore() -> dict:
+    store = get_store()
+    if not settings.gcp:
+        return {"live": False, "proof": "Local files stand in for Firestore in this mode."}
+    t0 = time.monotonic()
+    snap = store.db.collection("results").document("118").get(field_paths=["saved"])
+    ms = int((time.monotonic() - t0) * 1000)
+    q = store.quota("stack-check")
+    return {"live": True, "proof": f"Read the stored run of case 118 in {ms} ms"
+                                   + (" (saved " + datetime.fromtimestamp(snap.to_dict()["saved"], timezone.utc)
+                                      .strftime("%d %b %H:%M UTC") + ")" if snap.exists else "")
+                                   + f". Live Gemini runs today: {q['used_today']} of {q['limit_today']}."}
+
+
+def _check_storage() -> dict:
+    if not settings.gcp:
+        return {"live": False, "proof": "Uploaded photos are kept on local disk in this mode."}
+    blobs = list(get_store().bucket.list_blobs(prefix="photos/", max_results=200))
+    return {"live": True, "proof": f"Bucket {settings.bucket} holds {len(blobs)}{'+' if len(blobs) == 200 else ''} "
+                                   "uploaded defect photos. Each one is stored as a re-encoded JPEG with its metadata removed."}
+
+
+def _check_adk() -> dict:
+    try:
+        ver = importlib.metadata.version("google-adk")
+    except importlib.metadata.PackageNotFoundError:
+        ver = "not installed"
+    return {"live": bool(llm()), "proof": f"google-adk {ver}. The Investigator is an ADK LlmAgent with six tools; "
+                                          "Gemini decides which to call and in what order."}
+
+
+def _check_firebase() -> dict:
+    origins = [o for o in settings.allowed_origins if o.startswith("https://")]
+    if not origins:
+        return {"live": False, "proof": "No Firebase Hosting site is set up for this project yet."}
+    for o in origins:
+        try:
+            with urllib.request.urlopen(o + "/", timeout=3) as r:
+                body = r.read(20_000).decode("utf-8", "ignore")
+            if 'name="rae-api"' in body:
+                return {"live": True, "proof": f"{o} serves this page (HTTP {r.status}) and calls this Cloud Run API across origins."}
+        except Exception:  # noqa: BLE001  (try the next origin)
+            continue
+    return {"ok": False, "live": False, "proof": "The Firebase Hosting copy did not answer. Run deploy/firebase.sh."}
+
+
+async def _check_gemini() -> dict:
+    t0 = time.monotonic()
+    g = llm()
+    if not g:
+        return {"ok": not settings.use_llm, "live": False, "ms": 0,
+                "proof": "Off: deterministic mode." if not settings.use_llm else f"Not available: {_llm_error}"}
+    try:
+        p = await asyncio.wait_for(g.ping(), timeout=15)
+        out = {"ok": bool(p["text"]), "live": True,
+               "proof": f'Asked {g.model} for one word just now. It said "{p["text"]}" in {p["seconds"]} s.'}
+    except Exception as exc:  # noqa: BLE001
+        out = {"ok": False, "live": True, "proof": f"Gemini did not answer: {type(exc).__name__}"}
+    out["ms"] = int((time.monotonic() - t0) * 1000)
+    return out
+
+
+@app.get("/api/stack")
+async def stack():
+    """Live proof that each Google Cloud service is in use, one line each."""
+    async with _stack_lock:
+        if _stack_cache.get("t", -1e9) > time.monotonic() - 60:
+            return _stack_cache["v"]
+        sync = {"run": _check_run, "bigquery": _check_bigquery, "bqml": _check_bqml, "firestore": _check_firestore,
+                "storage": _check_storage, "adk": _check_adk, "firebase": _check_firebase}
+        results = await asyncio.gather(*(asyncio.to_thread(_check, f) for f in sync.values()), _check_gemini())
+        services = dict(zip([*sync, "gemini"], results))
+        v = {"checked_at": datetime.now(timezone.utc).isoformat(timespec="seconds"), "backend": settings.backend,
+             "project": settings.project or None, "services": services}
+        _stack_cache.update(t=time.monotonic(), v=v)
+        return v
+
+
+@app.get("/api/plant/products")
+async def products():
+    """The parts the demo plant makes, with what the tables hold for each."""
+    plant, source = await asyncio.to_thread(load_plant)
+    out = []
+    for p in PRODUCTS:
+        prod = plant.for_part(p.part_no).production
+        cases = [c for c in SEED_CASES if (c.get("part_no") or PART_NO) == p.part_no]
+        out.append({"part_no": p.part_no, "name": p.name, "material": p.material, "use": p.use,
+                    "customer": cases[0]["customer"] if cases else p.customer, "presses": list(p.presses),
+                    "cavities": len(p.cavities), "lots": int(prod.lot_id.nunique()), "rows": int(len(prod)),
+                    "parts_made": int(prod.units.sum()), "cases": [c["case_id"] for c in cases],
+                    "golden": cases[0]["golden"] if cases else None})
+    return JSONResponse({"source": source, "products": out}, headers={"Cache-Control": "public, max-age=600"})
 
 
 @app.get("/api/benchmark")

@@ -94,11 +94,16 @@ echo "$META"
 echo "$META" | python3 -c "import sys,json; m=json.load(sys.stdin); sys.exit(0 if m['gemini'] else 1)" || \
   warn "Gemini is off: $(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin).get('gemini_error'))")"
 
-step "9/9 Warm the seed cases with a real Gemini run (uses 3 of today's 30 Gemini runs)"
-for CASE in 118 124 121; do
+step "9/9 Warm the six seed cases with a real Gemini run, all at once (uses 6 of today's 30 Gemini runs)"
+SEEDS="118 124 121 131 142 153"
+WARM=$(mktemp -d)
+for CASE in $SEEDS; do
+  curl -sN --max-time 290 "$URL/api/cases/$CASE/live?v=deploy-warmup-$CASE-$(date +%s)" > "$WARM/$CASE.log" 2>&1 &
+done
+wait
+for CASE in $SEEDS; do
   echo "-- case $CASE"
-  curl -sN --max-time 290 "$URL/api/cases/$CASE/live?v=deploy-warmup-$CASE-$(date +%s)" \
-    | grep -o '"type": "[a-z]*"' | sort | uniq -c || true
+  grep -o '"type": "[a-z]*"' "$WARM/$CASE.log" | sort | uniq -c || true
   CHECK=$(curl -fsS "$URL/api/cases/$CASE" -H "X-Visitor: deploy-check-0001" | python3 -c "
 import sys, json
 r = json.load(sys.stdin)['result'] or {}

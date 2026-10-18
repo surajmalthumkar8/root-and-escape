@@ -130,7 +130,7 @@ def test_bigquery_ml_is_prefetched_and_waited_for_at_most_once(plant, monkeypatc
     import rae.tools as T
     calls = []
 
-    def slow_engine(defect, start, end):
+    def slow_engine(defect, start, end, part="CL-204"):
         calls.append(defect)
         time.sleep(1.5)
         return [{"segment": "press=P4"}]
@@ -148,7 +148,7 @@ def test_bigquery_ml_is_prefetched_and_waited_for_at_most_once(plant, monkeypatc
     extra = two_runs(tb) - baseline
     assert extra < 0.8 and calls == ["crack"]  # waited about 0.1 s once; waiting for the engine would add 1.5 s
     assert "did not answer" in tb.last_is_is_not["bqml_error"]
-    fast = Toolbox(plant, get_seed("118"), EvidenceLog(), lambda d, s, e: [{"segment": "press=P4"}])
+    fast = Toolbox(plant, get_seed("118"), EvidenceLog(), lambda d, s, e, p: [{"segment": "press=P4"}])
     fast.is_is_not()
     assert fast.last_is_is_not["bqml_insights"] and "BigQuery ML" in fast.last_is_is_not["method"]
 
@@ -206,3 +206,38 @@ def test_writer_check_accepts_real_numbers_and_names_invented_ones(plant):
     assert _report_ok(ja, tb.log, get_seed("118"))[0]
     ok, bad = _report_ok(dict(base, D3=f"Hold {cont['targeted_lots'] + 1} lots of press P4."), tb.log, get_seed("118"))
     assert not ok and bad == [f"{cont['targeted_lots'] + 1} lots"]
+
+
+def test_the_other_parts_leave_the_cl204_tables_unchanged():
+    from rae.data.generator import generate_plant
+    a, b = generate(42), generate_plant(42).for_part("CL-204")
+    for name in ("production", "process", "inspection", "shipments"):
+        x, y = getattr(a, name), getattr(b, name)
+        assert x.reset_index(drop=True).equals(y[list(x.columns)].reset_index(drop=True)), name
+
+
+def test_every_seed_case_finds_its_planted_cause_on_its_own_part():
+    from rae.data.generator import generate_plant
+    whole = generate_plant(42)
+    for c in SEED_CASES:
+        tb = Toolbox(whole, c, EvidenceLog())
+        draft = scripted_investigation(tb)
+        assert set(tb.plant.production.part_no) == {c["part_no"]}  # only the presses that make this part
+        assert tb.last_is_is_not["primary_segment"] == c["truth"]["segment"], c["case_id"]
+        if c["truth"].get("confounder") == "crew":
+            assert any(h["hypothesis"].startswith("crew") and h["ruling"] == "REJECTED" for h in draft["hypotheses"])
+
+
+def test_every_seed_case_passes_the_challenger_in_scripted_mode():
+    import asyncio
+    from rae.data.generator import generate_plant
+    from rae.pipeline import run_investigation
+    whole = generate_plant(42)
+
+    async def verdict_of(case):
+        async for e in run_investigation(case, whole, "local", None, {}, None):
+            if e["type"] == "done":
+                return e["result"]["verdict"]
+
+    for c in SEED_CASES:  # two-digit presses (P11, P14) and signed σ shifts once slipped past the rules
+        assert asyncio.run(verdict_of(c)) == "APPROVED_FOR_REVIEW", c["case_id"]

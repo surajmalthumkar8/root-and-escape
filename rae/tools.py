@@ -8,7 +8,7 @@ import time
 from datetime import date
 
 from . import analytics as A
-from .data.generator import END, PlantData
+from .data.generator import END, PART_NO, PlantData
 
 _BQ_POOL = cf.ThreadPoolExecutor(max_workers=2, thread_name_prefix="bqml")
 BQML_WAIT_S = 75.0  # the longest a run waits for BigQuery ML before going on with the local test alone
@@ -71,7 +71,8 @@ class Toolbox:
     """Bound to one case and one dataset. Methods return compact dicts that are safe to show to the model."""
 
     def __init__(self, plant: PlantData, case: dict, log: EvidenceLog, contribution_engine=None):
-        self.plant, self.case, self.log = plant, case, log
+        self.part = case.get("part_no") or PART_NO
+        self.plant, self.case, self.log = plant.for_part(self.part), case, log  # only the presses that make this part
         self.defect = case["defect"]
         self.start = date.fromisoformat(case["date_code_start"][:10])
         self.end = date.fromisoformat(case["date_code_end"][:10])
@@ -84,7 +85,7 @@ class Toolbox:
         """Start BigQuery ML at the beginning of the run, because it takes tens of seconds. It then overlaps with
         intake instead of blocking the Investigator's first tool call. It runs at most once per run."""
         if self.contribution_engine is not None and self._bq_future is None:
-            self._bq_future = _BQ_POOL.submit(self.contribution_engine, self.defect, self.start, self.end)
+            self._bq_future = _BQ_POOL.submit(self.contribution_engine, self.defect, self.start, self.end, self.part)
             self._bq_deadline = time.monotonic() + BQML_WAIT_S
 
     def _contribution(self):

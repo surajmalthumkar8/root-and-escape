@@ -157,16 +157,16 @@ def _words_to_number(words: str) -> float | None:
     return total + cur + (float("0." + frac) if frac else 0.0)
 
 
-# Ways a segment value is written: P4, press 4, プレス4, 4号機; C3, cavity 3, キャビティ3; shift N; crew B; R-2291.
+# Ways a segment value is written: P4, press 14, プレス4, 4号機; C3, cavity 3, キャビティ3; shift N; crew B; R-2291.
 SEGMENT_RES = {
-    "press": re.compile(r"\bpress(?:es)?[\s-]*(?:no\.?|number|#)?\s*P?-?(\d)\b|(?<![A-Za-z0-9])P-?(\d)(?![0-9])"
-                        r"|\bmachine\s*#?\s*(\d)\b|(?<![\w#])(?:no\.?|number)\s*(\d)\s+press\b|#\s*(\d)\s+press\b"
-                        r"|プレス\s*P?(\d)|(\d)\s*号機|\bpress\s+(one|two|three|four|five|six)\b", re.I),
+    "press": re.compile(r"\bpress(?:es)?[\s-]*(?:no\.?|number|#)?\s*P?-?(\d{1,2})\b|(?<![A-Za-z0-9])P-?(\d{1,2})(?![0-9])"
+                        r"|\bmachine\s*#?\s*(\d{1,2})\b|(?<![\w#])(?:no\.?|number)\s*(\d{1,2})\s+press\b|#\s*(\d{1,2})\s+press\b"
+                        r"|プレス\s*P?(\d{1,2})|(\d{1,2})\s*号機|\bpress\s+(one|two|three|four|five|six)\b", re.I),
     "cavity": re.compile(r"\bcav(?:ity|ities|\.)?[\s-]*(?:no\.?|number|#)?\s*C?-?(\d)\b|(?<![A-Za-z0-9°])C-?(\d)(?![0-9])|キャビティ\s*C?(\d)"
                          r"|\bcavity\s+(one|two|three|four)\b", re.I),
     "shift": re.compile(r"\bshifts?\s+([DNS])\b"),
     "crew": re.compile(r"\bcrews?\s+([A-Z])\b"),
-    "resin_lot": re.compile(r"\b(R-\d{3,5})\b"),
+    "resin_lot": re.compile(r"\b([RBTA]-\d{4})\b"),  # one letter per resin family: R- PA66, B- PBT, T- PP, A- acetal
 }
 SEGMENT_PREFIX = {"press": "P", "cavity": "C", "shift": "", "crew": "", "resin_lot": ""}
 NEGATION_RE = re.compile(r"\b(not|no|never|unlike|except|excluding|other than|rather than)\b|n't\b|ではなく|以外", re.I)

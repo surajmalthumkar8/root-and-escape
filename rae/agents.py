@@ -359,6 +359,15 @@ class GeminiAgents:
         obj = resp.parsed or CriticOut.model_validate_json(resp.text)
         return obj.model_dump()
 
+    async def ping(self) -> dict:
+        """One tiny call for the live service check on the overview page (cached there for a minute)."""
+        import time
+        t0 = time.monotonic()
+        resp = await self.client.aio.models.generate_content(
+            model=self.model, contents="Reply with one word: ready",
+            config=types.GenerateContentConfig(temperature=0.0, max_output_tokens=256, thinking_config=THINK_LOW))
+        return {"text": (resp.text or "").strip()[:40], "seconds": round(time.monotonic() - t0, 1)}
+
     async def write(self, case: dict, intake: dict, draft: dict, containment: dict | None, log) -> dict:
         from .report import build_report
         facts = {

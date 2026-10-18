@@ -19,6 +19,7 @@
     <a href="./" data-nav="home">Overview</a>
     <a href="#story" data-nav="story">The case</a>
     <a href="#test" data-nav="lab">Test it</a>
+    <a href="#h-gcp" class="nav-gc">Google Cloud</a>
     <a href="#118" data-nav="bench">Workbench</a>
     <button class="link" id="how-btn" type="button">How it works</button>
     <button class="btn small amber nav-up" type="button" data-upload>Upload your own</button>
@@ -57,7 +58,7 @@
       <div><b>24 of 216</b><span>lots held in the example case, instead of a blanket hold</span></div>
       <div><b>54 s</b><span>from the customer's email to a drafted 8D, on Gemini</span></div>
       <div><b>23 of 24</b><span>planted causes found on test plants it had never seen</span></div>
-      <div><b>13</b><span>checks you can run yourself on the Test it page</span></div>
+      <div><b>17</b><span>checks you can run yourself on the Test it page</span></div>
     </div>
   </div>
 
@@ -105,15 +106,69 @@
     </div>
   </section>
 
+  <section class="h-band h-plant" id="h-plant" aria-labelledby="h-plant-h">
+    <div class="h-wrap">
+      <p class="h-eyebrow"><span class="h-n c-amber">3</span>The demo plant</p>
+      <h2 id="h-plant-h">One plant, four parts, four customers</h2>
+      <p class="h-intro">The plant is synthetic, but it is laid out like a real moulding shop: 15 presses, and each part runs on its own presses with its own resin and its own customer. A complaint is only checked against the presses that make that part.</p>
+      <div class="pl-grid">
+        <article class="pl-card" data-part="CL-204">
+          <img src="/static/photos/golden_cl204.png" alt="A good CL-204 snap clip (synthetic photo)" loading="lazy">
+          <div class="pl-body">
+            <p class="pl-no">CL-204</p><h3>Snap clip</h3>
+            <p class="pl-use">Holds the wire harness to the car body.</p>
+            <ul class="pl-facts"><li><b>PA66 nylon</b>material</li><li><b>P1 to P6</b>4 cavities each</li><li><b>OEM-J</b>Japan</li><li><b data-lots>990</b>lots made</li></ul>
+            <p class="pl-k">Its complaints</p>
+            <div class="pl-cases"><button type="button" data-ex-go="118">118: cracks</button><button type="button" data-ex-go="124">124: burrs</button><button type="button" data-ex-go="121">121: scratches</button></div>
+          </div>
+        </article>
+        <article class="pl-card" data-part="HX-310">
+          <img src="/static/photos/golden_hx310.png" alt="A good HX-310 connector housing (synthetic photo)" loading="lazy">
+          <div class="pl-body">
+            <p class="pl-no">HX-310</p><h3>Connector housing</h3>
+            <p class="pl-use">Holds the terminals of a door wiring connector.</p>
+            <ul class="pl-facts"><li><b>PBT GF30</b>glass-filled</li><li><b>P7 to P9</b>2 cavities each</li><li><b>OEM-K</b>Korea</li><li><b data-lots>495</b>lots made</li></ul>
+            <p class="pl-k">Its complaint</p>
+            <div class="pl-cases"><button type="button" data-ex-go="131">131: short shots</button></div>
+          </div>
+        </article>
+        <article class="pl-card" data-part="BC-115">
+          <img src="/static/photos/golden_bc115.png" alt="A good BC-115 battery cover (synthetic photo)" loading="lazy">
+          <div class="pl-body">
+            <p class="pl-no">BC-115</p><h3>Battery cover</h3>
+            <p class="pl-use">Closes the battery box of a car key fob.</p>
+            <ul class="pl-facts"><li><b>PP T20</b>talc-filled</li><li><b>P10 to P12</b>2 cavities each</li><li><b>OEM-T</b>Thailand</li><li><b data-lots>495</b>lots made</li></ul>
+            <p class="pl-k">Its complaint</p>
+            <div class="pl-cases"><button type="button" data-ex-go="142">142: flash</button></div>
+          </div>
+        </article>
+        <article class="pl-card" data-part="GR-88">
+          <img src="/static/photos/golden_gr88.png" alt="A good GR-88 window regulator gear (synthetic photo)" loading="lazy">
+          <div class="pl-body">
+            <p class="pl-no">GR-88</p><h3>Window regulator gear</h3>
+            <p class="pl-use">Drives the window lift motor in a car door.</p>
+            <ul class="pl-facts"><li><b>POM acetal</b>material</li><li><b>P13 to P15</b>4 cavities each</li><li><b>OEM-I</b>India</li><li><b data-lots>495</b>lots made</li></ul>
+            <p class="pl-k">Its complaint</p>
+            <div class="pl-cases"><button type="button" data-ex-go="153">153: cracked teeth</button></div>
+          </div>
+        </article>
+      </div>
+      <p class="h-src" id="pl-src">Five tables in BigQuery hold every lot, process log, inspection and shipment for all four parts.</p>
+    </div>
+  </section>
+
   <section class="h-band h-ex" id="h-ex" aria-labelledby="h-ex-h">
     <div class="h-wrap">
-      <p class="h-eyebrow"><span class="h-n c-teal">3</span>Pick an example</p>
+      <p class="h-eyebrow"><span class="h-n c-teal">4</span>Pick an example</p>
       <h2 id="h-ex-h">See what goes in and what comes out</h2>
       <div class="ex-tabs" role="tablist" aria-label="Example cases">
-        <button role="tab" type="button" data-ex="118" aria-selected="true"><b>Cracked clips</b><span>A crew looks guilty</span></button>
-        <button role="tab" type="button" data-ex="124" aria-selected="false"><b>Burrs</b><span>Two causes at once</span></button>
-        <button role="tab" type="button" data-ex="121" aria-selected="false"><b>Scratches</b><span>No pattern in the data</span></button>
-        <button type="button" class="ex-own" data-upload><b>Your own</b><span>Opens the upload form</span></button>
+        <button role="tab" type="button" data-ex="118" aria-selected="true"><img src="/static/photos/golden_cl204.png" alt=""><b>Cracked clips</b><span>CL-204: a crew looks guilty</span></button>
+        <button role="tab" type="button" data-ex="124" aria-selected="false"><img src="/static/photos/golden_cl204.png" alt=""><b>Burrs</b><span>CL-204: two causes at once</span></button>
+        <button role="tab" type="button" data-ex="121" aria-selected="false"><img src="/static/photos/golden_cl204.png" alt=""><b>Scratches</b><span>CL-204: nothing stands out</span></button>
+        <button role="tab" type="button" data-ex="131" aria-selected="false"><img src="/static/photos/golden_hx310.png" alt=""><b>Short shots</b><span>HX-310: a new resin looks guilty</span></button>
+        <button role="tab" type="button" data-ex="142" aria-selected="false"><img src="/static/photos/golden_bc115.png" alt=""><b>Flash</b><span>BC-115: still running today</span></button>
+        <button role="tab" type="button" data-ex="153" aria-selected="false"><img src="/static/photos/golden_gr88.png" alt=""><b>Cracked teeth</b><span>GR-88: a new crew looks guilty</span></button>
+        <button type="button" class="ex-own" data-upload><span class="ex-plus" aria-hidden="true">+</span><b>Your own</b><span>Opens the upload form</span></button>
       </div>
       <div class="ex-board" id="ex-board" aria-live="polite">
         <div class="ex-col k-in"><p class="ex-h"><span>1</span>What came in</p><div class="ex-body" id="ex-in"></div></div>
@@ -127,7 +182,7 @@
 
   <section class="h-band h-feat" id="h-feat" aria-labelledby="h-feat-h">
     <div class="h-wrap">
-      <p class="h-eyebrow"><span class="h-n c-amber">4</span>What you get</p>
+      <p class="h-eyebrow"><span class="h-n c-amber">5</span>What you get</p>
       <h2 id="h-feat-h">What you get for each complaint</h2>
       <div class="h-bento">
         <figure class="bf wide"><img src="/static/media/feat-split.jpg" alt="Crack rate by crew inside each press: every crew is high on press P4 only" loading="lazy">
@@ -146,9 +201,78 @@
     </div>
   </section>
 
+  <section class="h-band h-gcp" id="h-gcp" aria-labelledby="h-gcp-h">
+    <div class="h-wrap">
+      <p class="h-eyebrow"><span class="h-n c-blue">6</span>Google Cloud, service by service</p>
+      <h2 id="h-gcp-h">Which Google Cloud service does what</h2>
+      <p class="h-intro">Follow one complaint from left to right. Then press the button: the app asks every service a small question right now and shows you the answer.</p>
+      <ol class="gc-rail" aria-label="The path of one complaint">
+        <li class="k-host"><b>Firebase Hosting</b><span>serves this page</span></li>
+        <li class="k-run"><b>Cloud Run</b><span>runs the API and agents</span></li>
+        <li class="k-ai"><b>Gemini</b><span>reads the email and photo</span></li>
+        <li class="k-adk"><b>ADK</b><span>the Investigator picks tools</span></li>
+        <li class="k-data"><b>BigQuery and BigQuery ML</b><span>test every suspect</span></li>
+        <li class="k-ai"><b>Gemini</b><span>checks and writes the 8D</span></li>
+        <li class="k-store"><b>Firestore and Cloud Storage</b><span>keep runs, sign-offs, photos</span></li>
+      </ol>
+      <div class="gc-bar"><button class="btn amber" type="button" id="gc-check">Check every service now</button><span class="gc-sum" id="gc-sum" aria-live="polite">Not checked yet. It takes a few seconds.</span></div>
+      <div class="gc-grid" id="gc-grid">
+        <article class="gc-card" data-svc="gemini">
+          <header><span class="gc-ic k-ai" aria-hidden="true">AI</span><h3>Gemini 3.8 Flash</h3><span class="gc-st">Not checked</span></header>
+          <p class="gc-what">Reads the complaint in any language and boxes the defect on the photo. Later it checks the draft as a critic and writes the 8D in English and Japanese.</p>
+          <p class="gc-how">The google-genai SDK on Agent Platform, with JSON answers that must match a schema.</p>
+          <p class="gc-proof"></p>
+        </article>
+        <article class="gc-card" data-svc="adk">
+          <header><span class="gc-ic k-adk" aria-hidden="true">ADK</span><h3>Agent Development Kit</h3><span class="gc-st">Not checked</span></header>
+          <p class="gc-what">Runs the Investigator. Gemini chooses which of six tools to call next, and every result is logged as evidence: E-01, E-02 and so on.</p>
+          <p class="gc-how">An ADK LlmAgent with Python function tools. The model never writes SQL.</p>
+          <p class="gc-proof"></p>
+        </article>
+        <article class="gc-card" data-svc="bigquery">
+          <header><span class="gc-ic k-data" aria-hidden="true">BQ</span><h3>BigQuery</h3><span class="gc-st">Not checked</span></header>
+          <p class="gc-what">Holds the plant's records for all four parts: lots, process logs, inspections, shipments and past 8Ds.</p>
+          <p class="gc-how">Five tables in the plant_quality dataset. Every number in a report comes from them.</p>
+          <p class="gc-proof"></p>
+        </article>
+        <article class="gc-card" data-svc="bqml">
+          <header><span class="gc-ic k-data" aria-hidden="true">ML</span><h3>BigQuery ML</h3><span class="gc-st">Not checked</span></header>
+          <p class="gc-what">Finds which press, cavity, shift, crew or resin lot explains the jump in defects.</p>
+          <p class="gc-how">CREATE TEMP MODEL with MODEL_TYPE CONTRIBUTION_ANALYSIS, then ML.GET_INSIGHTS, inside a BigQuery session.</p>
+          <p class="gc-proof"></p>
+        </article>
+        <article class="gc-card" data-svc="run">
+          <header><span class="gc-ic k-run" aria-hidden="true">Run</span><h3>Cloud Run</h3><span class="gc-st">Not checked</span></header>
+          <p class="gc-what">Runs the API, the agents and the live progress stream you watch during a run.</p>
+          <p class="gc-how">One FastAPI container. Scales to zero, at most 3 instances, one service account and no API keys.</p>
+          <p class="gc-proof"></p>
+        </article>
+        <article class="gc-card" data-svc="firestore">
+          <header><span class="gc-ic k-store" aria-hidden="true">FS</span><h3>Firestore</h3><span class="gc-st">Not checked</span></header>
+          <p class="gc-what">Remembers cases, runs, sign-offs and the daily cap on Gemini runs.</p>
+          <p class="gc-how">Native mode. Your own test runs expire after 21 days.</p>
+          <p class="gc-proof"></p>
+        </article>
+        <article class="gc-card" data-svc="storage">
+          <header><span class="gc-ic k-store" aria-hidden="true">GCS</span><h3>Cloud Storage</h3><span class="gc-st">Not checked</span></header>
+          <p class="gc-what">Keeps the defect photos people upload.</p>
+          <p class="gc-how">One private bucket. Each photo is re-encoded as a JPEG, which drops its metadata.</p>
+          <p class="gc-proof"></p>
+        </article>
+        <article class="gc-card" data-svc="firebase">
+          <header><span class="gc-ic k-host" aria-hidden="true">FB</span><h3>Firebase Hosting</h3><span class="gc-st">Not checked</span></header>
+          <p class="gc-what">Serves this page from Google's edge network.</p>
+          <p class="gc-how">Static files on Hosting. The page calls Cloud Run directly, so a two-minute live run isn't cut off at 60 seconds.</p>
+          <p class="gc-proof"></p>
+        </article>
+      </div>
+      <p class="h-src">Gemini decides what to test next and writes the words. The numbers come from BigQuery, and code checks every one of them before a person signs.</p>
+    </div>
+  </section>
+
   <section class="h-band h-int" id="h-int" aria-labelledby="h-int-h">
     <div class="h-wrap">
-      <p class="h-eyebrow"><span class="h-n c-green">5</span>Integrations</p>
+      <p class="h-eyebrow"><span class="h-n c-green">7</span>Integrations</p>
       <h2 id="h-int-h">What it connects to today, and what plugs in next</h2>
       <div class="int-map">
         <div class="int-col">
@@ -169,7 +293,7 @@
           <ul class="int-gc">
             <li class="k-ai"><b>Gemini 3.8 Flash</b><span>on Agent Platform</span></li>
             <li class="k-ai"><b>Agent Development Kit</b><span>the Investigator agent</span></li>
-            <li class="k-data"><b>BigQuery and BigQuery ML</b><span>plant data, contribution analysis</span></li>
+            <li class="k-data"><b>BigQuery and BigQuery ML</b><span>plant data for 4 parts, contribution analysis</span></li>
             <li><b>Cloud Run</b><span>API and agents</span></li>
             <li><b>Firestore</b><span>cases, runs, sign-offs, quotas</span></li>
             <li><b>Cloud Storage</b><span>uploaded photos</span></li>
@@ -195,11 +319,11 @@
 
   <section class="h-band h-try" id="upload" aria-labelledby="h-try-h">
     <div class="h-wrap">
-      <p class="h-eyebrow"><span class="h-n c-blue">6</span>Try it</p>
+      <p class="h-eyebrow"><span class="h-n c-blue">8</span>Try it</p>
       <h2 id="h-try-h">Try it</h2>
       <div class="h-ways">
         <a class="way" href="#story" data-nav="story"><img src="/static/media/try-story.jpg" alt="" loading="lazy"><b>Follow one case</b><span>Six steps, about two minutes. Guess who's to blame, then see what the data says.</span><em>Start the case</em></a>
-        <a class="way" href="#test" data-nav="lab"><img src="/static/media/try-test.jpg" alt="" loading="lazy"><b>Run the tests</b><span>13 checks with expected answers. One button runs the nine quick ones.</span><em>Open Test it</em></a>
+        <a class="way" href="#test" data-nav="lab"><img src="/static/media/try-test.jpg" alt="" loading="lazy"><b>Run the tests</b><span>17 checks with expected answers. One button runs the 13 quick ones.</span><em>Open Test it</em></a>
         <button class="way" type="button" data-upload><img src="/static/media/try-upload.jpg" alt="" loading="lazy"><b>Upload your own</b><span>A complaint in any language, a photo if you have one. The agents run live.</span><em>Open the upload form</em></button>
       </div>
       <div class="h-guide">
@@ -233,7 +357,7 @@
   <section class="h-band h-next" id="h-next" aria-labelledby="h-next-h">
     <div class="h-wrap h-two">
       <div>
-        <p class="h-eyebrow"><span class="h-n c-green">7</span>Does it work?</p>
+        <p class="h-eyebrow"><span class="h-n c-green">9</span>Does it work?</p>
         <h2 id="h-next-h">Benchmark results</h2>
         <div class="h-nums">
           <div><b>23 / 24</b><span>planted causes found on plants it had never seen</span></div>
@@ -242,7 +366,7 @@
           <div><b>451</b><span>tricky claims kept as regression tests</span></div>
         </div>
         <p class="small muted">Synthetic plants with known causes; real plants are noisier.</p>
-        <a class="btn" href="#test" data-nav="lab">Run 13 checks yourself</a>
+        <a class="btn" href="#test" data-nav="lab">Run 17 checks yourself</a>
       </div>
       <figure class="h-photo"><img src="/static/media/real-team.jpg" alt="Two engineers working through a diagram at a whiteboard" loading="lazy"><figcaption>Photo: <a href="https://unsplash.com/photos/uOhBxB23Wao" target="_blank" rel="noopener">ThisisEngineering</a>, Unsplash</figcaption></figure>
     </div>
@@ -251,7 +375,7 @@
   <section class="h-band h-pilot" aria-labelledby="h-pilot-h">
     <div class="h-wrap h-two">
       <div>
-        <p class="h-eyebrow"><span class="h-n c-amber">8</span>What next</p>
+        <p class="h-eyebrow"><span class="h-n c-amber">10</span>What next</p>
         <h2 id="h-pilot-h">For a plant that wants to try it</h2>
         <ol class="h-steps">
           <li><b>One plant, one part family, four weeks.</b> Read-only access to the five tables.</li>
@@ -463,11 +587,15 @@
         <p class="up-samples small">Or use a sample:
           <button type="button" class="up-chip" data-sample="real_crack.jpg">a real crack</button>
           <button type="button" class="up-chip" data-sample="real_flash.jpg">real flash</button>
-          <button type="button" class="up-chip" data-sample="case118_defect.png">the demo clip</button></p>
+          <button type="button" class="up-chip" data-sample="case118_defect.png">the demo clip</button>
+          <button type="button" class="up-chip" data-sample="case131_defect.png">a short shot</button>
+          <button type="button" class="up-chip" data-sample="case142_defect.png">a flashed cover</button>
+          <button type="button" class="up-chip" data-sample="case153_defect.png">a cracked gear</button></p>
         <p class="small muted">Gemini compares it with a good part and proposes a box around the defect. You confirm the box.</p>
       </section>
       <section class="up-step" aria-labelledby="up3">
         <h3 id="up3"><span class="up-n">3</span>Defect and date codes</h3>
+        <label for="f-part">Part</label><select id="f-part" name="part_no"><option value="CL-204">CL-204 snap clip (PA66)</option><option value="HX-310">HX-310 connector housing (PBT GF30)</option><option value="BC-115">BC-115 battery cover (PP)</option><option value="GR-88">GR-88 window regulator gear (POM)</option></select>
         <label for="f-defect">Defect type</label><select id="f-defect" name="defect"><option value="crack">crack</option><option value="burr">burr</option><option value="scratch">scratch</option><option value="short_shot">short shot</option></select>
         <div class="two">
           <div><label for="f-start">Date codes from</label><input id="f-start" name="date_code_start" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-01" required></div>

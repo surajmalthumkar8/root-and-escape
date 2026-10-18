@@ -88,10 +88,104 @@ def scratch(seed=4):
     return finish(img, seed), [round(495 / H * 1000), round(305 / W * 1000), round(560 / H * 1000), round(700 / W * 1000)]
 
 
-if __name__ == "__main__":
+if __name__ == "__main__" and "--parts" not in __import__("sys").argv:
     OUT.mkdir(parents=True, exist_ok=True)
     golden().save(OUT / "golden_cl204.png", optimize=True)
     for name, fn in (("case118_defect.png", crack), ("case124_defect.png", burr), ("case121_defect.png", scratch)):
         img, box = fn()
         img.save(OUT / name, optimize=True)
         print(name, "box_2d", box)
+
+
+# ------------------------------------------------------------------ the other three parts of the demo plant
+# python scripts/make_photos.py --parts renders only these, so the CL-204 photos above are left as they are.
+import math  # noqa: E402
+
+PBT = (205, 199, 182)
+PBT_EDGE = (150, 144, 128)
+PP = (40, 42, 47)
+PP_EDGE = (22, 24, 28)
+POM = (232, 230, 222)
+POM_EDGE = (168, 166, 158)
+
+
+def housing(d: ImageDraw.ImageDraw, short: bool = False) -> None:
+    """HX-310 connector housing: a block with eight terminal cavities and a latch ramp on top."""
+    if short:  # the top right corner never filled: the melt froze before it got there
+        flow = [(650 + 74 * t, 300 + 72 * t ** 0.8 + 9 * math.sin(t * 9)) for t in [i / 12 for i in range(13)]]
+        body = [(310, 300), *flow, (724, 510), (714, 520), (310, 520), (300, 510), (300, 310)]
+        d.polygon(body, fill=PBT, outline=PBT_EDGE)
+        d.line(flow, fill=(176, 168, 148), width=5)   # the rounded, glossy flow front
+    else:
+        d.rounded_rectangle([300, 300, 724, 520], radius=10, fill=PBT, outline=PBT_EDGE, width=4)
+    d.polygon([(440, 300), (584, 300), (560, 250), (464, 250)], fill=PBT, outline=PBT_EDGE)
+    for row, y in enumerate((340, 430)):
+        for i in range(4):
+            x = 340 + i * 92
+            d.rectangle([x, y, x + 60, y + 50], fill=(70, 66, 58), outline=(120, 114, 100), width=2)
+    d.line([(312, 308), (640, 308)], fill=(226, 222, 208), width=3)
+
+
+def cover(d: ImageDraw.ImageDraw, flash: bool = False) -> None:
+    """BC-115 battery cover: a plate with grip ridges and a snap tab on the right."""
+    d.rounded_rectangle([270, 280, 754, 540], radius=40, fill=PP, outline=PP_EDGE, width=4)
+    d.rounded_rectangle([740, 370, 800, 450], radius=8, fill=PP, outline=PP_EDGE, width=3)
+    for i in range(6):
+        d.line([(320 + i * 14, 360), (320 + i * 14, 460)], fill=(70, 74, 80), width=4)
+    d.line([(300, 292), (720, 292)], fill=(84, 88, 96), width=3)
+    if flash:  # thin fins of plastic squeezed out along the parting line
+        for i, y in enumerate(range(372, 448, 7)):
+            d.polygon([(800, y), (811 + (i % 3) * 4, y + 2), (800, y + 5)], fill=(128, 132, 140))
+        for i, y in enumerate(range(300, 366, 7)):
+            d.polygon([(754, y), (764 + (i % 2) * 4, y + 2), (754, y + 5)], fill=(118, 122, 130))
+
+
+def gear(d: ImageDraw.ImageDraw, crack: bool = False) -> None:
+    """GR-88 window regulator gear: 24 teeth, a hub bore with a keyway."""
+    cx, cy, ro, rr, n = 512, 400, 200, 172, 24
+    pts = []
+    for k in range(n):
+        a0 = 2 * math.pi * k / n
+        for da, r in ((0.0, rr), (0.06, ro), (0.15, ro), (0.21, rr)):
+            a = a0 + da
+            pts.append((cx + r * math.cos(a), cy + r * math.sin(a)))
+    d.polygon(pts, fill=POM, outline=POM_EDGE)
+    d.ellipse([cx - 120, cy - 120, cx + 120, cy + 120], outline=(206, 204, 196), width=3)
+    d.ellipse([cx - 58, cy - 58, cx + 58, cy + 58], fill=(92, 96, 104), outline=POM_EDGE, width=3)
+    d.rectangle([cx - 10, cy - 70, cx + 10, cy - 52], fill=(92, 96, 104))
+    if crack:  # a brittle crack running in from a tooth root
+        th = math.radians(-50)
+        line = [(cx + r * math.cos(th) + j, cy + r * math.sin(th) + j / 2)
+                for r, j in ((176, 0), (166, 4), (156, -3), (146, 4), (136, -2), (126, 3))]
+        d.line(line, fill=(250, 250, 246), width=7)
+        d.line(line, fill=(44, 44, 48), width=4)
+
+
+def _photo(seed, draw, **kw):
+    img = base(seed)
+    draw(ImageDraw.Draw(img), **kw)
+    return finish(img, seed)
+
+
+def _box(y0, x0, y1, x1):
+    return [round(y0 / H * 1000), round(x0 / W * 1000), round(y1 / H * 1000), round(x1 / W * 1000)]
+
+
+PARTS = [  # file, seed, drawing, defect flag, defect box in pixels (y0, x0, y1, x1)
+    ("golden_hx310.png", 11, housing, {}, None),
+    ("case131_defect.png", 12, housing, {"short": True}, (290, 640, 385, 735)),
+    ("golden_bc115.png", 21, cover, {}, None),
+    ("case142_defect.png", 22, cover, {"flash": True}, (292, 745, 460, 822)),
+    ("golden_gr88.png", 31, gear, {}, None),
+    ("case153_defect.png", 32, gear, {"crack": True}, (255, 585, 318, 642)),
+]
+
+
+def parts() -> None:
+    for name, seed, draw, kw, box in PARTS:
+        _photo(seed, draw, **kw).save(OUT / name, optimize=True)
+        print(name, "box_2d", _box(*box) if box else "")
+
+
+if __name__ == "__main__" and "--parts" in __import__("sys").argv:
+    parts()
