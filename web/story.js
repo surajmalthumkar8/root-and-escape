@@ -7,7 +7,9 @@
   const $ = (s) => document.querySelector(s);
   const esc = R.esc;
   const pc = (x, d = 1) => (x == null ? "–" : (x * 100).toFixed(d) + "%");
+  const pcs = (x) => (x == null ? "–" : (x * 100).toFixed(x < 0.01 ? 3 : 2) + "%");
   const num = (n) => Number(n).toLocaleString("en-US");
+  const nb = (s) => String(s).replace(/(\d) (°C|%)/g, "$1\u00a0$2");
   const still = () => window.matchMedia && matchMedia("(prefers-reduced-motion: reduce)").matches;
   const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const day = (iso) => { const d = new Date(String(iso).slice(0, 10) + "T00:00:00Z"); return `${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`; };
@@ -15,8 +17,32 @@
   const minus = (v) => (v < 0 ? "−" + Math.abs(v) : String(v));
   const CASE = "118";
 
-  const VIS = $("#st-vis"), H = $("#st-h"), P = $("#st-p"), ACT = $("#st-act"), COUNT = $("#st-count"), DOTS = $("#st-dots"), ART = $("#st-art");
-  let f = null, at = 0, split = false, guess = null, holdAll = false, mailLang = "en", series = null;
+  const VIS = $("#st-vis"), H = $("#st-h"), P = $("#st-p"), ACT = $("#st-act"), COUNT = $("#st-count"), DOTS = $("#st-dots"), ART = $("#st-art"), BY = $("#st-by");
+  let f = null, at = 0, split = false, guess = null, holdAll = false, mailLang = "en", series = null, sheetLang = "en";
+
+  // Which agent, tool and evidence produced what is on screen, so the Gen AI work is visible on every step.
+  function credit(i) {
+    const m = f.modes, model = esc(f.model || "Gemini"), code = (t) => `<code>${esc(t)}</code>`;
+    const ev = (id) => (id ? ` <a class="evref" href="#118" data-ev-open="${esc(id)}">${esc(id)}</a>` : "");
+    const inv = m.investigation === "gemini" ? `Investigator agent on ${model} through ADK` : "Investigator, scripted (Gemini off)";
+    return ({
+      1: m.intake === "gemini" ? `Intake agent on ${model}: translated the email, filled in the four facts and drew the box.` : "Intake: the stored reading (Gemini off).",
+      2: `${inv} called ${code("stratify")} by crew within press${ev(f.crewId)}.` + (f.bqml ? ` BigQuery ML contribution analysis had already pointed at press ${esc(f.press)}.` : ""),
+      3: `${inv} called ${code("param_excursions")}${ev(f.dewId)} and ${code("inspection_changes")}${ev(f.inspId)} for ${esc(f.press)}.`,
+      4: `${inv} called ${code("containment")} over the shipments table${ev(f.holdId)}.`,
+      5: `The Challenger is ${f.checks || "a set of"} rules in code. ` + (f.gemini ? `Claims that pass them also go to a critic on ${model}.` : "In the cloud, claims that pass also go to a Gemini critic."),
+      6: m.writer === "gemini" ? `Writer agent on ${model}: every percentage and lot count it wrote was checked against the evidence.` : "Writer: template text (Gemini off).",
+    })[i] || "";
+  }
+
+  // Step 2's caption: the gap inside the faulty press, in numbers, and why it doesn't count.
+  function insideP4() {
+    const o = f.cd.overall_contrast, st = f.cd.strata.find((s) => s.press === f.press), sh = shares().top;
+    const hi = st && st.cells.find((c) => c.crew === o.high);
+    const lo = st && st.cells.filter((c) => c.crew !== o.high).sort((a, b) => b.units - a.units)[0];
+    const gap = hi && lo ? ` On ${f.press}, crew ${lo.crew} is at ${pc(lo.rate)} and crew ${o.high} at ${pc(hi.rate)}, a gap the test can't tell from chance.` : "";
+    return `Every crew cracks clips on ${f.press} and hardly any elsewhere.${gap} Crew ${o.high} just runs ${f.press} the most: ${sh}% of its output.`;
+  }
 
   // ------------------------------------------------------------------------------------- facts from the run
   function facts(d) {
@@ -35,7 +61,9 @@
       dew: dew && ((dew.data || {}).params || []).find((x) => x.flag), dewId: dew && dew.id,
       insp: insp && ((insp.data || {}).sampling_changes || [])[0], inspId: insp && insp.id,
       hold: r.containment, occ: (dr.occurrence || {}).statement || "", escTxt: (dr.escape || {}).statement || "",
-      report: (r.report || {}).en || {}, checks: last.rules.length,
+      report: (r.report || {}).en || {}, reportJa: (r.report || {}).ja || null, checks: last.rules.length,
+      modes: r.modes || {}, bqml: !!(a.bqml_insights || []).length, holdId: (evOf("containment") || {}).id,
+      occEv: (dr.occurrence || {}).evidence || [], escEv: (dr.escape || {}).evidence || [],
       secs: r.duration_s, gemini: (r.modes || {}).investigation === "gemini", model: r.model,
     };
   }
@@ -43,10 +71,11 @@
   // ------------------------------------------------------------------------------------------- the steps
   const STEPS = [
     () => ({
-      count: "An 8D root-cause workbench, shown on one case",
+      count: "For supplier quality engineers answering a customer complaint",
       h: f.accused && f.press ? `The data blamed crew ${f.accused}. The cause was press ${f.press}.` : "Find the real cause, not the easy one.",
-      p: `A car maker found ${f.bad || "cracked"} cracked clips and gave the plant ${f.hours ? f.hours + " hours" : "a day"}. ` +
-        "Root & Escape tested every suspect against the plant's own records, held only the suspect lots and drafted the 8D report for a person to sign.",
+      p: `A car maker found ${esc(f.bad || "")} cracked clips and gave the plant ${f.hours ? esc(f.hours) + " hours" : "a day"} to start its ${R.term("8d", "8D report")}. ` +
+        "Root & Escape's Gemini agents tested every suspect against the plant's records in BigQuery, held only the suspect lots and drafted the report for a quality engineer to sign.",
+      html: true,
       act: `<button class="btn big" type="button" data-st="1">See how, in six steps</button>
             <button class="btn ghost big" type="button" data-bench="${CASE}">Open the workbench</button>`,
       draw: (el) => { el.innerHTML = hero() + coverFacts(); },
@@ -74,7 +103,7 @@
       return {
         count: "Step 2 of 6: the suspect",
         h: guess === "yes" ? "That's the trap. Split by press, the gap disappears." : guess === "no" ? "Good call. Split by press, the gap disappears." : "Split by press, the gap disappears.",
-        p: `Inside each press the crews crack at about the same rate. Crew ${o.high} just runs press ${f.press} most of the time: ${shares().top}% of its output.`,
+        p: insideP4(),
         act: `<button class="btn ghost" type="button" data-split="0">Show it by crew again</button>`,
         draw: (el) => { el.innerHTML = chart(); },
       };
@@ -121,7 +150,7 @@
       p: "In English and Japanese, with every claim linked to its evidence. A quality engineer signs before it goes out.",
       act: `<button class="btn big" type="button" data-bench="${CASE}">Open the workbench</button>
             <button class="btn ghost big" type="button" data-bench="${CASE}" data-run="1">Run it live${f.gemini ? " with Gemini" : ""}</button>
-            <span class="st-more">Two more cases: <button class="link" type="button" data-bench="124">burrs with two causes</button> and <button class="link" type="button" data-bench="121">scratches with no cause in the data</button>.</span>`,
+            <span class="st-more">Two more cases: <button class="link" type="button" data-bench="124">burrs with two causes</button> and <button class="link" type="button" data-bench="121">scratches with no cause in the data</button>. <button class="link" type="button" data-how>How the agents work</button></span>`,
       draw: (el) => { el.innerHTML = sheet(); },
     }),
   ];
@@ -212,7 +241,7 @@
         }
         acc += w;
       });
-      labels += `<span class="val on-pool" style="left:${mid}%;bottom:calc(${y(o.rate)}% + 6px)">${pc(o.rate, 2)}</span>` +
+      labels += `<span class="val on-pool" style="left:${mid}%;bottom:calc(${y(o.rate)}% + 6px)">${pcs(o.rate)}</span>` +
         `<span class="ax on-pool" style="left:${mid}%">Crew ${esc(cr)}</span>`;
       if (cr === accused) labels += `<span class="alarm on-pool" style="left:calc(${mid}% + ${W / 2}% + 8px);bottom:calc(${y(o.rate)}% - 13px)"><b>${cd.overall_contrast.ratio}×</b> crew ${esc(cd.overall_contrast.low)}'s rate</span>`;
     });
@@ -247,12 +276,12 @@
     const cl = d.control_mean, ucl = cl + 3 * d.control_sd, lcl = cl - 3 * d.control_sd, spec = series.spec_max;
     const t0 = pts[0][0], t1 = pts[pts.length - 1][0] + 864e5 / 3;
     const vals = pts.map((p) => p[1]).concat([ucl, lcl, spec ?? ucl]);
-    const v0 = Math.floor(Math.min(...vals) / 10) * 10, v1 = Math.ceil(Math.max(...vals) / 10) * 10;
-    const W = 640, L = 40, Rm = 92, T = 24, Hc = 170, gap = 26, Hb = 54;
+    const v0 = Math.floor(Math.min(...vals) / 5) * 5, v1 = Math.ceil(Math.max(...vals) / 5) * 5;
+    const narrow = el.clientWidth < 520, W = narrow ? 420 : 640, L = 34, Rm = narrow ? 76 : 92, T = 24, Hc = narrow ? 150 : 170, gap = 34, Hb = 54;
     const X = (t) => L + ((t - t0) / (t1 - t0)) * (W - L - Rm), Y = (v) => T + ((v1 - v) / (v1 - v0)) * Hc;
     const ws = Date.parse(f.c.date_code_start + "T00:00:00Z"), we = Date.parse(f.c.date_code_end + "T00:00:00Z") + 864e5;
     let s = `<rect class="win" x="${X(ws)}" y="${T - 4}" width="${X(we) - X(ws)}" height="${Hc + gap + Hb + 4}"/>`;
-    for (let v = v0; v <= v1; v += 10) s += `<line class="grid" x1="${L}" x2="${W - Rm}" y1="${Y(v)}" y2="${Y(v)}"/><text class="yl" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${minus(v)}</text>`;
+    for (let v = Math.ceil(v0 / 10) * 10; v <= v1; v += 10) s += `<line class="grid" x1="${L}" x2="${W - Rm}" y1="${Y(v)}" y2="${Y(v)}"/><text class="yl" x="${L - 6}" y="${Y(v) + 4}" text-anchor="end">${minus(v)}</text>`;
     const ref = (v, cls, name) => `<line class="${cls}" x1="${L}" x2="${W - Rm}" y1="${Y(v)}" y2="${Y(v)}"/><text class="${cls}" x="${W - Rm + 6}" y="${Y(v) + 4}">${name}</text>`;
     s += ref(ucl, "ucl", `UCL ${minus(ucl.toFixed(1))}`) + ref(cl, "cl", `CL ${minus(cl.toFixed(1))}`) + ref(lcl, "ucl", `LCL ${minus(lcl.toFixed(1))}`);
     if (spec != null) s += ref(spec, "spec", `Limit ${minus(spec)}`);
@@ -260,14 +289,14 @@
     s += pts.map(([t, v]) => `<circle class="${v > ucl || v < lcl ? "out" : "in"}" cx="${X(t).toFixed(1)}" cy="${Y(v).toFixed(1)}" r="${v > ucl || v < lcl ? 3 : 1.8}"/>`).join("");
     const by = T + Hc + gap, dr = series.daily_rate.filter(([, r]) => r != null), rmax = Math.max(0.01, ...dr.map(([, r]) => r));
     const base = f.r.analysis && f.r.analysis.overall ? f.r.analysis.overall.rate_control : 0;
-    s += `<text class="lab" x="${L}" y="${by - 8}">${esc(f.press)} crack rate per day</text>`;
+    s += `<line class="sep" x1="${L}" x2="${W - Rm}" y1="${by - gap / 2 - 2}" y2="${by - gap / 2 - 2}"/><text class="lab" x="${L}" y="${by - 4}">${esc(f.press)} crack rate per day, peak ${pc(rmax)}</text>`;
     s += dr.map(([dt, r]) => { const x = X(Date.parse(dt + "T00:00:00Z")), h = (r / rmax) * Hb; return `<rect class="${base && r > 3 * base ? "hotbar" : "bar"}" x="${x.toFixed(1)}" y="${(by + Hb - h).toFixed(1)}" width="${Math.max(2, X(t0 + 864e5) - X(t0) - 1.5).toFixed(1)}" height="${h.toFixed(1)}"/>`; }).join("");
-    s += `<text class="lab" x="${W - Rm + 6}" y="${by + 10}">${pc(rmax, 0)}</text><line class="axis" x1="${L}" x2="${W - Rm}" y1="${by + Hb}" y2="${by + Hb}"/>`;
-    for (let t = Date.parse(new Date(t0).toISOString().slice(0, 10) + "T00:00:00Z") + 864e5; t < t1; t += 7 * 864e5) s += `<text class="xl" x="${X(t)}" y="${by + Hb + 16}" text-anchor="middle">${esc(day(new Date(t).toISOString()))}</text>`;
+    s += `<line class="axis" x1="${L}" x2="${W - Rm}" y1="${by + Hb}" y2="${by + Hb}"/>`;
+    for (let t = Date.parse(new Date(t0).toISOString().slice(0, 10) + "T00:00:00Z") + 864e5; t < t1; t += (narrow ? 14 : 7) * 864e5) s += `<text class="xl" x="${X(t)}" y="${by + Hb + 16}" text-anchor="middle">${esc(day(new Date(t).toISOString()))}</text>`;
     s += `<text class="win" x="${(X(ws) + X(we)) / 2}" y="${T - 8}" text-anchor="middle">date codes</text>`;
     el.innerHTML = `<p class="chart-t">${esc(f.press)} resin dryer dew point, °C, one reading a shift <a class="evref" href="#118" data-ev-open="${esc(f.dewId)}" title="Open this evidence in the workbench">${esc(f.dewId)}</a></p>
       <svg viewBox="0 0 ${W} ${by + Hb + 22}" role="img" aria-label="Control chart: ${esc(d.label)} on ${esc(f.press)} stays near ${minus(cl.toFixed(1))} until early October, then rises above the ${minus(spec)} limit to an average of ${minus(d.test_mean)} during the date codes, while the press's daily crack rate climbs.">${s}</svg>
-      <p class="cc-k"><span><i class="out"></i>out of control</span><span>Lower is drier. Wet resin moulds brittle clips.</span></p>`;
+      <p class="cc-k"><span><i class="out"></i>Reading outside the control limits</span><span>Lower is drier</span></p>`;
   }
 
   function checks() {
@@ -301,7 +330,7 @@
       return `<div class="lots-grid${holdAll ? " all" : ""}" style="--cols:${days * 3}">
         <p class="chart-t">Every lot made since ${esc(day(c.suspect_window[0]))}, one tile per press, day and shift</p>
         <div class="lg" role="img" aria-label="${c.blanket_lots} lots; ${c.targeted_lots} held, all from ${esc(c.segment_label)}"><span></span>${head}${cells}</div>
-        <p class="lg-k"><span><i class="held"></i>On hold</span><span><i></i>Released</span><span>Of the held lots, ${st.at_customer || 0} are already at the customer and ${st.in_transit || 0} in transit.</span></p>
+        <p class="lg-k"><span><i class="held"></i>On hold</span><span><i></i>Released</span><span class="if-t">Of the held lots, ${st.at_customer || 0} are already at the customer and ${st.in_transit || 0} in transit.</span><span class="if-a">A blanket hold stops all ${c.blanket_lots} lots, ${num(c.blanket_parts)} parts, including every press that was fine.</span></p>
       </div>`;
     }
     for (let i = 0; i < c.blanket_lots; i++) cells += `<i class="${i < c.targeted_lots ? "held" : ""}" style="--d:${i}"></i>`;
@@ -331,16 +360,21 @@
 
   function sheet() {
     // first sentence of each section, without a leading "Team:" style label that would repeat the row name
-    const rep = f.report, cut = (s) => {
-      s = String(s || "").replace(/\s+/g, " ").replace(/^[A-Z][A-Za-z ]{2,28}:\s+(?=\S)/, "");
+    const ja = sheetLang === "ja" && f.reportJa, rep = ja ? f.reportJa : f.report, cut = (s) => {
+      s = String(s || "").replace(/\s+/g, " ").replace(ja ? /^[^：:、。]{1,8}[：:]\s*/ : /^[A-Z][A-Za-z ]{2,28}:\s+(?=\S)/, "");
       s = s.charAt(0).toUpperCase() + s.slice(1);
-      const m = s.match(/^.{20,105}?[.;](\s|$)/);
-      return m ? m[0].trim().replace(/;$/, ".") : s.length > 105 ? s.slice(0, 103) + "…" : s;
+      const m = s.match(ja ? /^.{12,90}?。/ : /^.{20,170}?[.;](\s|$)/);
+      if (m) return nb(m[0].trim().replace(/;$/, "."));
+      return nb(s.length > 170 ? s.slice(0, s.lastIndexOf(" ", 168)) + "…" : s);
     };
-    const names = { D1: "Team", D2: "Problem", D3: "Containment", D4: "Root cause", D4_escape: "Escape", D5: "Actions", D6: "Verify", D7: "Prevent", D8: "Close" };
+    const names = ja ? { D1: "チーム", D2: "問題", D3: "暫定処置", D4: "発生原因", D4_escape: "流出原因", D5: "是正処置", D6: "効果確認", D7: "再発防止", D8: "称賛" }
+      : { D1: "Team", D2: "Problem", D3: "Containment", D4: "Why it happened", D4_escape: "Why it got out", D5: "Actions", D6: "Verify", D7: "Prevent", D8: "Close" };
+    const chips = { D3: [f.holdId], D4: f.occEv, D4_escape: f.escEv };
     const part = (String(f.c.title).match(/\b[A-Z]{1,4}-\d{2,5}\b/) || [""])[0];
-    return `<div class="sheet">
-      <ol>${Object.keys(names).filter((k) => rep[k]).map((k) => `<li><b>${k === "D4_escape" ? "D4" : k}</b><span><em>${names[k]}.</em> ${esc(cut(rep[k]))}</span></li>`).join("")}</ol>
+    return `<div class="sheet"${ja ? ' lang="ja"' : ""}>
+      ${f.reportJa ? `<div class="seg small" role="group" aria-label="Report language"><button type="button" class="${ja ? "" : "on"}" data-sheet="en" aria-pressed="${!ja}">English</button><button type="button" class="${ja ? "on" : ""}" data-sheet="ja" aria-pressed="${!!ja}">日本語</button></div>` : ""}
+      <ol>${Object.keys(names).filter((k) => rep[k]).map((k) => `<li><b>${k === "D4_escape" ? "" : k}</b><span><em>${names[k]}${ja ? "：" : "."}</em>${ja ? "" : " "}${esc(cut(rep[k]))}` +
+        `${(chips[k] || []).filter(Boolean).map((id) => ` <a class="evref" href="#118" data-ev-open="${esc(id)}">${esc(id)}</a>`).join("")}</span></li>`).join("")}</ol>
       <table class="title-block"><tr><th>Document</th><td>8D-${CASE}</td><th>Part</th><td>${esc(part || "–")}</td><th>Customer</th><td>${esc(f.c.customer)}</td></tr>
         <tr><th>Issued</th><td>${esc(day(f.r.created_at))}</td><th>Status</th><td>Draft</td><th>Approved by</th><td class="sig"></td></tr></table>
     </div>`;
@@ -352,7 +386,9 @@
     const s = STEPS[at]();
     COUNT.textContent = s.count;
     H.textContent = s.h;
-    P.textContent = s.p;
+    if (s.html) P.innerHTML = s.p; else P.textContent = s.p;
+    BY.innerHTML = credit(at);
+    BY.hidden = !BY.innerHTML;
     ACT.innerHTML = s.act;
     ART.innerHTML = s.art || "";
     ART.hidden = !s.art;
@@ -361,7 +397,8 @@
     if (still() || !VIS.childElementCount) swap(); else { VIS.classList.add("out"); setTimeout(swap, 140); }
     DOTS.innerHTML = STEPS.map((_, k) => `<li><button type="button" data-st="${k}" class="${k === at ? "on" : k < at ? "seen" : ""}" aria-label="${k === 0 ? "Start" : "Step " + k}"${k === at ? ' aria-current="step"' : ""}></button></li>`).join("");
     $("#st-back").disabled = at === 0;
-    $("#st-next").textContent = at === STEPS.length - 1 ? "Open the workbench" : at === 0 ? "Start" : "Next";
+    $("#st-next").textContent = at === STEPS.length - 1 ? "Workbench" : "Next";
+    $("#st-next").hidden = at === 2 && !!f.cd && !split;  // the two answers are the way on
     if (focus) H.focus({ preventScroll: true });
   }
 
@@ -376,6 +413,7 @@
     if (!v) guess = null;
     const s = STEPS[2]();
     H.textContent = s.h; P.textContent = s.p; ACT.innerHTML = s.act;
+    $("#st-next").hidden = !!f.cd && !v;
     const ch = VIS.querySelector(".chart");
     if (ch) ch.classList.toggle("is-split", v); else s.draw(VIS);
   }
@@ -406,7 +444,7 @@
   }
 
   document.addEventListener("click", (e) => {
-    const t = e.target.closest("[data-st],[data-split],[data-guess],[data-hold],[data-mail],[data-claim],[data-ev-open]");
+    const t = e.target.closest("[data-st],[data-split],[data-guess],[data-hold],[data-mail],[data-claim],[data-ev-open],[data-sheet],[data-how]");
     if (!t || !t.closest("#story")) return;
     if (t.dataset.st != null) show(Number(t.dataset.st), { focus: true });
     else if (t.dataset.guess) { guess = t.dataset.guess; setSplit(true); }
@@ -414,6 +452,8 @@
     else if (t.dataset.hold != null) setHold(t.dataset.hold === "1");
     else if (t.dataset.mail) { mailLang = t.dataset.mail; show(at); }
     else if (t.dataset.claim) sendClaim(t.dataset.claim);
+    else if (t.dataset.sheet) { sheetLang = t.dataset.sheet; VIS.innerHTML = sheet(); }
+    else if (t.dataset.how != null) $("#how-btn").click();
     else if (t.dataset.evOpen) { e.preventDefault(); R.openCase(CASE, { ev: t.dataset.evOpen }); }
   });
   $("#st-next").addEventListener("click", next);

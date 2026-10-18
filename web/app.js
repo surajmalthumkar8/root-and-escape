@@ -292,7 +292,7 @@
       ? { D1: "D1 チーム", D2: "D2 問題", D3: "D3 暫定処置", D4: "D4 発生原因", D4_escape: "D4 流出原因", D5: "D5 是正処置", D6: "D6 効果確認", D7: "D7 再発防止", D8: "D8 称賛" }
       : { D1: "D1 Team", D2: "D2 Problem", D3: "D3 Containment", D4: "D4 Occurrence", D4_escape: "D4 Escape", D5: "D5 Actions", D6: "D6 Verify", D7: "D7 Prevent", D8: "D8 Close" };
     el.className = "report " + reportLang;
-    el.innerHTML = Object.keys(names).filter((k) => sec[k]).map((k) => `<dt>${esc(names[k])}</dt><dd>${esc(sec[k])}</dd>`).join("");
+    el.innerHTML = Object.keys(names).filter((k) => sec[k]).map((k) => `<dt>${esc(names[k])}</dt><dd>${esc(sec[k]).replace(/(\d) (°C|%)/g, "$1&nbsp;$2")}</dd>`).join("");
   }
   function setLang(l) {
     reportLang = l;
@@ -468,7 +468,7 @@
       else if (e.type === "intake") add(`<b>intake</b> ${esc(e.intake.photo_observation || "")}`);
       else if (e.type === "call") add(`<b>Gemini →</b> ${esc(e.name)}(${esc(Object.entries(e.args || {}).map(([k, v]) => k + "=" + (Array.isArray(v) ? v.join("|") : v)).join(", "))})`);
       else if (e.type === "evidence") add(`<b>${esc(e.item.id)}</b> ${esc(e.item.summary)}`);
-      else if (e.type === "challenger") { mark("challenger"); add(`<b>challenger</b> round ${e.round.round}: ${esc(e.round.verdict)}${e.round.verdict === "REJECTED" ? " · " + esc(e.round.rules.filter((x) => !x.passed).map((x) => ruleName(x.rule)).join(", ")) : ""}`); }
+      else if (e.type === "challenger") { mark("challenger"); add(`<b>challenger</b> round ${e.round.round}: ${e.round.verdict === "REJECTED" ? "rejected" : "approved for review"}${e.round.verdict === "REJECTED" ? " · " + esc(e.round.rules.filter((x) => !x.passed).map((x) => ruleName(x.rule)).join(", ")) : ""}`); }
       else if (e.type === "done") {
         document.querySelectorAll(".stages li").forEach((li) => li.className = "done");
         if (state.current === id) { state.data.result = e.result; state.data.approvals = {}; render(); if (RAE.onResult) RAE.onResult(id, state.data); }  // a new run needs new signatures
@@ -712,7 +712,7 @@
     if (e.target.closest(".brand")) { e.preventDefault(); showStory(0); }
   });
 
-  const RAE = window.RAE = { api, esc, ruleName, openCase, showStory, onResult: null, storyGo: null };  // story.js sets the last two
+  const RAE = window.RAE = { api, esc, ruleName, term, openCase, showStory, onResult: null, storyGo: null };  // story.js sets the last two
   setView(view());
   loadMeta();
   loadCases();
