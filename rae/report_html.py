@@ -16,7 +16,7 @@ T = {
            "status_map": {"at_customer": "at customer", "in_transit": "in transit", "in_plant": "in plant"},
            "owners": {"Quality": "Quality", "Maintenance": "Maintenance", "Process engineering": "Process engineering"}},
     "ja": {"head": "8D レポート", "D1": "D1 チーム", "D2": "D2 問題の記述", "D3": "D3 暫定処置",
-           "D4": "D4 根本原因（発生）", "D4_escape": "D4 根本原因（流出）", "D5": "D5 是正処置",
+           "D4": "D4 発生原因", "D4_escape": "D4 流出原因", "D5": "D5 是正処置",
            "D6": "D6 実施と効果確認", "D7": "D7 再発防止", "D8": "D8 チームの称賛",
            "syn": "合成デモデータ（Google Cloud AI Builder Cup 2026 プロトタイプ）。実際の判断には使用しないでください。",
            "case": "事例", "gen": "作成", "photos": "写真", "defect": "不良品", "golden": "良品サンプル",
@@ -49,6 +49,10 @@ def render_report(case: dict, result: dict, appr: dict, lang: str) -> str:
                   f"<figcaption>{e(t['defect'])}</figcaption></figure><figure><img src='{e(_photo_url(case.get('golden')))}' alt=''>"
                   f"<figcaption>{e(t['golden'])}</figcaption></figure></div></section>")
     acts = result.get("actions") or []
+    # the owners and dates are shared; the action text comes in the report's language when the draft has it
+    ja = (result.get("draft") or {}).get("actions_ja") or []
+    if lang == "ja" and len(ja) == len(acts):
+        acts = [{**a, "action": j or a["action"]} for a, j in zip(acts, ja)]
     act_html = ""
     if acts:
         act_html = (f"<section><h2>{e(t['actions'])}</h2><table><tr><th>{e(t['action'])}</th><th>{e(t['owner'])}</th><th>{e(t['due'])}</th></tr>"

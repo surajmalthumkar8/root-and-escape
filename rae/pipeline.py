@@ -206,7 +206,8 @@ async def run_investigation(case: dict, plant, plant_source: str, llm=None, phot
         report = None
         if llm and deadline - time.time() > 15:
             try:
-                report = await asyncio.wait_for(llm.write(case, intake, draft, containment, log), timeout=left(60))
+                # the bilingual 8D is the longest Gemini output, so it gets more of what's left (still inside the 230 s budget)
+                report = await asyncio.wait_for(llm.write(case, intake, draft, containment, log), timeout=left(90))
                 checks = [_report_ok(report.get(lang, {}), log, case) for lang in ("en", "ja")]
                 if not all(ok for ok, _ in checks):
                     bad = list(dict.fromkeys(b for _, bs in checks for b in bs))

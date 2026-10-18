@@ -675,7 +675,7 @@
   });
 
   // ------------------------------------------------------------------------------------------ views
-  // Two views share one page: the story of case 118 (no hash, or #story) and the workbench (#<case id>).
+  // Three views share one page: the story of case 118 (no hash, or #story), the tests (#test) and the workbench (#<case id>).
   function view() { return document.documentElement.dataset.view; }
   function setView(v) {
     if (view() !== v) { document.documentElement.dataset.view = v; window.scrollTo(0, 0); }
@@ -685,6 +685,7 @@
   function route() {
     const id = decodeURIComponent(location.hash.slice(1));
     if (!id || id === "story") return setView("story");
+    if (id === "test") { setView("lab"); if (RAE.labShow) RAE.labShow(); return; }
     if (id.startsWith("c-")) return;  // an anchor inside the board
     setView("bench");
     if (id !== state.current && state.cases.some((c) => c.case_id === id)) selectCase(id);
@@ -699,6 +700,12 @@
       if (li) { li.scrollIntoView({ block: "center", behavior: motion() }); li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1600); }
     }
   }
+  function showLab() {
+    document.querySelectorAll("dialog[open]").forEach((d) => d.close());
+    try { history.pushState(null, "", "#test"); } catch (e) {}
+    setView("lab");
+    if (RAE.labShow) RAE.labShow();
+  }
   function showStory(step) {
     try { history.pushState(null, "", "#story"); } catch (e) {}
     setView("story");
@@ -710,11 +717,12 @@
     const b = e.target.closest("[data-bench]");
     if (b) { e.preventDefault(); openCase(b.dataset.bench, { run: b.dataset.run === "1" }); return; }
     const n = e.target.closest("[data-nav]");
-    if (n) { e.preventDefault(); if (n.dataset.nav === "bench") openCase(state.current || "118"); else showStory(); return; }
+    if (n) { e.preventDefault(); if (n.dataset.nav === "bench") openCase(state.current || "118"); else if (n.dataset.nav === "lab") showLab(); else showStory(); return; }
     if (e.target.closest(".brand")) { e.preventDefault(); showStory(0); }
   });
 
-  const RAE = window.RAE = { api, esc, ruleName, term, openCase, showStory, onResult: null, storyGo: null };  // story.js sets the last two
+  const RAE = window.RAE = { api, esc, ruleName, term, openCase, showStory, API, visitor,
+    onResult: null, storyGo: null, labShow: null };  // story.js and lab.js set the last three
   setView(view());
   loadMeta();
   loadCases();

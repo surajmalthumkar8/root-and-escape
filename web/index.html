@@ -6,7 +6,7 @@
 <meta name="rae-api" content="">
 <title>Root &amp; Escape · 8D root-cause workbench</title>
 <meta name="description" content="A car maker finds cracked parts and blames the night crew. Root &amp; Escape checks the plant's own data with Gemini agents and BigQuery ML, finds the real cause, holds only the suspect lots and drafts the 8D report for a person to sign.">
-<script>document.documentElement.dataset.view = /^(#(story)?)?$/.test(location.hash) ? "story" : "bench";</script>
+<script>document.documentElement.dataset.view = /^(#(story)?)?$/.test(location.hash) ? "story" : location.hash === "#test" ? "lab" : "bench";</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Barlow+Semi+Condensed:wght@500;600;700&family=Noto+Sans+JP:wght@400;600&display=swap">
@@ -17,6 +17,7 @@
   <a class="brand" href="#story"><span class="mark" aria-hidden="true"></span>Root <span class="amp">&amp;</span> Escape</a>
   <nav class="views" aria-label="Views">
     <a href="#story" data-nav="story">The case</a>
+    <a href="#test" data-nav="lab">Test it</a>
     <a href="#118" data-nav="bench">Workbench</a>
     <button class="link" id="how-btn" type="button">How it works</button>
   </nav>
@@ -46,6 +47,8 @@
     <div class="st-vis" id="st-vis"></div>
   </div>
 </section>
+
+<section class="lab" id="lab" aria-label="Test it yourself"></section>
 
 <div class="shell" id="bench">
   <aside class="cases" aria-label="Cases">
@@ -177,8 +180,8 @@
 </div>
 
 <footer class="foot">
-  <span>Root &amp; Escape, built for the Google Cloud AI Builder Cup 2026. All plant data and photos are synthetic.</span>
-  <span>Gemini on Agent Platform · ADK · BigQuery ML · Cloud Run · Firestore · <a href="https://github.com/surajmalthumkar8/root-and-escape" target="_blank" rel="noopener">source</a></span>
+  <span>Root &amp; Escape, built for the Google Cloud AI Builder Cup 2026. The plant data and defect photos are synthetic.</span>
+  <span>Built with Gemini on Agent Platform, ADK, BigQuery ML, Cloud Run, Firestore and Firebase Hosting. <a href="https://github.com/surajmalthumkar8/root-and-escape" target="_blank" rel="noopener">Source on GitHub</a></span>
 </footer>
 
 <div class="coach" id="coach" hidden role="dialog" aria-modal="false" aria-labelledby="coach-h">
@@ -232,10 +235,11 @@
   </ul>
 
   <p class="small muted" id="bench-note">Loading benchmark…</p>
-  <div class="btn-row"><button class="btn" id="how-tour" type="button">Show me case 118</button><button class="btn ghost" id="how-close" type="button">Close</button></div>
+  <div class="btn-row"><button class="btn" id="how-tour" type="button">Show me case 118</button><button class="btn ghost" type="button" data-nav="lab">Test it yourself</button><button class="btn ghost" id="how-close" type="button">Close</button></div>
 </dialog>
 
 <script src="/static/app.js"></script>
 <script src="/static/story.js"></script>
+<script src="/static/lab.js"></script>
 </body>
 </html>

@@ -82,7 +82,8 @@
         "Root & Escape's Gemini agents tested every suspect against the plant's records in BigQuery, held only the suspect lots and drafted the report for a quality engineer to sign.",
       html: true,
       act: `<button class="btn big" type="button" data-st="1">See how, in six steps</button>
-            <button class="btn ghost big" type="button" data-bench="${CASE}">Open the workbench</button>`,
+            <button class="btn ghost big" type="button" data-bench="${CASE}">Open the workbench</button>
+            <p class="st-more">Judging it? <a class="link inline" href="#test" data-nav="lab">Test it yourself</a> with 13 ready-made checks.</p>`,
       draw: (el) => { el.innerHTML = hero() + coverFacts(); },
     }),
     () => ({
@@ -153,8 +154,8 @@
       count: "Step 6 of 6: the report",
       h: f.secs && f.gemini ? `The 8D report, drafted in ${Math.round(f.secs)} seconds.` : "The 8D report, drafted and checked.",
       p: "In English and Japanese, with every claim linked to its evidence. A quality engineer signs before it goes out.",
-      act: `<button class="btn big" type="button" data-bench="${CASE}">Open the workbench</button>
-            <button class="btn ghost big" type="button" data-bench="${CASE}" data-run="1">Run it live${f.gemini ? " with Gemini" : ""}</button>
+      act: `<button class="btn big" type="button" data-nav="lab">Test it yourself</button>
+            <button class="btn ghost big" type="button" data-bench="${CASE}">Open the workbench</button>
             <span class="st-more">Two more cases: <button class="link" type="button" data-bench="124">burrs with two causes</button> and <button class="link" type="button" data-bench="121">scratches with no cause in the data</button>. <button class="link" type="button" data-how>How the agents work</button></span>`,
       draw: (el) => { el.innerHTML = sheet(); },
     }),

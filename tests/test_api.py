@@ -63,6 +63,8 @@ def test_export_locked_until_signed():
         assert r.status_code == 200
     r = client.get("/api/cases/118/report?lang=ja&v=test-visitor-0002")
     assert r.status_code == 200 and "8D レポート" in r.text
+    # the two cause headings use the standard Japanese 8D terms whoever wrote the text, and the actions are in Japanese
+    assert "D4 発生原因" in r.text and "D4 流出原因" in r.text and "Repair and calibrate" not in r.text
     # approvals are per visitor: someone else still sees an unsigned report
     assert client.get("/api/cases/118/report?lang=en&v=test-visitor-0003").status_code == 409
 
