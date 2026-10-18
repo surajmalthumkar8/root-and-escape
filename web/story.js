@@ -35,13 +35,18 @@
     })[i] || "";
   }
 
+  // crews that actually ran a press: one crew may never work it (crew C never runs P4)
+  const onPress = (st) => (st ? st.cells.filter((c) => c.units > 0).length : 0);
   // Step 2's caption: the gap inside the faulty press, in numbers, and why it doesn't count.
   function insideP4() {
     const o = f.cd.overall_contrast, st = f.cd.strata.find((s) => s.press === f.press), sh = shares().top;
     const hi = st && st.cells.find((c) => c.crew === o.high);
     const lo = st && st.cells.filter((c) => c.crew !== o.high).sort((a, b) => b.units - a.units)[0];
     const gap = hi && lo ? ` On ${f.press}, crew ${lo.crew} is at ${pc(lo.rate)} and crew ${o.high} at ${pc(hi.rate)}, a gap the test can't tell from chance.` : "";
-    return `Every crew cracks clips on ${f.press} and hardly any elsewhere.${gap} Crew ${o.high} just runs ${f.press} the most: ${sh}% of its output.`;
+    const n = onPress(st);
+    const who = n === f.cd.overall.length ? `Every crew cracks clips on ${f.press}` :
+      n === 2 ? `Both crews that run ${f.press} crack clips there` : `Every crew that runs ${f.press} cracks clips there`;
+    return `${who}, and hardly any elsewhere.${gap} Crew ${o.high} just runs ${f.press} the most: ${sh}% of its output.`;
   }
 
   // ------------------------------------------------------------------------------------- facts from the run
@@ -249,7 +254,8 @@
     const gi = strata.findIndex((s) => s.press === f.press);
     if (gi >= 0) {
       const peak = Math.max(...strata[gi].cells.map((c) => c.rate));
-      labels += `<span class="alarm on-split" style="left:calc(${(gi + 1) * G}% + 6px);bottom:calc(${y(peak)}% - 13px)"><b>${esc(f.press)}</b> high for every crew</span>`;
+      const n = onPress(strata[gi]), whom = n === cd.overall.length ? "every crew" : n === 2 ? "both crews" : "every crew on it";
+      labels += `<span class="alarm on-split" style="left:calc(${(gi + 1) * G}% + 6px);bottom:calc(${y(peak)}% - 13px)"><b>${esc(f.press)}</b> high for ${whom}</span>`;
     }
     let lines = "";
     for (let t = 1; t <= Math.round(top * 100); t++) lines += `<span class="gl" style="bottom:${y(t / 100)}%"><em>${t}%</em></span>`;
