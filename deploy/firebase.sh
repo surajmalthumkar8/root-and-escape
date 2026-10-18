@@ -66,7 +66,14 @@ cat > "$BUILD/firebase.json" <<JSON
   }
 }
 JSON
-(cd "$BUILD" && "${FB[@]}" deploy --only hosting --project "$PROJECT_ID" --non-interactive)
+# An upload from Cloud Shell sometimes gives up halfway ("retries exhausted"); a second try usually goes through.
+ok=0
+for try in 1 2 3; do
+  if (cd "$BUILD" && "${FB[@]}" deploy --only hosting --project "$PROJECT_ID" --non-interactive); then ok=1; break; fi
+  echo "Upload attempt $try failed. Trying again in 10 s."
+  sleep 10
+done
+[ "$ok" = 1 ] || die "Firebase Hosting upload failed three times. Run this script again in a minute."
 
 step "Check"
 if curl -fsS --max-time 30 "$WEB/" | grep -q "content=\"${URL}\""; then echo "page is live at $WEB"

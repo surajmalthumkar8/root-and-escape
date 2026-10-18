@@ -697,9 +697,10 @@ def _check_firestore() -> dict:
 def _check_storage() -> dict:
     if not settings.gcp:
         return {"live": False, "proof": "Uploaded photos are kept on local disk in this mode."}
-    blobs = list(get_store().bucket.list_blobs(prefix="photos/", max_results=200))
-    return {"live": True, "proof": f"Bucket {settings.bucket} holds {len(blobs)}{'+' if len(blobs) == 200 else ''} "
-                                   "uploaded defect photos. Each one is stored as a re-encoded JPEG with its metadata removed."}
+    n = len(list(get_store().bucket.list_blobs(prefix="photos/", max_results=200)))
+    count = f"{n}{'+' if n == 200 else ''} uploaded defect photo{'' if n == 1 else 's'}"
+    return {"live": True, "proof": f"Bucket {settings.bucket} holds {count}. Each one is stored as a re-encoded JPEG "
+                                   "with its metadata removed."}
 
 
 def _check_adk() -> dict:

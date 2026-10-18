@@ -311,6 +311,8 @@ erDiagram
 | Cloud Storage | Uploaded defect photos, re-encoded with their metadata stripped |
 | Firebase Hosting | A second copy of the page at `https://<project>.web.app`, from Google's CDN. It calls the Cloud Run API across origins; nothing else changes |
 
+![The live service check: all eight services answered, each with its proof](docs/media/gcp.png)
+
 To check that each one is really in use, press **Check every service now** on the overview page, or call `GET /api/stack`. The app asks each service a small question and prints the answer: a row count from `production_lots` with the BigQuery job ID and bytes scanned, the last BigQuery ML contribution analysis this instance ran, a Firestore read of a stored run, a listing of the photo bucket, a one-word answer from Gemini, the Cloud Run service and revision, and the Firebase Hosting copy of the page. The answer is cached for a minute. `scripts/verify_cloud.sh` runs the same check.
 
 ## Gen AI design

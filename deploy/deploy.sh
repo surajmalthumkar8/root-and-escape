@@ -94,18 +94,23 @@ echo "$META"
 echo "$META" | python3 -c "import sys,json; m=json.load(sys.stdin); sys.exit(0 if m['gemini'] else 1)" || \
   warn "Gemini is off: $(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin).get('gemini_error'))")"
 
-step "9/9 Warm the six seed cases with a real Gemini run, all at once (uses 6 of today's 30 Gemini runs)"
-# SKIP_WARMUP=1 bash deploy/deploy.sh redeploys without spending Gemini runs (the stored runs stay as they are)
+step "9/9 Warm the seed cases with a real Gemini run, one at a time (up to 6 of today's 30 Gemini runs)"
+# One at a time: six at once on a fresh revision left four of them without a run.
+# A case that already has a stored Gemini run is skipped; REWARM=1 runs it again. SKIP_WARMUP=1 skips the step.
 SEEDS="118 124 121 131 142 153"
 [ "${SKIP_WARMUP:-0}" = "1" ] && { echo "Skipped (SKIP_WARMUP=1)."; SEEDS=""; }
-WARM=$(mktemp -d)
-for CASE in $SEEDS; do
-  curl -sN --max-time 290 "$URL/api/cases/$CASE/live?v=deploy-warmup-$CASE-$(date +%s)" > "$WARM/$CASE.log" 2>&1 &
-done
-wait
 for CASE in $SEEDS; do
   echo "-- case $CASE"
-  grep -o '"type": "[a-z]*"' "$WARM/$CASE.log" | sort | uniq -c || true
+  HAVE=$(curl -fsS "$URL/api/cases/$CASE" -H "X-Visitor: deploy-check-0001" 2>/dev/null | python3 -c "
+import sys, json
+r = json.load(sys.stdin).get('result') or {}
+print((r.get('modes') or {}).get('investigation'))" 2>/dev/null || echo none)
+  if [ "$HAVE" = "gemini" ] && [ "${REWARM:-0}" != "1" ]; then
+    echo "already has a Gemini run, so it keeps it (REWARM=1 runs it again)"
+  else
+    curl -sN --max-time 290 "$URL/api/cases/$CASE/live?v=deploy-warmup-$CASE-$(date +%s)" \
+      | grep -o '"type": "[a-z]*"' | sort | uniq -c || true
+  fi
   CHECK=$(curl -fsS "$URL/api/cases/$CASE" -H "X-Visitor: deploy-check-0001" | python3 -c "
 import sys, json
 r = json.load(sys.stdin)['result'] or {}
