@@ -18,7 +18,7 @@
     { id: "complaint", name: "Complaint", by: "email and photo", info: "A customer email in any language, a defect photo and the date codes on the parts." },
     { id: "intake", name: "Intake", by: "Gemini", info: "Gemini translates the email, fills in what, where, when and how many, and boxes the defect next to a good part." },
     { id: "investigate", name: "Investigator", by: "ADK agent, BigQuery ML", info: "An agent on Gemini picks its own tools, one at a time: where the defects concentrate (BigQuery ML), a split by press, process and inspection checks, and the lots to hold." },
-    { id: "challenger", name: "Challenger", by: "10 rules in code", info: "Code, not a model. No blame without proof, every number from the evidence, an escape cause, a mechanism that fits the defect. Weak drafts go back to the Investigator." },
+    { id: "challenger", name: "Challenger", by: "15 rules in code", info: "Code, not a model. No blame without proof, every number from the evidence, an escape cause, a mechanism that fits the defect. Weak drafts go back to the Investigator." },
     { id: "write", name: "Writer", by: "Gemini, EN and JA", info: "Gemini writes the 8D in English and Japanese, and every number it writes is checked again." },
     { id: "sign", name: "Engineer", by: "signs D2 to D5", info: "Nothing leaves until a named person approves D2 to D5. Export stays locked until then." },
   ];
