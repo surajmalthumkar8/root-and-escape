@@ -6,7 +6,9 @@ Built for the Google Cloud AI Builder Cup 2026 (Hack2skill), Manufacturing theme
 
 Live app: <https://root-and-escape-vd37f5upcq-uc.a.run.app> (no sign-in)
 
-![The 8D board for case 118](docs/media/board.png)
+![The front page: case 118 told in six steps](docs/media/story.png)
+
+![Step 2: crew B's bar splits by press, and the gap disappears](docs/media/split.png)
 
 [What it solves](#what-it-solves) · [Working backwards](#working-backwards) · [Try it](#try-it-in-three-minutes) · [How it works](#how-it-works) · [Guardrails](#guardrails) · [Evaluation](#evaluation) · [Run it](#run-it-yourself)
 
@@ -67,13 +69,18 @@ Root & Escape reads the complaint in the customer's language and compares the de
 
 ## Try it in three minutes
 
-1. Open the live app. Case 118 opens with a stored run: a Japanese car maker reports 37 cracked clips out of 2,400.
-2. Press **Take the tour** for a seven-step walk through the board. Words with a dotted underline explain themselves on hover or tap.
-3. Read the four cards at the top: the root cause, "People blamed: None", hold 24 lots instead of 216, and the checks that passed.
-4. Press **Run live with Gemini** to watch the agents do it again from scratch. Each tool call streams in with its evidence ID. A run takes one to two minutes (53 s and 132 s in two runs so far).
-5. In **Try to break it**, pick "Blame crew B" or "Invent a number", or write your own claim, and see which check rejects it. "The agents' own answer" passes.
-6. Open case 124 (a two-part cause and an overdue gauge) and case 121 (no cause, so it claims none).
-7. Type a name, approve D2 to D5, switch the draft to 日本語 and export it.
+1. Open the live app. The front page tells case 118 in six steps, using the numbers from its stored run. Use **Next** or the arrow keys.
+   - **The complaint.** A Japanese car maker reports 37 cracked clips out of 2,400. Gemini's translation and its box around the crack are shown.
+   - **The suspect.** Crew B's crack rate is 6.75 times crew C's. You're asked whether you'd blame crew B. Either answer splits the same bars by press, and the gap disappears: crew B runs 83% of press P4's output.
+   - **The cause.** A control chart of P4's dryer log shows the dew point going over the resin maker's limit on the days of the complaint's date codes, with the crack rate rising underneath. Inspection had been cut from 5 checks an hour to 1.
+   - **Containment.** A grid of every lot since 5 Oct shows the 24 that are held. Switch to "hold everything" to see the 216 a blanket hold would stop.
+   - **The Challenger.** Send "operator error" and it comes back rejected, with the crack rate for each crew inside and outside P4. Send the agents' answer and it passes.
+   - **The report.** The 8D's first lines, with a title block that waits for a signature.
+2. Press **Open the workbench** for the full case. **Guide me** walks through it, and words with a dotted underline explain themselves on hover or tap.
+3. Press **Run live with Gemini** to watch the agents do it again from scratch. Each tool call streams in with its evidence ID. A run takes one to two minutes (53 s and 132 s in two runs so far).
+4. In **Try to break it**, pick "Blame crew B" or "Invent a number", or write your own claim, and see which check rejects it. "The agents' own answer" passes.
+5. Open case 124 (a two-part cause and an overdue gauge) and case 121 (no cause, so it claims none).
+6. Type a name, approve D2 to D5, switch the draft to 日本語 and export it.
 
 Gemini runs are capped at 30 a day for everyone and 5 per visitor. Past the cap, runs use the deterministic engine and say so. Stored results always load.
 
@@ -353,6 +360,8 @@ The plausibility table (`MECHANISM_EFFECTS` in `rae/analytics.py`) covers the fi
 | `production_lots`, `process_params`, `inspection_log`, `shipments`, `past_8d` | `rae/data/generator.py` with seed 42, loaded by `scripts/load_bigquery.py` | Synthetic |
 | Complaint emails (cases 118, 121, 124) | `rae/data/cases.py` | Synthetic |
 | Defect and golden-sample photos | Rendered by `scripts/make_photos.py` and watermarked "SYNTHETIC" | Synthetic |
+| Car body line on the front page | [Photo by Lilian Do Khac](https://unsplash.com/photos/robotic-arms-assembling-a-car-chassis-on-a-factory-line-EyqUxJuOb1Q) on Unsplash ([Unsplash license](https://unsplash.com/license)), cropped | Real photo, used for context only |
+| Injection moulding press in step 3 | [Photo by The robotic engineer1](https://commons.wikimedia.org/wiki/File:Injection_Molding_Machine_with_a_robot_arm.jpg), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), cropped | Real photo, used for context only |
 
 The planted stories, for transparency. Case 118 is a press-4 dryer failure from 5 to 12 Oct plus a sampling cut on 2 Oct; the confounder is new crew B, who mostly works press 4. Case 124 is a press-2 mould past its maintenance limit, with cavity C3 making burrs, and an overdue gauge. Case 121 has no cause; it is the control.
 
@@ -361,7 +370,8 @@ The planted stories, for transparency. Case 118 is a press-4 dryer failure from 
 Working today:
 
 - The full flow on synthetic data, live on Cloud Run with Gemini and BigQuery ML: complaint in any language, is / is not, suspects tested, two root causes, targeted hold, Challenger, bilingual 8D, sign-off and export.
-- "Try to break it", the guided tour and the plain-language glossary on the board.
+- The six-step front page: the split-by-press chart, the dryer control chart (served by `/api/plant/series` from the same plant tables) and the lot grid.
+- "Try to break it", the guided tour and the plain-language glossary on the workbench.
 - The evals above, all runnable from the repo.
 
 Limits to know about:

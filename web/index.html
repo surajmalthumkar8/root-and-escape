@@ -4,32 +4,51 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>Root &amp; Escape · 8D root-cause workbench</title>
-<meta name="description" content="Turns a customer complaint and a defect photo into an evidence-backed 8D report, using Gemini agents over plant data in BigQuery. A person signs before anything leaves.">
+<meta name="description" content="A car maker finds cracked parts and blames the night crew. Root &amp; Escape checks the plant's own data with Gemini agents and BigQuery ML, finds the real cause, holds only the suspect lots and drafts the 8D report for a person to sign.">
+<script>document.documentElement.dataset.view = /^(#(story)?)?$/.test(location.hash) ? "story" : "bench";</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@100..125,400..800&family=Red+Hat+Mono:wght@400;500&family=Noto+Sans+JP:wght@400;600&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Barlow+Semi+Condensed:wght@500;600;700&family=Noto+Sans+JP:wght@400;600&display=swap">
 <link rel="stylesheet" href="/static/styles.css">
 </head>
 <body>
 <header class="top">
-  <div class="brand">
-    <h1>Root <span class="amp">&amp;</span> Escape</h1>
-    <p>8D root-cause workbench that won't accept "operator error" without proof</p>
-  </div>
+  <a class="brand" href="#story"><span class="mark" aria-hidden="true"></span>Root <span class="amp">&amp;</span> Escape</a>
+  <nav class="views" aria-label="Views">
+    <a href="#story" data-nav="story">The case</a>
+    <a href="#118" data-nav="bench">Workbench</a>
+    <button class="link" id="how-btn" type="button">How it works</button>
+  </nav>
   <div class="status" id="status" aria-live="polite">
     <span class="pill" id="mode-pill">Loading…</span>
     <span class="pill" id="quota-pill"></span>
-    <span class="pill warn">Synthetic plant data</span>
-    <button class="btn ghost small" id="tour-btn" type="button">Take the tour</button>
-    <button class="link" id="how-btn" type="button">How it works</button>
+    <span class="pill warn">Synthetic data</span>
   </div>
 </header>
 
-<div class="shell">
+<section class="story" id="story" aria-label="Case 118, step by step">
+  <div class="st-wrap">
+    <div class="st-copy">
+      <p class="st-count" id="st-count">Case 118</p>
+      <h1 class="st-h" id="st-h" tabindex="-1">Loading the case…</h1>
+      <p class="st-p" id="st-p"></p>
+      <figure class="st-art" id="st-art" hidden></figure>
+      <div class="st-act" id="st-act"></div>
+      <div class="st-nav">
+        <button class="btn ghost small" id="st-back" type="button">Back</button>
+        <ol class="st-dots" id="st-dots" aria-label="Steps"></ol>
+        <button class="btn small" id="st-next" type="button">Next</button>
+      </div>
+      <p class="st-keys">Arrow keys work too.</p>
+    </div>
+    <div class="st-vis" id="st-vis"></div>
+  </div>
+</section>
+
+<div class="shell" id="bench">
   <aside class="cases" aria-label="Cases">
     <div class="cases-head"><h2>Complaints</h2><button class="btn small" id="new-btn" type="button">+ New</button></div>
     <ul id="case-list"></ul>
-    <p class="hint">The three example cases open instantly. "Run live" sends one through the Gemini agents again (a few runs a day for everyone).</p>
   </aside>
 
   <main id="main">
@@ -39,7 +58,7 @@
         <h2 id="case-title">Loading case…</h2>
       </div>
       <div class="run">
-        <button class="btn" id="run-btn" type="button">Run live with Gemini</button>
+        <div class="btn-row"><button class="btn ghost" id="tour-btn" type="button">Guide me</button><button class="btn" id="run-btn" type="button">Run live with Gemini</button></div>
         <span class="small muted" id="run-note"></span>
       </div>
     </section>
@@ -55,52 +74,49 @@
     </section>
 
     <div class="notes" id="notes" hidden></div>
-    <p class="plain" id="plain" hidden></p>
     <section class="verdict" id="verdict" aria-live="polite"></section>
 
     <div class="board" id="board">
       <article class="cell span2" id="c-d2">
-        <span class="dtag">D2 · Problem</span>
+        <span class="dtag"><b>D2</b> Problem</span>
         <h3>The complaint and the photo</h3>
         <div class="photos">
           <figure><div class="ph" id="ph-defect"><img id="img-defect" alt="Defect photo"><div class="box" id="box" hidden></div></div><figcaption id="cap-defect">Defect photo</figcaption></figure>
           <figure><div class="ph"><img id="img-golden" alt="Golden sample photo"></div><figcaption><span class="term" data-term="golden" tabindex="0">Golden sample</span></figcaption></figure>
         </div>
         <div class="box-actions"><button class="btn ghost small" id="box-ok" type="button">Confirm box</button><span class="small muted" id="box-note"></span></div>
-        <p class="small translation" id="translation"></p>
-        <details class="complaint"><summary>Original complaint</summary><pre id="complaint"></pre></details>
         <dl class="w5" id="w5"></dl>
+        <details class="complaint"><summary>The email, in English and the original</summary><p class="small translation" id="translation"></p><pre id="complaint"></pre></details>
       </article>
 
       <article class="cell" id="c-d3">
-        <span class="dtag">D3 · <span class="term" data-term="containment" tabindex="0">Containment</span></span>
+        <span class="dtag"><b>D3</b> <span class="term" data-term="containment" tabindex="0">Containment</span></span>
         <h3>Hold only what's suspect</h3>
         <div id="d3"></div>
       </article>
 
       <article class="cell" id="c-isnot">
-        <span class="dtag">D4 · <span class="term" data-term="isnot" tabindex="0">Is / is not</span></span>
+        <span class="dtag"><b>D4</b> <span class="term" data-term="isnot" tabindex="0">Is / is not</span></span>
         <h3 id="isnot-h">Where the defect is, and isn't</h3>
         <div id="heatmap"></div>
         <div id="isnot-table"></div>
-        <p class="small" id="isnot-text"></p>
-        <p class="small muted" id="isnot-method"></p>
+        <details class="method"><summary>How this was tested</summary><p class="small" id="isnot-text"></p><p class="small muted" id="isnot-method"></p></details>
       </article>
 
       <article class="cell" id="c-hyp">
-        <span class="dtag">D4 · Suspects</span>
+        <span class="dtag"><b>D4</b> Suspects</span>
         <h3>Every suspect, tested</h3>
         <ul class="hyps" id="hyps"></ul>
       </article>
 
       <article class="cell" id="c-d4">
-        <span class="dtag">D4 · Root causes</span>
+        <span class="dtag"><b>D4</b> Root causes</span>
         <h3>Why it happened, and why it got out</h3>
         <div id="d4"></div>
       </article>
 
       <article class="cell span3" id="c-rules">
-        <span class="dtag"><span class="term" data-term="challenger" tabindex="0">Challenger</span> · Checks</span>
+        <span class="dtag"><span class="term" data-term="challenger" tabindex="0">Challenger</span></span>
         <div class="split">
           <div>
             <h3>Checks every draft must pass</h3>
@@ -108,11 +124,10 @@
           </div>
           <form class="breakit" id="breakit">
             <h3>Try to break it</h3>
-            <p class="small muted">Write a root cause and the same checks judge it. Or pick an example.</p>
             <div class="tries" id="bi-tries" role="group" aria-label="Example claims"></div>
-            <label for="bi-occ" class="small">Occurrence: why it happened</label>
+            <label for="bi-occ" class="small">Why it happened</label>
             <textarea id="bi-occ" rows="3" maxlength="600">Operator error: night crew B did not follow the work instruction. Retrain crew B.</textarea>
-            <label for="bi-esc" class="small">Escape: why inspection missed it</label>
+            <label for="bi-esc" class="small">Why inspection missed it</label>
             <input id="bi-esc" maxlength="600" placeholder="e.g. inspection on that press was cut, so the rise wasn't caught">
             <button class="btn small" type="submit">Challenge this claim</button>
             <div id="bi-out" aria-live="polite"></div>
@@ -121,7 +136,7 @@
       </article>
 
       <article class="cell" id="c-d5">
-        <span class="dtag">D5 · Actions</span>
+        <span class="dtag"><b>D5</b> Actions</span>
         <h3>Corrective actions</h3>
         <div id="d5"></div>
       </article>
@@ -152,7 +167,7 @@
         <span class="dtag"><span class="term" data-term="evidence" tabindex="0">Evidence</span></span>
         <h3>Every claim traces to one of these</h3>
         <ol class="evidence" id="evidence"></ol>
-        <details class="trace" id="trace" open><summary>How the agents worked on this run</summary><ol id="trace-list"></ol></details>
+        <details class="trace" id="trace"><summary>How the agents worked on this run</summary><ol id="trace-list"></ol></details>
         <p class="small muted" id="provenance"></p>
       </article>
     </div>
@@ -160,12 +175,12 @@
 </div>
 
 <footer class="foot">
-  <span>Root &amp; Escape · prototype for the Google Cloud AI Builder Cup 2026 · all plant data is synthetic</span>
+  <span>Root &amp; Escape, built for the Google Cloud AI Builder Cup 2026. All plant data and photos are synthetic.</span>
   <span>Gemini on Agent Platform · ADK · BigQuery ML · Cloud Run · Firestore · <a href="https://github.com/surajmalthumkar8/root-and-escape" target="_blank" rel="noopener">source</a></span>
 </footer>
 
 <div class="coach" id="coach" hidden role="dialog" aria-modal="false" aria-labelledby="coach-h">
-  <div class="coach-top"><span class="coach-n" id="coach-n"></span><button class="link" id="coach-x" type="button">Close tour</button></div>
+  <div class="coach-top"><span class="coach-n" id="coach-n"></span><button class="link" id="coach-x" type="button">Close</button></div>
   <h3 id="coach-h"></h3>
   <p id="coach-p"></p>
   <div class="btn-row"><button class="btn ghost small" id="coach-back" type="button">Back</button><button class="btn small" id="coach-next" type="button">Next</button></div>
@@ -176,7 +191,7 @@
 <dialog id="new-dlg" aria-labelledby="new-h">
   <form id="new-form" method="dialog">
     <h2 id="new-h">New customer complaint</h2>
-    <p class="small muted">The agents investigate it against the same synthetic plant history, which covers date codes 30 Aug to 16 Oct 2026. <button class="link" id="f-example" type="button">Fill in an example</button></p>
+    <p class="small muted">It's checked against the same synthetic plant history (date codes 30 Aug to 16 Oct 2026). <button class="link" id="f-example" type="button">Fill in an example</button></p>
     <label for="f-title">Title</label><input id="f-title" name="title" maxlength="120" placeholder="e.g. Clips cracking at the hook">
     <label for="f-complaint">Complaint (any language)</label>
     <textarea id="f-complaint" name="complaint" rows="5" maxlength="4000" required placeholder="Paste the customer's email…"></textarea>
@@ -195,30 +210,30 @@
 
 <dialog id="how-dlg" class="wide" aria-labelledby="how-h">
   <h2 id="how-h">How it works</h2>
-  <p>When a car maker finds bad parts, the supplier owes it an <span class="term" data-term="8d" tabindex="0">8D report</span>. The customer sets the clock: stop the bad parts within a day, find the root cause within about five, fix it within about twenty. Under that pressure people write "operator error" and hold all the stock to be safe. This tool drafts the 8D from the plant's own records, shows the evidence for every claim, and refuses a cause the data doesn't support. A quality engineer reviews it and signs.</p>
+  <p class="how-lede">A customer's complaint goes in. An <span class="term" data-term="8d" tabindex="0">8D report</span> with evidence behind every line comes out, and a person signs it.</p>
 
   <ol class="flow" aria-label="What happens on a run">
-    <li><span class="who">Intake · Gemini</span><b>Reads the complaint and the photo</b><span>Translates the email (any language), compares the defect photo with a known-good part and proposes a box around the defect.</span></li>
-    <li><span class="who">Investigator · Gemini through ADK</span><b>Tests suspects against plant data</b><span>Chooses which tools to call over the BigQuery tables:</span>
+    <li><span class="who">Intake, on Gemini</span><b>Reads the email and the photo</b><span>Any language. Boxes the defect next to a good part.</span></li>
+    <li><span class="who">Investigator, on Gemini through ADK</span><b>Tests every suspect in BigQuery</b>
       <span class="tools"><code>is_is_not</code><code>stratify</code><code>param_excursions</code><code>inspection_changes</code><code>containment</code><code>past_8d</code></span>
-      <span>BigQuery ML contribution analysis runs alongside the is / is not test.</span></li>
-    <li class="loop"><span class="who">Challenger · rules in code</span><b>Rejects a weak draft</b><span>No escape cause, a claim without evidence, a number that isn't in the data, or blame on people without a split that proves it: the draft goes back to the Investigator, up to three rounds. In the cloud a Gemini critic also reads approved claims for contradictions.</span></li>
-    <li><span class="who">Writer · Gemini</span><b>Drafts the 8D in English and Japanese</b><span>Every number it writes is checked against the evidence. If one doesn't match, the template text is used and the page says so.</span></li>
+      <span>BigQuery ML contribution analysis finds where the defects concentrate.</span></li>
+    <li class="loop"><span class="who">Challenger, rules in code</span><b>Sends weak drafts back</b><span>No evidence, a made-up number, a missing escape cause or blame without proof: back to the Investigator, up to three rounds.</span></li>
+    <li><span class="who">Writer, on Gemini</span><b>Writes the 8D in English and Japanese</b><span>Every number is checked against the evidence.</span></li>
     <li class="person"><span class="who">Quality engineer</span><b>Approves D2 to D5, then exports</b><span>Export stays locked until a named person signs.</span></li>
   </ol>
 
   <h3 class="how-sub">Three example cases</h3>
   <ul class="examples">
-    <li><button class="link" type="button" data-open="118">Case 118</button> Cracked clips. Crew B's crack rate is almost seven times crew C's, but split by press the gap disappears: crew B just works the faulty press more often. Nobody gets blamed, and 24 lots are held instead of 216.</li>
-    <li><button class="link" type="button" data-open="124">Case 124</button> Burrs on one cavity of one press, and an overdue gauge that let them through.</li>
-    <li><button class="link" type="button" data-open="121">Case 121</button> Light scratches with no pattern in the data. It says "insufficient evidence" instead of inventing a cause.</li>
+    <li><button class="link" type="button" data-open="118">Case 118, cracked clips:</button> A crew that looks guilty but isn't.</li>
+    <li><button class="link" type="button" data-open="124">Case 124, burrs:</button> One cavity of one press, and an overdue gauge.</li>
+    <li><button class="link" type="button" data-open="121">Case 121, scratches:</button> No pattern in the data, so no cause is claimed.</li>
   </ul>
 
-  <p class="small"><b>Data:</b> synthetic plant history (seed 42) loaded into BigQuery, and synthetic, watermarked photos. <b>Limits:</b> Gemini runs are capped per day; other runs use the deterministic engine and are labelled that way.</p>
-  <p class="small muted" id="bench">Loading benchmark…</p>
-  <div class="btn-row"><button class="btn" id="how-tour" type="button">Take the tour</button><button class="btn ghost" id="how-close" type="button">Close</button></div>
+  <p class="small muted" id="bench-note">Loading benchmark…</p>
+  <div class="btn-row"><button class="btn" id="how-tour" type="button">Show me case 118</button><button class="btn ghost" id="how-close" type="button">Close</button></div>
 </dialog>
 
 <script src="/static/app.js"></script>
+<script src="/static/story.js"></script>
 </body>
 </html>

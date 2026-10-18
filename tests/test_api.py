@@ -19,6 +19,16 @@ def test_health_and_meta():
     assert m["gemini"] is False and m["synthetic"] is True
 
 
+def test_plant_series_shows_the_dryer_excursion():
+    s = client.get("/api/plant/series?press=P4").json()
+    assert s["spec_max"] == -18.0 and len(s["points"]) > 100 and s["daily_rate"]
+    wet = [v for ts, v in s["points"] if "2026-10-06" <= ts[:10] <= "2026-10-11"]
+    dry = [v for ts, v in s["points"] if ts[:10] < "2026-09-30"]
+    assert min(wet) > s["spec_max"] > max(dry)  # P4's dryer runs wet only in the complaint window
+    assert client.get("/api/plant/series?press=P9").status_code == 404
+    assert client.get("/api/plant/series?press=P4&param=secret").status_code == 400
+
+
 def test_seed_case_loads_with_baseline():
     cases = client.get("/api/cases", headers=V).json()
     assert {c["case_id"] for c in cases} >= {"118", "121", "124"}

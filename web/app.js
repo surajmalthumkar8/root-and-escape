@@ -72,7 +72,7 @@
     try {
       const m = await api("/api/meta");
       const mp = $("#mode-pill");
-      mp.textContent = m.gemini ? `Gemini · ${m.model} on Agent Platform` : "Deterministic mode (Gemini off)";
+      mp.textContent = m.gemini ? `${m.model} on Agent Platform` : "Deterministic mode (Gemini off)";
       mp.className = "pill " + (m.gemini ? "co" : "warn");
       const q = m.quota;
       $("#quota-pill").textContent = `Live runs today ${q.used_today}/${q.limit_today}`;
@@ -92,7 +92,7 @@
       b.dataset.id = c.case_id;
       const tag = c.verdict ? (c.insufficient ? "insufficient evidence" : "8D drafted") : "not run yet";
       const shows = SHOWS[c.case_id] && c.seed ? `<span class="shows">${esc(SHOWS[c.case_id])}</span>` : "";
-      b.innerHTML = `<b>${esc(c.case_id)} · ${esc(c.title)}</b>${shows}<span>${esc(c.defect)} · ${esc(tag)}${c.seed ? "" : " · yours"}</span>`;
+      b.innerHTML = `<b>${esc(c.title)}</b>${shows}<span>Case ${esc(c.case_id)}, ${esc(String(c.defect).replace("_", " "))}, ${esc(tag)}${c.seed ? "" : ", yours"}</span>`;
       b.addEventListener("click", () => selectCase(c.case_id));
       li.appendChild(b);
       ul.appendChild(li);
@@ -109,7 +109,7 @@
     if (state.live && state.liveId !== id) { state.live.close(); state.live = null; $("#run-btn").disabled = false; $("#run-note").textContent = ""; }
     state.current = id;
     state.boxOk = false;
-    try { history.replaceState(null, "", "#" + id); } catch (e) {}
+    if (view() === "bench") try { history.replaceState(null, "", "#" + id); } catch (e) {}
     document.querySelectorAll("#case-list button").forEach((b) => b.classList.toggle("on", b.dataset.id === id));
     const ul = $("#case-list"), on = ul.querySelector("button.on");
     if (on && ul.scrollWidth > ul.clientWidth) ul.scrollTo({ left: on.parentElement.offsetLeft - ul.offsetLeft, behavior: motion() });
@@ -119,6 +119,7 @@
       if (id !== state.current) return;  // the visitor already moved to another case
       state.data = data;
       render();
+      if (RAE.onResult) RAE.onResult(id, data);
     } catch (e) { if (id === state.current) $("#case-title").textContent = "Could not load the case: " + e.message; }
   }
 
@@ -126,7 +127,7 @@
   function render() {
     const { case: c, result: r, approvals } = state.data;
     $("#case-title").textContent = c.title;
-    $("#case-meta").innerHTML = `CASE ${esc(c.case_id)} · ${esc(c.customer)} · received ${esc(String(c.received).slice(0, 16).replace("T", " "))} · ${term("datecodes", "date codes")} ${esc(c.date_code_start)} → ${esc(c.date_code_end)}`;
+    $("#case-meta").innerHTML = `Case ${esc(c.case_id)} from ${esc(c.customer)}, received ${esc(String(c.received).slice(0, 16).replace("T", " "))}. ${term("datecodes", "Date codes")} ${esc(c.date_code_start)} to ${esc(c.date_code_end)}.`;
     const photoUrl = (name) => (!name ? "" : name.startsWith("U-") ? `/api/photos/${encodeURIComponent(name)}?v=${encodeURIComponent(visitor)}` : `/static/photos/${encodeURIComponent(name)}`);
     $("#img-defect").src = photoUrl(c.photo) || "";
     $("#img-defect").alt = c.photo ? "Defect photo" : "No photo supplied";
@@ -169,7 +170,7 @@
     renderRules(r.challenger || []);
     renderTries(r);
     const acts = r.actions || [];
-    $("#d5").innerHTML = acts.length ? `<ul class="acts">${acts.map((a) => `<li>${esc(a.action)}<br><span class="who">${esc(a.owner)} · due ${esc(a.due)}</span></li>`).join("")}</ul>`
+    $("#d5").innerHTML = acts.length ? `<ul class="acts">${acts.map((a) => `<li>${esc(a.action)}<br><span class="who">${esc(a.owner)}, due ${esc(a.due)}</span></li>`).join("")}</ul>`
       : `<p class="small">${esc((r.report && r.report.en && r.report.en.D5) || "")}</p>`;
     renderSign(approvals || {});
     renderEvidence(r.evidence || []);
@@ -253,21 +254,7 @@
       (expl.length ? `<li class="explained"><b>${expl.length} side effects explained:</b> ${esc(expl.map((x) => x.hypothesis).join(", "))} look elevated only because they include the primary segment.</li>` : "");
   }
 
-  function renderPlain(r) {
-    const el = $("#plain"), c = (state.data && state.data.case) || {};
-    if (!r) { el.hidden = true; return; }
-    const what = esc(String(c.defect || "defect").replace("_", " "));
-    const lots = r.containment && r.containment.targeted_lots;
-    el.innerHTML = (r.draft && r.draft.insufficient_evidence
-      ? `A customer reported a ${what} problem. The plant data shows no cause, so the agents say so instead of guessing.`
-      : `A customer reported a ${what} problem. The agents found why it happened, why inspection missed it` +
-        (lots ? `, and which ${lots} lots to hold.` : ".")) +
-      ` Every claim links to its evidence. <a href="#c-rules">Try to break it ↓</a> or <button class="link inline" type="button" data-tour>take the 2-minute tour</button>.`;
-    el.hidden = false;
-  }
-
   function renderVerdict(r) {
-    renderPlain(r);
     const el = $("#verdict");
     if (!r) { el.innerHTML = ""; return; }
     const d = r.draft || {}, last = (r.challenger || []).slice(-1)[0] || { rules: [] };
@@ -286,7 +273,7 @@
     const clause = firstClause(d.occurrence && d.occurrence.statement);
     el.innerHTML = card("Root cause", label && !clause.toLowerCase().includes(label.toLowerCase()) ? `${label}: ${clause}` : clause) +
       card("People blamed", rejected.length ? `None. ${rejected.map((x) => x.hypothesis).join(", ")} looked worse but were rejected after splitting by press` : "None", "green") +
-      card("Containment", c ? `Hold ${c.targeted_lots} lots, not ${c.blanket_lots}` + (c.blanket_parts ? ` · ${Math.round(100 - (100 * c.targeted_parts) / c.blanket_parts)}% fewer parts held` : "") : "–", "green") +
+      card("Containment", c ? `Hold ${c.targeted_lots} lots, not ${c.blanket_lots}` + (c.blanket_parts ? `, ${Math.round(100 - (100 * c.targeted_parts) / c.blanket_parts)}% fewer parts held` : "") : "–", "green") +
       card("Challenger checks", `${passed}/${last.rules.length} passed` + ((r.challenger || []).length > 1 ? ` after ${(r.challenger || []).length} rounds` : ""), last.verdict === "REJECTED" ? "red" : "green");
   }
 
@@ -349,8 +336,11 @@
 
   function renderRules(rounds) {
     const by = (b) => (b === "deterministic" ? "the rule engine" : /gemini/.test(b) ? "Gemini" : b);
-    $("#rules").innerHTML = rounds.map((rd) => `<div class="round">Round ${rd.round} · drafted by ${esc(by(rd.by))} · <span class="stamp ${rd.verdict === "REJECTED" ? "" : "ok"}">${rd.verdict === "REJECTED" ? "Rejected" : "Passed"}</span></div>` +
-      rd.rules.map((x) => `<div class="rule"><span class="ic ${x.passed ? "ok" : "no"}">${x.passed ? "✓" : "✗"}</span><span><b>${esc(ruleName(x.rule))}</b> · ${esc(x.message)}</span></div>`).join("")).join("");
+    // Names only for the checks that passed (the finding is one click away); a failed check shows its reason.
+    $("#rules").innerHTML = rounds.map((rd) => `<div class="round">Round ${rd.round}, drafted by ${esc(by(rd.by))} <span class="stamp ${rd.verdict === "REJECTED" ? "" : "ok"}">${rd.verdict === "REJECTED" ? "Rejected" : "Passed"}</span></div>` +
+      `<div class="rule-grid">` + rd.rules.map((x) => x.passed
+        ? `<details class="rule"><summary><span class="ic ok">✓</span>${esc(ruleName(x.rule))}</summary><p>${esc(x.message)}</p></details>`
+        : `<div class="rule bad"><span class="ic no">✗</span><span><b>${esc(ruleName(x.rule))}</b> ${esc(x.message)}</span></div>`).join("") + `</div>`).join("");
   }
 
   function renderSign(appr) {
@@ -481,7 +471,7 @@
       else if (e.type === "challenger") { mark("challenger"); add(`<b>challenger</b> round ${e.round.round}: ${esc(e.round.verdict)}${e.round.verdict === "REJECTED" ? " · " + esc(e.round.rules.filter((x) => !x.passed).map((x) => ruleName(x.rule)).join(", ")) : ""}`); }
       else if (e.type === "done") {
         document.querySelectorAll(".stages li").forEach((li) => li.className = "done");
-        if (state.current === id) { state.data.result = e.result; state.data.approvals = {}; render(); }  // a new run needs new signatures
+        if (state.current === id) { state.data.result = e.result; state.data.approvals = {}; render(); if (RAE.onResult) RAE.onResult(id, state.data); }  // a new run needs new signatures
         finish(`Done in ${e.result.duration_s}s`);
         loadCases(null, false);  // refresh the list's tags without pulling the visitor back to the case that just ran
       } else if (e.type === "error") { add(esc(e.message)); finish("Stopped"); }
@@ -518,14 +508,14 @@
     try {
       const b = await api("/api/benchmark");
       const miss = b.caused_total - b.caused_found;
-      $("#bench").textContent = `How well it works, on synthetic test plants: it found the planted cause in ${b.caused_found} of ${b.caused_total}` +
+      $("#bench-note").textContent = `Tested on synthetic plants: planted cause found in ${b.caused_found} of ${b.caused_total}` +
         (miss ? ` (${miss === 1 ? "the miss" : "the misses"} said "insufficient evidence" rather than guess)` : "") +
-        `, claimed no cause on ${b.controls_abstained} of ${b.controls_total} plants that had none, and the hold caught ${Math.round(100 * b.mean_containment_recall)}% of the affected lots. ` +
-        `End to end on 31 test plants, every 8D passed the Challenger with no invented number or mechanism. In a held-out blind red-team round, 89% of never-seen claims were judged correctly, and every one of the 451 tricky claims found so far is now a test.`;
-    } catch (err) { $("#bench").textContent = "Benchmark unavailable right now."; }
+        `, no cause claimed on ${b.controls_abstained} of ${b.controls_total} plants that had none, ${Math.round(100 * b.mean_containment_recall)}% of affected lots caught by the hold. ` +
+        `451 tricky claims from red-team rounds are now regression tests.`;
+    } catch (err) { $("#bench-note").textContent = "Benchmark unavailable right now."; }
   });
   $("#how-close").addEventListener("click", () => $("#how-dlg").close());
-  $("#how-tour").addEventListener("click", () => { $("#how-dlg").close(); startTour(); });
+  $("#how-tour").addEventListener("click", () => { $("#how-dlg").close(); showStory(1); });
   $("#tour-btn").addEventListener("click", () => startTour());
 
   // ------------------------------------------------------------------------------------------ glossary
@@ -581,7 +571,7 @@
     const el = document.getElementById(id);
     el.classList.add("spot");
     el.scrollIntoView({ behavior: motion(), block: "start" });
-    $("#coach-n").textContent = `Step ${i + 1} of ${TOUR.length} · case 118`;
+    $("#coach-n").textContent = `Step ${i + 1} of ${TOUR.length}, case 118`;
     $("#coach-h").textContent = title;
     $("#coach-p").innerHTML = text(state.data.result);
     $("#coach-back").disabled = i === 0;
@@ -613,7 +603,7 @@
       return `<span class="due ${cls}">${h < 0 ? "overdue" : h < 48 ? `due in ${Math.max(1, Math.round(h))} h` : "due " + esc(d.toISOString().slice(0, 10))}</span>`;
     };
     const dr = (r && r.draft) || {};
-    const signed = (k) => appr[k] && { cls: "signed", s: "Signed · " + appr[k].by.replace("human:", "") };
+    const signed = (k) => appr[k] && { cls: "signed", s: "Signed by " + appr[k].by.replace("human:", "") };
     const drafted = { cls: "drafted", s: "Awaiting signature" };
     const st = {
       D1: { cls: "drafted", s: "In the draft" },
@@ -674,7 +664,7 @@
         body: JSON.stringify({ occurrence: $("#bi-occ").value, escape: $("#bi-esc").value }) });
       const bad = r.rules.filter((x) => !x.passed);
       out.innerHTML = (r.verdict === "REJECTED" ? `<span class="stamp">Rejected</span>` : `<span class="stamp ok">Passed</span>`) +
-        (bad.length ? bad.map((x) => `<div class="rule"><span class="ic no">✗</span><span><b>${esc(ruleName(x.rule))}</b> · ${esc(x.message)}</span></div>`).join("")
+        (bad.length ? bad.map((x) => `<div class="rule"><span class="ic no">✗</span><span><b>${esc(ruleName(x.rule))}.</b> ${esc(x.message)}</span></div>`).join("")
           : `<p class="small">All ${r.rules.length} checks pass. A person still has to sign it.</p>`) +
         (r.critic === "gemini" || r.critic === "skipped" ? "" : `<p class="small muted">${{ off: "The Gemini critic is off in this mode, so contradictions and filler are not checked; the code rules above still are.",
           quota: "Today's Gemini critic checks are used up, so contradictions and filler were not checked this time.",
@@ -682,11 +672,48 @@
     } catch (err) { out.textContent = err.message; }
   });
 
-  window.addEventListener("hashchange", () => {
-    const id = location.hash.slice(1);
-    if (id && id !== state.current && state.cases.some((c) => c.case_id === id)) selectCase(id);
+  // ------------------------------------------------------------------------------------------ views
+  // Two views share one page: the story of case 118 (no hash, or #story) and the workbench (#<case id>).
+  function view() { return document.documentElement.dataset.view; }
+  function setView(v) {
+    if (view() !== v) { document.documentElement.dataset.view = v; window.scrollTo(0, 0); }
+    document.querySelectorAll("[data-nav]").forEach((a) => a.toggleAttribute("aria-current", a.dataset.nav === v));
+    if (v === "story") { endTour(); hideGloss(); }
+  }
+  function route() {
+    const id = decodeURIComponent(location.hash.slice(1));
+    if (!id || id === "story") return setView("story");
+    if (id.startsWith("c-")) return;  // an anchor inside the board
+    setView("bench");
+    if (id !== state.current && state.cases.some((c) => c.case_id === id)) selectCase(id);
+  }
+  async function openCase(id, opts = {}) {
+    setView("bench");
+    try { history.pushState(null, "", "#" + id); } catch (e) {}
+    if (id !== state.current || !state.data) await selectCase(id);
+    if (opts.run) runLive(id);
+    if (opts.ev) {
+      const li = document.getElementById("ev-" + opts.ev);
+      if (li) { li.scrollIntoView({ block: "center", behavior: motion() }); li.classList.add("flash"); setTimeout(() => li.classList.remove("flash"), 1600); }
+    }
+  }
+  function showStory(step) {
+    try { history.pushState(null, "", "#story"); } catch (e) {}
+    setView("story");
+    if (RAE.storyGo) RAE.storyGo(step);
+  }
+  window.addEventListener("hashchange", route);
+  window.addEventListener("popstate", route);
+  document.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-bench]");
+    if (b) { e.preventDefault(); openCase(b.dataset.bench, { run: b.dataset.run === "1" }); return; }
+    const n = e.target.closest("[data-nav]");
+    if (n) { e.preventDefault(); if (n.dataset.nav === "bench") openCase(state.current || "118"); else showStory(); return; }
+    if (e.target.closest(".brand")) { e.preventDefault(); showStory(0); }
   });
 
+  const RAE = window.RAE = { api, esc, ruleName, openCase, showStory, onResult: null, storyGo: null };  // story.js sets the last two
+  setView(view());
   loadMeta();
   loadCases();
 })();

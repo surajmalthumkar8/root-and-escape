@@ -23,6 +23,7 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
 from . import __version__
+from .analytics import PARAM_SPEC_MAX, PARAMS
 from .config import settings
 from .data.cases import SEED_CASES, get_seed
 from .pipeline import run_investigation
@@ -569,6 +570,28 @@ def report(case_id: str, lang: str = Query("en", pattern="^(en|ja)$"), v: str | 
     if missing:
         raise HTTPException(409, f"Nothing leaves unsigned. Approve {', '.join(missing)} first.")
     return HTMLResponse(render_report(case, result, appr, lang))
+
+
+@app.get("/api/plant/series")
+async def plant_series(press: str = Query(..., max_length=8), param: str = Query("dryer_dew_point_c", max_length=40),
+                       defect: str = Query("crack", max_length=20)):
+    """One logged process parameter for one press, shift by shift, with that press's daily defect rate:
+    the raw data behind a control chart. Read-only, from the same plant tables the agents query."""
+    if param not in PARAMS:
+        raise HTTPException(400, f"param must be one of {', '.join(PARAMS)}")
+    if defect not in DEFECTS:
+        raise HTTPException(400, f"defect must be one of {', '.join(DEFECTS)}")
+    plant, source = await asyncio.to_thread(load_plant)
+    if press not in set(plant.production.press.unique()):
+        raise HTTPException(404, "unknown press")
+    proc = plant.process[plant.process.press == press].sort_values("prod_ts")
+    daily = (plant.production[plant.production.press == press].groupby("prod_date")
+             .agg(d=(f"defects_{defect}", "sum"), n=("units", "sum")))
+    return JSONResponse({
+        "press": press, "param": param, "label": PARAMS[param], "spec_max": PARAM_SPEC_MAX.get(param), "source": source,
+        "points": [[ts.strftime("%Y-%m-%dT%H:%M"), round(float(v), 2)] for ts, v in zip(proc.prod_ts, proc[param])],
+        "daily_rate": [[d.isoformat(), round(float(r.d) / float(r.n), 5) if r.n else None] for d, r in daily.iterrows()],
+    }, headers={"Cache-Control": "public, max-age=3600"})
 
 
 @app.get("/api/benchmark")
