@@ -32,10 +32,19 @@ class Settings:
     critic_checks_per_visitor_per_day: int = int(os.getenv("RAE_CRITIC_CHECKS_PER_VISITOR_PER_DAY", "30"))
     max_upload_mb: int = int(os.getenv("RAE_MAX_UPLOAD_MB", "8"))
     local_dir: str = os.getenv("RAE_LOCAL_DIR", "var")
+    cors_origins: str = os.getenv("RAE_CORS_ORIGINS", "")          # extra origins, comma separated
 
     @property
     def gcp(self) -> bool:
         return self.backend == "gcp"
+
+    @property
+    def allowed_origins(self) -> list[str]:
+        """Origins that may call the API from another site: the project's Firebase Hosting copy of the page
+        (deploy/firebase.sh) plus any listed in RAE_CORS_ORIGINS. The run.app page itself is same-origin."""
+        extra = [o.strip().rstrip("/") for o in self.cors_origins.split(",") if o.strip()]
+        firebase = [f"https://{self.project}.web.app", f"https://{self.project}.firebaseapp.com"] if self.project else []
+        return list(dict.fromkeys(firebase + extra))
 
 
 settings = Settings()

@@ -137,12 +137,25 @@ PY
   done
 fi
 
-head_ "7 Errors in the last 6 hours"
+head_ "7 Firebase Hosting (deploy/firebase.sh)"
+SITE="${SITE:-$PROJECT_ID}"; WEB="https://${SITE}.web.app"
+if PAGE=$(curl -fsS --max-time 30 "$WEB/" 2>/dev/null) && [ -n "$PAGE" ]; then
+  if [ -n "$URL" ] && grep -q "content=\"${URL}\"" <<<"$PAGE"; then pass "$WEB serves the page and points it at $URL"
+  else warn "$WEB answers but doesn't point at the Cloud Run URL: re-run deploy/firebase.sh"; fi
+  if [ -n "$URL" ] && curl -sS --max-time 30 -o /dev/null -D - -X OPTIONS "$URL/api/meta" -H "Origin: $WEB" \
+       -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: x-visitor" 2>/dev/null \
+       | grep -qi "^access-control-allow-origin: ${WEB}"; then pass "Cloud Run accepts API calls from $WEB"
+  else fail "Cloud Run refuses API calls from $WEB, so that copy can't load cases: re-run deploy/deploy.sh, then deploy/firebase.sh"; fi
+else
+  warn "no Firebase Hosting site at $WEB yet: run  bash deploy/firebase.sh"
+fi
+
+head_ "8 Errors in the last 6 hours"
 ERRS=$(q gcloud logging read "resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"$SERVICE\" AND severity>=ERROR" \
   --freshness=6h --limit=8 --format='value(timestamp,textPayload)')
 if [ -z "$ERRS" ]; then pass "no errors logged"; else warn "recent errors (newest first):"; cut -c1-220 <<<"$ERRS" | sed 's/^/      /'; fi
 
-head_ "8 Budget"
+head_ "9 Budget"
 if [ -n "$BA" ] && B=$(q gcloud billing budgets list --billing-account="$BA" --format='value(displayName)') && [ -n "$B" ]; then
   pass "budget(s): $(tr '\n' ',' <<<"$B" | sed 's/,$//')"
 else

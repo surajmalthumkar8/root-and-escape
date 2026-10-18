@@ -106,7 +106,10 @@ flowchart LR
   RUN -->|"cases, runs, approvals,<br/>daily quota"| FS[("Firestore")]
   RUN -->|"uploaded photos"| GCS[("Cloud Storage")]
   RUN -->|"live progress (SSE)"| ENG
+  FBH["Firebase Hosting<br/>the same page on *.web.app"] -.->|"page files"| ENG
 ```
+
+The page is also served by Firebase Hosting (`deploy/firebase.sh`). That copy calls the Cloud Run API directly, with CORS open to the two Firebase origins only, because a Hosting rewrite to Cloud Run cuts each request at 60 s and buffers the live progress stream.
 
 ADK runs inside Cloud Run rather than Agent Runtime. Agent Runtime defaults to one always-on instance with 4 vCPU and 4 GiB, and idle time is free only while the feature is in preview, which Google says is "subject to change". For a 60-day judging window, a service that scales to zero is the cheaper and safer choice. ADK 2.0 counts as part of Agent Platform, as the official AMA confirmed.
 
@@ -230,6 +233,7 @@ erDiagram
 | Cloud Run | Serves the `*.run.app` URL. Scales to zero, at most 3 instances, a 600 s request timeout, and Server-Sent Events with a 15 s heartbeat |
 | Firestore | Cases, runs, per-visitor approvals (one judge can't change what another sees) and the daily quota, kept with atomic counters |
 | Cloud Storage | Uploaded defect photos, re-encoded with their metadata stripped |
+| Firebase Hosting | A second copy of the page at `https://<project>.web.app`, from Google's CDN. It calls the Cloud Run API across origins; nothing else changes |
 
 ## Gen AI design
 
@@ -421,6 +425,11 @@ bash deploy/deploy.sh
 The deploy script enables the APIs and creates a least-privilege service account with no keys. It sets up Firestore (with a 21-day TTL on per-visitor runs) and a bucket, and loads BigQuery. It refuses to deploy if any file looks like a secret, then deploys Cloud Run. Last, it smoke-tests the service and warms the three seed cases with real Gemini runs, checking that each one really ran on Gemini and that BigQuery ML answered. It exits non-zero and lists anything that needs a look.
 
 ```bash
+# Optional: serve the page from Firebase Hosting too (adds Firebase to the project; free on the Blaze plan)
+bash deploy/firebase.sh
+```
+
+```bash
 # Check every part afterwards (read-only; starts no Gemini run and prints no secrets)
 bash scripts/verify_cloud.sh
 ```
@@ -432,6 +441,7 @@ The checker prints PASS, WARN or FAIL for each part:
 - Firestore, the bucket and the BigQuery tables;
 - the Cloud Run settings and public access;
 - the live app: Gemini and BigQuery ML on, and which engine each seed case's stored run used;
+- the Firebase Hosting copy, and that Cloud Run accepts its API calls;
 - recent errors and the budget.
 
 ## Security

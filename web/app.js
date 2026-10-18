@@ -15,6 +15,8 @@
   }
   let signer = "";
   try { signer = localStorage.getItem("rae-signer") || ""; } catch (e) {}
+  // Empty on Cloud Run (same origin). The Firebase Hosting copy of the page names the Cloud Run URL here.
+  const API = ((document.querySelector('meta[name="rae-api"]') || {}).content || "").replace(/\/+$/, "");
 
   const state = { cases: [], current: null, data: null, live: null, boxOk: false };
   const SHOWS = {  // what each example case demonstrates
@@ -58,7 +60,7 @@
   const term = (key, text) => `<span class="term" data-term="${key}" tabindex="0">${esc(text)}</span>`;
 
   async function api(path, opts = {}) {
-    const res = await fetch(path, { ...opts, headers: { "X-Visitor": visitor, ...(opts.headers || {}) } });
+    const res = await fetch(API + path, { ...opts, headers: { "X-Visitor": visitor, ...(opts.headers || {}) } });
     if (!res.ok) {
       let msg = res.statusText;
       try { msg = (await res.json()).detail || msg; } catch (e) {}
@@ -128,7 +130,7 @@
     const { case: c, result: r, approvals } = state.data;
     $("#case-title").textContent = c.title;
     $("#case-meta").innerHTML = `Case ${esc(c.case_id)} from ${esc(c.customer)}, received ${esc(String(c.received).slice(0, 16).replace("T", " "))}. ${term("datecodes", "Date codes")} ${esc(c.date_code_start)} to ${esc(c.date_code_end)}.`;
-    const photoUrl = (name) => (!name ? "" : name.startsWith("U-") ? `/api/photos/${encodeURIComponent(name)}?v=${encodeURIComponent(visitor)}` : `/static/photos/${encodeURIComponent(name)}`);
+    const photoUrl = (name) => (!name ? "" : name.startsWith("U-") ? `${API}/api/photos/${encodeURIComponent(name)}?v=${encodeURIComponent(visitor)}` : `/static/photos/${encodeURIComponent(name)}`);
     $("#img-defect").src = photoUrl(c.photo) || "";
     $("#img-defect").alt = c.photo ? "Defect photo" : "No photo supplied";
     $("#img-defect").hidden = !c.photo;  // no broken-image icon when the complaint came without a photo
@@ -427,8 +429,8 @@
 
   $("#box-ok").addEventListener("click", () => { state.boxOk = true; render(); });
   $("#reset-btn").addEventListener("click", async () => { await api(`/api/cases/${state.current}/reset`, { method: "POST" }); state.data.approvals = {}; renderSign({}); });
-  $("#exp-en").addEventListener("click", () => window.open(`/api/cases/${state.current}/report?lang=en&v=${encodeURIComponent(visitor)}`, "_blank", "noopener"));
-  $("#exp-ja").addEventListener("click", () => window.open(`/api/cases/${state.current}/report?lang=ja&v=${encodeURIComponent(visitor)}`, "_blank", "noopener"));
+  $("#exp-en").addEventListener("click", () => window.open(`${API}/api/cases/${state.current}/report?lang=en&v=${encodeURIComponent(visitor)}`, "_blank", "noopener"));
+  $("#exp-ja").addEventListener("click", () => window.open(`${API}/api/cases/${state.current}/report?lang=ja&v=${encodeURIComponent(visitor)}`, "_blank", "noopener"));
 
   function alertNote(msg) { $("#notes").hidden = false; $("#notes").textContent = msg; }
 
@@ -450,7 +452,7 @@
         if (li.dataset.stage === stage) { li.className = "run"; past = false; } else if (past) li.className = "done";
       });
     };
-    const es = new EventSource(`/api/cases/${encodeURIComponent(id)}/live?v=${encodeURIComponent(visitor)}`);
+    const es = new EventSource(`${API}/api/cases/${encodeURIComponent(id)}/live?v=${encodeURIComponent(visitor)}`);
     state.live = es; state.liveId = id;
     let ended = false;
     const finish = (note) => {

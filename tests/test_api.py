@@ -29,6 +29,18 @@ def test_plant_series_shows_the_dryer_excursion():
     assert client.get("/api/plant/series?press=P4&param=secret").status_code == 400
 
 
+def test_only_the_firebase_origin_may_call_the_api_cross_site():
+    pre = {"Access-Control-Request-Method": "POST", "Access-Control-Request-Headers": "content-type,x-visitor"}
+    ok = client.options("/api/cases/118/challenge", headers={"Origin": "https://demo-rae.web.app", **pre})
+    assert ok.status_code == 200 and ok.headers["access-control-allow-origin"] == "https://demo-rae.web.app"
+    assert "x-visitor" in ok.headers["access-control-allow-headers"].lower()
+    bad = client.options("/api/cases/118/challenge", headers={"Origin": "https://evil.example", **pre})
+    assert "access-control-allow-origin" not in bad.headers
+    got = client.get("/api/meta", headers={"Origin": "https://demo-rae.web.app", **V})
+    assert got.headers["access-control-allow-origin"] == "https://demo-rae.web.app"
+    assert "access-control-allow-origin" not in client.get("/api/meta", headers=V).headers  # same-origin page
+
+
 def test_seed_case_loads_with_baseline():
     cases = client.get("/api/cases", headers=V).json()
     assert {c["case_id"] for c in cases} >= {"118", "121", "124"}

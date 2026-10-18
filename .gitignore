@@ -17,3 +17,8 @@ var-*.json
 evals/**/results-*.json
 evals/**/calib-out.json
 .deepeval/
+
+# Firebase Hosting build (deploy/firebase.sh)
+.firebase-build/
+.firebase/
+firebase-debug.log*

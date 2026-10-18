@@ -18,6 +18,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, Header, HTTPException, Query, Request, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -43,6 +44,11 @@ MAX_CASES_PER_VISITOR = 50
 
 app = FastAPI(title="Root & Escape", version=__version__, docs_url="/api/docs", redoc_url=None)
 app.mount("/static", StaticFiles(directory=WEB), name="static")
+# The page is also served by Firebase Hosting (deploy/firebase.sh). That copy calls this API directly, because a
+# Hosting rewrite cuts requests at 60 s and buffers the live progress stream. Only those origins get CORS headers.
+if settings.allowed_origins:
+    app.add_middleware(CORSMiddleware, allow_origins=settings.allowed_origins, allow_methods=["GET", "POST"],
+                       allow_headers=["Content-Type", "X-Visitor"], max_age=3600)
 
 _llm = None
 _llm_error: str | None = None
