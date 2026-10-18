@@ -387,7 +387,7 @@ Three layers of evals, each runnable without an agent. The numbers below come fr
 | No blame on people without evidence | 31 / 31 |
 | The hold catches at least 80% of the affected lots | 31 / 31 |
 
-The same suite runs the real Gemini agents in Cloud Shell, with an optional Gemini judge (GEval) for the clarity of the written 8D: `RAE_EVALS=1 RAE_EVAL_MODE=gemini RAE_EVAL_JUDGE=gemini deepeval test run tests/evals/test_rae_e2e.py`. Gemini-mode score: {{run after deploy}}.
+The same suite runs the real Gemini agents in Cloud Shell, with an optional Gemini judge (GEval) for the clarity of the written 8D: `RAE_EVALS=1 RAE_EVAL_MODE=gemini RAE_EVAL_JUDGE=gemini deepeval test run tests/evals/test_rae_e2e.py`. A Gemini-mode score isn't published yet.
 
 ### 3. Red-team eval of the Challenger with [promptfoo](https://www.promptfoo.dev/)
 
@@ -549,9 +549,11 @@ The checker prints PASS, WARN or FAIL for each part:
 
 ## Team
 
+Team TokenNinjas.
+
 | Name | Role |
 |---|---|
-| {{name}} | {{role}} |
+| Suraj Malthumkar | Team leader |
 
 ## License
 
