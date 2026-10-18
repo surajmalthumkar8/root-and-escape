@@ -6,7 +6,7 @@
 <meta name="rae-api" content="">
 <title>Root &amp; Escape · 8D root-cause workbench</title>
 <meta name="description" content="A car maker finds cracked parts and blames the night crew. Root &amp; Escape checks the plant's own data with Gemini agents and BigQuery ML, finds the real cause, holds only the suspect lots and drafts the 8D report for a person to sign.">
-<script>document.documentElement.dataset.view = /^(#(story)?)?$/.test(location.hash) ? "story" : location.hash === "#test" ? "lab" : "bench";</script>
+<script>(function (h) { document.documentElement.dataset.view = !h || h === "#" || h === "#upload" || h.indexOf("#h-") === 0 ? "home" : h === "#story" ? "story" : h === "#test" ? "lab" : "bench"; })(location.hash);</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@600;700;800&family=Barlow+Semi+Condensed:wght@500;600;700&family=Noto+Sans+JP:wght@400;600&display=swap">
@@ -14,12 +14,14 @@
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="#story"><span class="mark" aria-hidden="true"></span>Root <span class="amp">&amp;</span> Escape</a>
+  <a class="brand" href="./" data-nav="home"><span class="mark" aria-hidden="true"></span>Root <span class="amp">&amp;</span> Escape</a>
   <nav class="views" aria-label="Views">
+    <a href="./" data-nav="home">Overview</a>
     <a href="#story" data-nav="story">The case</a>
     <a href="#test" data-nav="lab">Test it</a>
     <a href="#118" data-nav="bench">Workbench</a>
     <button class="link" id="how-btn" type="button">How it works</button>
+    <button class="btn small amber nav-up" type="button" data-upload>Upload your own</button>
   </nav>
   <div class="status" id="status" aria-live="polite">
     <span class="pill" id="mode-pill">Loading…</span>
@@ -27,6 +29,234 @@
     <span class="pill warn">Synthetic data</span>
   </div>
 </header>
+
+<section class="home" id="home" aria-label="Overview">
+  <div class="h-hero">
+    <div class="h-wrap h-hero-in">
+      <div class="h-hero-copy">
+        <p class="h-kicker">For supplier quality engineers in the car industry</p>
+        <h1>A car maker says your parts failed. Find out why before the deadline.</h1>
+        <p class="h-lede">Root &amp; Escape reads the complaint and the defect photo, tests every suspect against the plant's own records, holds only the lots at risk and drafts the 8D report in English and Japanese. A quality engineer checks it and signs.</p>
+        <div class="h-cta">
+          <a class="btn big amber" href="#story" data-nav="story">Follow the example case</a>
+          <a class="btn big light" href="#test" data-nav="lab">Test it yourself</a>
+          <button class="btn big light" type="button" data-upload>Upload your own</button>
+        </div>
+        <p class="h-note">No sign-in. Running live on Google Cloud with Gemini. The plant data is synthetic.</p>
+      </div>
+      <figure class="h-video">
+        <div class="h-frame"><span class="h-dots" aria-hidden="true"><i></i><i></i><i></i></span>
+          <video id="h-tour" src="/static/media/tour.mp4" poster="/static/media/tour.jpg" autoplay muted loop playsinline preload="metadata" aria-label="A silent tour of the app"></video></div>
+        <figcaption>A 50-second tour of the app, without sound.</figcaption>
+      </figure>
+    </div>
+  </div>
+
+  <div class="h-proof">
+    <div class="h-wrap h-proof-in">
+      <div><b data-count="24">24</b><span>lots held instead of 216 in the demo case</span></div>
+      <div><b data-count="54" data-unit=" s">54 s</b><span>from email to a drafted 8D on Gemini</span></div>
+      <div><b data-count="12" data-of="12">12 / 12</b><span>planted causes found in the benchmark</span></div>
+      <div><b data-count="0">0</b><span>people blamed without proof</span></div>
+    </div>
+  </div>
+
+  <section class="h-band h-problem" id="h-problem" aria-labelledby="h-problem-h">
+    <div class="h-wrap h-two">
+      <div class="h-photos">
+        <figure class="h-photo"><img src="/static/media/real-line.jpg" alt="Workers fitting parts inside van bodies on an assembly line" loading="lazy">
+          <figcaption>The customer's line, where a bad clip is found. Photo: <a href="https://commons.wikimedia.org/wiki/File:Crafting_some_Crafters_(30445377881).jpg" target="_blank" rel="noopener">Kārlis Dambrāns</a>, CC BY 2.0</figcaption></figure>
+        <figure class="h-photo small"><img src="/static/media/real-parts.jpg" alt="A green bin full of small yellow moulded plastic parts" loading="lazy">
+          <figcaption>Small moulded parts ship by the thousand. Photo: <a href="https://unsplash.com/photos/gZQOtJrks9s" target="_blank" rel="noopener">iridial</a>, Unsplash</figcaption></figure>
+      </div>
+      <div>
+        <p class="h-eyebrow"><span class="h-n c-red">1</span>The problem</p>
+        <h2 id="h-problem-h">Every complaint starts a clock</h2>
+        <p class="h-p">The car maker wants the suspect parts stopped within a day and the root cause within days. The records the engineer needs sit in different systems: production lots, machine logs, inspection results and shipments.</p>
+        <ol class="h-clock" aria-label="Typical 8D deadlines">
+          <li><b>Day 0</b><span>Complaint and photo arrive</span></li>
+          <li class="c-amber"><b>24 hours</b><span>D3: contain the suspect parts</span></li>
+          <li class="c-blue"><b>5 days</b><span>D4: name the root cause</span></li>
+          <li class="c-green"><b>20 days</b><span>D5: corrective actions in place</span></li>
+        </ol>
+        <div class="h-traps">
+          <div class="h-trap"><b>The quick answer: "operator error"</b><span>Easy to write. The real cause stays in the machine and the complaint comes back.</span></div>
+          <div class="h-trap"><b>The safe-looking answer: hold everything</b><span>Hundreds of good lots stopped, and the customer's line can stop with them.</span></div>
+        </div>
+        <p class="h-src">Deadlines from the MAHLE supplier 8D manual. A stopped car line costs about $2.3 million an hour (Siemens, 2024). Car makers take about seven weeks to confirm a root cause (McKinsey, 2026).</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="h-band h-how" id="h-how" aria-labelledby="h-how-h">
+    <div class="h-wrap">
+      <p class="h-eyebrow"><span class="h-n c-blue">2</span>How it works</p>
+      <h2 id="h-how-h">From the customer's email to a signed 8D</h2>
+      <ol class="h-flow">
+        <li class="k-in"><img src="/static/media/f-mail.jpg" alt="" loading="lazy"><b>Complaint</b><small>email, photo, date codes</small><span>Any language. Paste it or drop a file.</span></li>
+        <li class="k-ai"><img src="/static/media/f-photo.jpg" alt="" loading="lazy"><b>Intake</b><small>Gemini</small><span>Translates the email and boxes the defect next to a good part.</span></li>
+        <li class="k-data"><img src="/static/media/f-split.jpg" alt="" loading="lazy"><b>Investigator</b><small>ADK agent and BigQuery ML</small><span>Tests press, cavity, shift, crew and resin lot, one tool at a time.</span></li>
+        <li class="k-code"><img src="/static/media/f-stamp.jpg" alt="" loading="lazy"><b>Challenger</b><small>10 rules in code</small><span>Sends back blame without proof, made-up numbers and the wrong machine.</span></li>
+        <li class="k-ai"><img src="/static/media/f-ja.jpg" alt="" loading="lazy"><b>Writer</b><small>Gemini</small><span>Writes the 8D in English and Japanese, each claim linked to evidence.</span></li>
+        <li class="k-you"><img src="/static/media/f-sign.jpg" alt="" loading="lazy"><b>Engineer</b><small>a person</small><span>Signs D2 to D5. Nothing leaves before that.</span></li>
+      </ol>
+      <p class="h-loop"><span>The Challenger sends a weak draft back to the Investigator, up to three times.</span></p>
+      <p class="h-src">Each stage keeps its colour on every page: red when the complaint arrives, blue when the 8D is signed.</p>
+    </div>
+  </section>
+
+  <section class="h-band h-ex" id="h-ex" aria-labelledby="h-ex-h">
+    <div class="h-wrap">
+      <p class="h-eyebrow"><span class="h-n c-teal">3</span>Pick an example</p>
+      <h2 id="h-ex-h">See what goes in and what comes out</h2>
+      <div class="ex-tabs" role="tablist" aria-label="Example cases">
+        <button role="tab" type="button" data-ex="118" aria-selected="true"><b>Cracked clips</b><span>A crew looks guilty</span></button>
+        <button role="tab" type="button" data-ex="124" aria-selected="false"><b>Burrs</b><span>Two causes at once</span></button>
+        <button role="tab" type="button" data-ex="121" aria-selected="false"><b>Scratches</b><span>No pattern in the data</span></button>
+        <button type="button" class="ex-own" data-upload><b>Your own</b><span>Upload a complaint</span></button>
+      </div>
+      <div class="ex-board" id="ex-board" aria-live="polite">
+        <div class="ex-col k-in"><p class="ex-h"><span>1</span>What came in</p><div class="ex-body" id="ex-in"></div></div>
+        <div class="ex-col k-data"><p class="ex-h"><span>2</span>What the agents did</p><div class="ex-body" id="ex-did"></div></div>
+        <div class="ex-col k-code"><p class="ex-h"><span>3</span>What they found</p><div class="ex-body" id="ex-found"></div></div>
+        <div class="ex-col k-out"><p class="ex-h"><span>4</span>What goes out</p><div class="ex-body" id="ex-out"></div></div>
+      </div>
+      <p class="ex-foot" id="ex-foot"></p>
+    </div>
+  </section>
+
+  <section class="h-band h-feat" id="h-feat" aria-labelledby="h-feat-h">
+    <div class="h-wrap">
+      <p class="h-eyebrow"><span class="h-n c-amber">4</span>What you get</p>
+      <h2 id="h-feat-h">Each feature answers part of the problem</h2>
+      <div class="h-bento">
+        <figure class="bf wide"><img src="/static/media/feat-split.jpg" alt="Crack rate by crew inside each press: every crew is high on press P4 only" loading="lazy">
+          <figcaption><b>It catches the confounder</b>Crew B cracks almost seven times more clips than crew C. Split by press, the gap disappears: crew B runs the faulty press most.</figcaption></figure>
+        <figure class="bf"><img src="/static/media/feat-cause.jpg" alt="Control chart of press P4's dryer dew point, out of limits on the complaint dates" loading="lazy">
+          <figcaption><b>Two root causes</b>Why it happened (the dryer ran wet) and why it got out (inspection cut from 5 checks an hour to 1).</figcaption></figure>
+        <figure class="bf bf-hold"><img src="/static/media/real-forklift.jpg" alt="A forklift moving a wrapped pallet between warehouse racks" loading="lazy"><span class="bf-tag">HOLD<small>24 lots, press P4</small></span>
+          <figcaption><b>Hold only what's suspect</b>24 lots instead of 216, and where each one is now: 21 at the customer, 3 in transit. <span class="bf-cr">Photo: <a href="https://unsplash.com/photos/F2C_mSrb6iM" target="_blank" rel="noopener">Bernd Dittrich</a>, Unsplash</span></figcaption></figure>
+        <figure class="bf"><img src="/static/media/feat-reject.jpg" alt="An operator-error claim stamped rejected, with the crack rate for each crew" loading="lazy">
+          <figcaption><b>It refuses weak answers</b>Ten rules in code reject blame without proof, invented numbers and the wrong machine.</figcaption></figure>
+        <figure class="bf"><img src="/static/media/feat-intake.jpg" alt="The Japanese complaint with Gemini's box on the crack and the four facts it read" loading="lazy">
+          <figcaption><b>Any language in</b>Gemini reads Japanese, Korean, Thai, Hindi, Indonesian or English, and the photo.</figcaption></figure>
+        <figure class="bf wide"><img src="/static/media/feat-ja.jpg" alt="The 8D report in Japanese, section by section" loading="lazy">
+          <figcaption><b>An 8D the customer can read</b>Drafted in English and Japanese, every claim linked to its evidence, locked until a person signs.</figcaption></figure>
+      </div>
+    </div>
+  </section>
+
+  <section class="h-band h-int" id="h-int" aria-labelledby="h-int-h">
+    <div class="h-wrap">
+      <p class="h-eyebrow"><span class="h-n c-green">5</span>Integrations</p>
+      <h2 id="h-int-h">What it connects to today, and what plugs in next</h2>
+      <div class="int-map">
+        <div class="int-col">
+          <figure class="int-ph"><img src="/static/media/real-moulding.jpg" alt="A row of injection moulding machines on a factory floor" loading="lazy"><figcaption>Photo: <a href="https://unsplash.com/photos/IWJNXtezL2I" target="_blank" rel="noopener">RPWORLD</a>, Unsplash</figcaption></figure>
+          <p class="int-h">The plant's records</p>
+          <ul>
+            <li><b>MES</b><span>production lots and scrap</span><em>production_lots</em></li>
+            <li><b>Process historian</b><span>dryer dew point, melt temperature, shot counts</span><em>process_params</em></li>
+            <li><b>QMS inspection</b><span>sampling plans, gauge calibration</span><em>inspection_log</em></li>
+            <li><b>ERP</b><span>shipments and where each lot is</span><em>shipments</em></li>
+            <li><b>8D archive</b><span>past root causes and lessons</span><em>past_8d</em></li>
+          </ul>
+          <p class="int-state"><span class="st demo">In the demo</span>synthetic tables in BigQuery <span class="st next">Next</span>read-only connectors</p>
+        </div>
+        <div class="int-arrow" aria-hidden="true"></div>
+        <div class="int-col int-core">
+          <p class="int-h">Root &amp; Escape on Google Cloud</p>
+          <ul class="int-gc">
+            <li class="k-ai"><b>Gemini 3.8 Flash</b><span>on Agent Platform</span></li>
+            <li class="k-ai"><b>Agent Development Kit</b><span>the Investigator agent</span></li>
+            <li class="k-data"><b>BigQuery and BigQuery ML</b><span>plant data, contribution analysis</span></li>
+            <li><b>Cloud Run</b><span>API and agents</span></li>
+            <li><b>Firestore</b><span>cases, runs, sign-offs, quotas</span></li>
+            <li><b>Cloud Storage</b><span>uploaded photos</span></li>
+            <li><b>Firebase Hosting</b><span>the web page</span></li>
+          </ul>
+          <p class="int-state"><span class="st live">Live</span>one service account, no API keys</p>
+        </div>
+        <div class="int-arrow" aria-hidden="true"></div>
+        <div class="int-col">
+          <p class="int-h">In and out</p>
+          <ul>
+            <li><b>Customer email</b><span>paste it or drop a .txt or .eml file</span><em class="st live">Live</em></li>
+            <li><b>Defect photo</b><span>JPEG, PNG or WebP</span><em class="st live">Live</em></li>
+            <li><b>8D report</b><span>English or Japanese, print or save as PDF</span><em class="st live">Live</em></li>
+            <li><b>Hold list</b><span>lots by status: at the customer, in transit, in the plant</span><em class="st live">Live</em></li>
+            <li><b>QMS filing</b><span>approved 8Ds into the quality system</span><em class="st next">Next</em></li>
+            <li><b>Customer's quality agent</b><span>8D exchange over A2A</span><em class="st next">Next</em></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="h-band h-try" id="upload" aria-labelledby="h-try-h">
+    <div class="h-wrap">
+      <p class="h-eyebrow"><span class="h-n c-blue">6</span>Try it</p>
+      <h2 id="h-try-h">Three ways in, from two minutes to five</h2>
+      <div class="h-ways">
+        <a class="way" href="#story" data-nav="story"><img src="/static/media/try-story.jpg" alt="" loading="lazy"><b>Follow one case</b><span>Six steps, about two minutes. Guess who's to blame, then see what the data says.</span><em>Start the case</em></a>
+        <a class="way" href="#test" data-nav="lab"><img src="/static/media/try-test.jpg" alt="" loading="lazy"><b>Run the tests</b><span>13 checks with expected answers. One button runs the nine quick ones.</span><em>Open Test it</em></a>
+        <button class="way" type="button" data-upload><img src="/static/media/try-upload.jpg" alt="" loading="lazy"><b>Upload your own</b><span>A complaint in any language, a photo if you have one. The agents run live.</span><em>Open the upload form</em></button>
+      </div>
+      <div class="h-guide">
+        <figure class="h-guide-ph"><img src="/static/media/real-caliper.jpg" alt="A caliper measuring a yellow moulded plastic part" loading="lazy"><figcaption>Incoming inspection finds the defect. Photo: <a href="https://www.pexels.com/photo/3988555/" target="_blank" rel="noopener">ROMBO</a>, Pexels</figcaption></figure>
+        <div>
+          <h3>How to upload your own complaint</h3>
+          <ol class="h-steps">
+            <li><b>Paste the email or drop a file.</b> A .txt or .eml file works, in any language. The form reads the date codes and the defect from the text.</li>
+            <li><b>Add a photo if you have one.</b> JPEG, PNG or WebP, up to 8 MB. Gemini boxes the defect and you confirm it.</li>
+            <li><b>Check the defect type and the date codes.</b> They must fall between 30 Aug and 16 Oct 2026, the demo plant's history.</li>
+            <li><b>Press Start.</b> The agents work for one to two minutes. The draft opens in the workbench, and only you can see it.</li>
+          </ol>
+        </div>
+        <div class="h-samples">
+          <h3>No files? Use these</h3>
+          <p class="small muted">Download one, then drop it on the upload form.</p>
+          <ul>
+            <li><a href="/static/samples/complaint_ja_cracks.txt" download>Japanese email, cracked clips</a><span>expect press P4</span></li>
+            <li><a href="/static/samples/complaint_en_burrs.txt" download>English email, burrs</a><span>expect P2, cavity C3</span></li>
+            <li><a href="/static/samples/complaint_en_scratches.txt" download>English email, scratches</a><span>expect no cause</span></li>
+            <li><a href="/static/samples/complaint_hidden_instruction.txt" download>A hidden instruction</a><span>expect no blame</span></li>
+            <li><a href="/static/samples/complaint_ja_cracks.eml" download>The Japanese email as .eml</a><span>email file</span></li>
+            <li><a href="/static/photos/real_crack.jpg" download>Photo of a real crack</a><span>JPEG</span></li>
+          </ul>
+          <a class="btn amber" href="/static/samples/root-and-escape-samples.zip" download>Download all 14 files (zip)</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="h-band h-next" id="h-next" aria-labelledby="h-next-h">
+    <div class="h-wrap h-two">
+      <div>
+        <p class="h-eyebrow"><span class="h-n c-green">7</span>Does it work?</p>
+        <h2 id="h-next-h">Tested like a quality auditor would</h2>
+        <div class="h-nums">
+          <div><b>23 / 24</b><span>planted causes found on plants it had never seen</span></div>
+          <div><b>31 / 31</b><span>end-to-end 8Ds pass seven checks</span></div>
+          <div><b>89%</b><span>of never-seen red-team claims ruled correctly</span></div>
+          <div><b>451</b><span>tricky claims kept as regression tests</span></div>
+        </div>
+        <p class="small muted">Synthetic plants with known causes. Real plants are noisier. <a href="#test" data-nav="lab">Run 13 of the checks yourself.</a></p>
+      </div>
+      <div>
+        <figure class="h-photo"><img src="/static/media/real-team.jpg" alt="Two engineers working through a diagram at a whiteboard" loading="lazy"><figcaption>Photo: <a href="https://unsplash.com/photos/uOhBxB23Wao" target="_blank" rel="noopener">ThisisEngineering</a>, Unsplash</figcaption></figure>
+        <p class="h-eyebrow"><span class="h-n c-amber">8</span>What next</p>
+        <h2>For a plant that wants to try it</h2>
+        <ol class="h-steps">
+          <li><b>One plant, one part family, four weeks.</b> Read-only access to the five tables.</li>
+          <li><b>Replay the last closed 8Ds</b> and compare the drafts with what the team concluded.</li>
+          <li><b>Run new complaints alongside the current process</b> before anyone relies on it.</li>
+        </ol>
+        <p class="small muted">Known limits: the plant data here is synthetic, photo checks are qualitative, and the Challenger checks evidence, not engineering judgement. That's why a person signs.</p>
+      </div>
+    </div>
+  </section>
+</section>
 
 <section class="story" id="story" aria-label="Case 118, step by step">
   <div class="st-wrap">
@@ -193,23 +423,48 @@
 
 <div class="gloss" id="gloss" role="tooltip" hidden></div>
 
-<dialog id="new-dlg" aria-labelledby="new-h">
+<dialog id="new-dlg" class="wide up-dlg" aria-labelledby="new-h">
   <form id="new-form" method="dialog">
-    <h2 id="new-h">New customer complaint</h2>
-    <p class="small muted">It's checked against the same synthetic plant history (date codes 30 Aug to 16 Oct 2026). <button class="link" id="f-example" type="button">Fill in an example</button></p>
-    <label for="f-title">Title</label><input id="f-title" name="title" maxlength="120" placeholder="e.g. Clips cracking at the hook">
-    <label for="f-complaint">Complaint (any language)</label>
-    <textarea id="f-complaint" name="complaint" rows="5" maxlength="4000" required placeholder="Paste the customer's email…"></textarea>
-    <div class="two">
-      <div><label for="f-defect">Defect type</label><select id="f-defect" name="defect"><option>crack</option><option>burr</option><option>scratch</option><option value="short_shot">short shot</option></select></div>
-      <div><label for="f-photo">Defect photo (optional, up to 8 MB)</label><input id="f-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp"></div>
+    <div class="up-head">
+      <h2 id="new-h">Upload your own complaint</h2>
+      <p class="small muted">Only you can see the case you create. No files handy? <a href="/static/samples/root-and-escape-samples.zip" download>Download the sample pack</a> (10 emails and 4 photos), or <button class="link" id="f-example" type="button">fill in an example</button>.</p>
     </div>
-    <div class="two">
-      <div><label for="f-start">Date codes from</label><input id="f-start" name="date_code_start" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-01" required></div>
-      <div><label for="f-end">to</label><input id="f-end" name="date_code_end" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-08" required></div>
+    <div class="up-grid">
+      <section class="up-step" aria-labelledby="up1">
+        <h3 id="up1"><span class="up-n">1</span>The complaint</h3>
+        <div class="up-drop" id="f-cdrop">
+          <textarea id="f-complaint" name="complaint" rows="7" maxlength="4000" required placeholder="Paste the customer's email here, in any language. Or drop a .txt or .eml file on this box."></textarea>
+          <p class="up-hint"><label class="link" for="f-cfile">Choose a file</label> .txt or .eml, any language <input id="f-cfile" type="file" accept=".txt,.eml,.md,text/plain,message/rfc822" hidden></p>
+        </div>
+        <p class="up-found" id="f-found" aria-live="polite"></p>
+        <label for="f-title">Title <span class="muted">(optional)</span></label><input id="f-title" name="title" maxlength="120" placeholder="e.g. Clips cracking at the hook">
+      </section>
+      <section class="up-step" aria-labelledby="up2">
+        <h3 id="up2"><span class="up-n">2</span>A photo of the defect <span class="muted">(optional)</span></h3>
+        <div class="up-drop up-photo" id="f-pdrop">
+          <input id="f-photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" aria-label="Defect photo">
+          <img id="f-prev" alt="" hidden>
+          <span class="up-ph-t" id="f-ph-t"><b>Drop a photo or click to choose</b>JPEG, PNG or WebP, up to 8 MB</span>
+        </div>
+        <p class="up-samples small">Or use a sample:
+          <button type="button" class="up-chip" data-sample="real_crack.jpg">a real crack</button>
+          <button type="button" class="up-chip" data-sample="real_flash.jpg">real flash</button>
+          <button type="button" class="up-chip" data-sample="case118_defect.png">the demo clip</button></p>
+        <p class="small muted">Gemini compares it with a good part and proposes a box around the defect. You confirm the box.</p>
+      </section>
+      <section class="up-step" aria-labelledby="up3">
+        <h3 id="up3"><span class="up-n">3</span>Defect and date codes</h3>
+        <label for="f-defect">Defect type</label><select id="f-defect" name="defect"><option value="crack">crack</option><option value="burr">burr</option><option value="scratch">scratch</option><option value="short_shot">short shot</option></select>
+        <div class="two">
+          <div><label for="f-start">Date codes from</label><input id="f-start" name="date_code_start" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-01" required></div>
+          <div><label for="f-end">to</label><input id="f-end" name="date_code_end" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-08" required></div>
+        </div>
+        <p class="small muted">The demo plant's records run from 30 Aug to 16 Oct 2026, so the date codes have to fall inside that window. The statistics use these dates and the defect type; Gemini reads your text and photo.</p>
+      </section>
     </div>
     <p class="small err" id="new-err" role="alert"></p>
-    <div class="btn-row"><button class="btn" id="new-submit" type="submit" value="ok">Create and investigate</button><button class="btn ghost" type="button" id="new-cancel">Cancel</button></div>
+    <div class="btn-row up-go"><button class="btn big" id="new-submit" type="submit" value="ok">Start the investigation</button><button class="btn ghost" type="button" id="new-cancel">Cancel</button>
+      <span class="small muted">The agents take one to two minutes with Gemini. You can watch each step.</span></div>
   </form>
 </dialog>
 
@@ -241,5 +496,6 @@
 <script src="/static/app.js"></script>
 <script src="/static/story.js"></script>
 <script src="/static/lab.js"></script>
+<script src="/static/home.js"></script>
 </body>
 </html>

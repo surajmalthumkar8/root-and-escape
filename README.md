@@ -6,11 +6,13 @@ Built for the Google Cloud AI Builder Cup 2026 (Hack2skill), Manufacturing theme
 
 Live app: <https://root-and-escape-vd37f5upcq-uc.a.run.app> (no sign-in)
 
-![The front page: case 118 told in six steps](docs/media/story.png)
+![The overview page: who it is for, what it does, and a silent tour](docs/media/overview.png)
 
-![Step 2: crew B's bar splits by press, and the gap disappears](docs/media/split.png)
+The site opens on an overview of the problem, the flow and an example explorer. From the header you can walk through case 118 in six steps, run 13 checks against the live API on the Test it page, or open the full 8D workbench and upload your own complaint.
 
-[What it solves](#what-it-solves) | [Working backwards](#working-backwards) | [Test it](#test-it-yourself) | [Try it](#try-it-in-three-minutes) | [How it works](#how-it-works) | [Guardrails](#guardrails) | [Evaluation](#evaluation) | [Run it](#run-it-yourself)
+![Pick an example: what came in, what the agents did, what they found and what goes out](docs/media/explorer.png)
+
+[What it solves](#what-it-solves) | [Working backwards](#working-backwards) | [Test it](#test-it-yourself) | [Upload your own](#upload-your-own-complaint) | [Integrations](#integrations) | [Try it](#try-it-in-three-minutes) | [How it works](#how-it-works) | [Guardrails](#guardrails) | [Evaluation](#evaluation) | [Run it](#run-it-yourself)
 
 ## What it solves
 
@@ -90,6 +92,35 @@ Open **Test it** in the header (`/#test`) and press **Run the 9 quick tests**. E
 | Export without signing | A request for the Japanese 8D, then sign-offs for D2 to D5 | Refused until signed, then the 8D opens with 発生原因 and 流出原因 |
 
 A flow diagram above the tests lights up the parts each test uses. Results stay in your browser only. Live tests use Gemini while the daily cap lasts and say so when the scripted engine ran instead.
+
+## Upload your own complaint
+
+Press **Upload your own** in the header. The form has three steps:
+
+1. **The complaint.** Paste the customer's email, or drop a `.txt` or `.eml` file on the box. Any language works. The form reads the date codes, the defect type and the subject line from the text, and you check them.
+2. **A photo of the defect**, if you have one: JPEG, PNG or WebP, up to 8 MB. You can also pick one of the sample photos with one click. Gemini compares it with a good part and proposes a box around the defect.
+3. **Defect type and date codes.** The demo plant's records run from 30 Aug to 16 Oct 2026, so the date codes have to fall in that window.
+
+Press **Start the investigation**. The agents run live and the draft opens in the workbench. Only you can see the case.
+
+No files? The [sample pack](web/samples/root-and-escape-samples.zip) has ten complaint emails (the same cracked-clip complaint in English, Japanese, Korean, Thai, Hindi and Indonesian, one as an `.eml` file, plus burrs, scratches and a hidden instruction) and four photos. Each file says what result to expect in [README.txt](web/samples/README.txt).
+
+What the upload changes: the statistics use the defect type and the date codes; Gemini reads the text and the photo, writes D2 from them and boxes the defect. The plant data stays the synthetic demo plant.
+
+## Integrations
+
+| Part | What it connects to | Status |
+|---|---|---|
+| Complaint in | Pasted text, or an uploaded `.txt` or `.eml` file | Live |
+| Defect photo in | JPEG, PNG or WebP upload, stored in Cloud Storage | Live |
+| Reasoning | Gemini 3.8 Flash on Agent Platform, the Investigator built with ADK | Live |
+| Plant records | Five BigQuery tables and BigQuery ML contribution analysis | Live, with synthetic data |
+| Cases, runs, sign-offs, quotas | Firestore | Live |
+| Web page | Cloud Run, and a copy on Firebase Hosting | Live |
+| 8D report out | English or Japanese, printable or saved as PDF | Live |
+| MES, process historian, QMS, ERP | Read-only connectors that fill the five tables (see [Data model](#data-model)) | Next |
+| QMS filing | Approved 8Ds written into the quality system | Next |
+| Customer's quality agent | 8D exchange over A2A | Next |
 
 ## Try it in three minutes
 
@@ -393,6 +424,12 @@ The plausibility table (`MECHANISM_EFFECTS` in `rae/analytics.py`) covers the fi
 | Real crack on the Test it page | [Photo by Retired electrician](https://commons.wikimedia.org/wiki/File:Revox_B215_-_tape_transport_-_broken_dashpot_01.jpg), CC0, cropped | Real photo, for comparison only |
 | Real flash on the Test it page | [Photo by Encik Tekateki](https://commons.wikimedia.org/wiki/File:Flashes_di_bakul.png), [CC BY-SA 4.0](https://creativecommons.org/licenses/by-sa/4.0/), cropped and placed on grey | Real photo, for comparison only |
 | Real surface marks on the Test it page | [Photo by Daniel Beardsmore](https://commons.wikimedia.org/wiki/File:IBM_Model_M_--_1996_keycap_mould_defects.jpg), public domain | Real photo, for comparison only |
+| Van assembly line on the overview | [Photo by Kārlis Dambrāns](https://commons.wikimedia.org/wiki/File:Crafting_some_Crafters_(30445377881).jpg), [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/) | Real photo, context only |
+| Moulded parts in a bin | [Photo by iridial](https://unsplash.com/photos/gZQOtJrks9s) on Unsplash | Real photo, context only |
+| Injection moulding machines | [Photo by RPWORLD](https://unsplash.com/photos/IWJNXtezL2I) on Unsplash | Real photo, context only |
+| Caliper on a moulded part | [Photo by ROMBO](https://www.pexels.com/photo/3988555/) on Pexels | Real photo, context only |
+| Forklift in a warehouse | [Photo by Bernd Dittrich](https://unsplash.com/photos/F2C_mSrb6iM) on Unsplash | Real photo, context only |
+| Engineers at a whiteboard | [Photo by ThisisEngineering](https://unsplash.com/photos/uOhBxB23Wao) on Unsplash | Real photo, context only |
 
 The planted stories, for transparency. Case 118 is a press-4 dryer failure from 5 to 12 Oct plus a sampling cut on 2 Oct; the confounder is new crew B, who mostly works press 4. Case 124 is a press-2 mould past its maintenance limit, with cavity C3 making burrs, and an overdue gauge. Case 121 has no cause; it is the control.
 
@@ -403,6 +440,8 @@ Working today:
 - The full flow on synthetic data, live on Cloud Run with Gemini and BigQuery ML: complaint in any language, is / is not, suspects tested, two root causes, targeted hold, Challenger, bilingual 8D, sign-off and export.
 - The six-step front page: the split-by-press chart, the dryer control chart (served by `/api/plant/series` from the same plant tables) and the lot grid.
 - The Test it page: 13 tests an evaluator can run, each checked against its expected result, with a flow diagram of what each one exercises.
+- The overview page: the problem, the flow in colour by stage, an example explorer that guesses first and then shows what each case's run produced, the integrations, and a 50-second silent tour.
+- Uploads of your own complaint as text or a `.txt` or `.eml` file, with the date codes and defect read from it, and a sample pack to try.
 - "Try to break it", the guided tour and the plain-language glossary on the workbench.
 - The evals above, all runnable from the repo.
 

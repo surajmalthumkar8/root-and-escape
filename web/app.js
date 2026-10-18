@@ -481,15 +481,97 @@
     es.onerror = () => finish("Connection closed. The stored result is still shown.");
   }
 
-  // new case
-  $("#new-btn").addEventListener("click", () => { $("#new-err").textContent = ""; $("#new-dlg").showModal(); });
+  // new case: the upload form
+  const openUpload = () => { $("#new-err").textContent = ""; $("#new-dlg").showModal(); };
+  $("#new-btn").addEventListener("click", openUpload);
   $("#new-cancel").addEventListener("click", () => $("#new-dlg").close());
   $("#f-example").addEventListener("click", () => {
     $("#f-title").value = "Clips cracking at the hook, second customer";
     $("#f-complaint").value = "Hello,\n\nOur incoming inspection found cracks at the hook root on CL-204 snap clips: 12 of 1,200 pieces in the delivery we received on 10 Oct. " +
       "Date codes 2026-10-05 to 2026-10-10. Please contain the stock you have in the plant and in transit, and send us an 8D.\n\nRegards,\nIncoming Quality, OEM-K";
-    $("#f-defect").value = "crack"; $("#f-start").value = "2026-10-05"; $("#f-end").value = "2026-10-10";
+    readFacts($("#f-complaint").value);
   });
+
+  // The date codes and the defect type are usually written in the email itself, so the form fills them in.
+  const DEFECT_WORDS = [
+    ["short_shot", /short[ -]?shots?|ショートショット|未充填|미성형/i],
+    ["burr", /\bburrs?\b|\bflash\b|バリ|bavure|gerinda/i],
+    ["scratch", /scratch|傷|キズ|스크래치|긁힘|รอยขีดข่วน|खरोंच|goresan|xước/i],
+    ["crack", /crack|割れ|クラック|균열|รอยแตก|दरार|retak|nứt/i],
+  ];
+  const fmtDay = (iso) => new Date(iso + "T00:00:00Z").toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
+  function readFacts(text) {
+    const found = [];
+    const days = [...text.matchAll(/(20\d\d)\s*[-/.年]\s*(\d{1,2})\s*[-/.月]\s*(\d{1,2})/g)]
+      .map((m) => `${m[1]}-${m[2].padStart(2, "0")}-${m[3].padStart(2, "0")}`).filter((d, i, a) => a.indexOf(d) === i).sort();
+    if (days.length) {
+      const [a, b] = [days[0], days[days.length > 1 ? 1 : 0]];
+      $("#f-start").value = a; $("#f-end").value = b;
+      found.push(`date codes ${fmtDay(a)} to ${fmtDay(b)}` + (a < "2026-08-30" || b > "2026-10-16" ? " (outside the demo window, so change them)" : ""));
+    }
+    const hit = DEFECT_WORDS.find(([, rx]) => rx.test(text));
+    if (hit) { $("#f-defect").value = hit[0]; found.push(`the defect: ${hit[0].replace("_", " ")}`); }
+    const subj = text.match(/^\s*(?:subject|件名|제목|เรื่อง|विषय|perihal)\s*[:：]\s*(.+)$/im);
+    if (subj && !$("#f-title").value) $("#f-title").value = subj[1].trim().slice(0, 120);
+    $("#f-found").textContent = found.length ? `Read from the text: ${found.join(" and ")}. Check them in step 3.` : "";
+  }
+  // a .eml file: keep the subject and the plain-text body
+  function emlText(raw) {
+    const cut = raw.search(/\r?\n\r?\n/), head = cut > 0 ? raw.slice(0, cut) : "", body = cut > 0 ? raw.slice(cut).trim() : raw;
+    const header = (name) => { const m = head.match(new RegExp(`^${name}:\\s*(.+(?:\\r?\\n[ \\t].+)*)`, "im")); return m ? m[1].replace(/\r?\n[ \t]+/g, " ") : ""; };
+    const words = (v) => v.replace(/=\?([^?]+)\?([bq])\?([^?]*)\?=/gi, (all, cs, enc, data) => {
+      try {
+        const bytes = enc.toLowerCase() === "b" ? Uint8Array.from(atob(data), (c) => c.charCodeAt(0))
+          : Uint8Array.from(data.replace(/_/g, " ").replace(/=([0-9a-f]{2})/gi, (x, h) => String.fromCharCode(parseInt(h, 16))), (c) => c.charCodeAt(0));
+        return new TextDecoder(cs).decode(bytes);
+      } catch (e) { return all; }
+    });
+    let text = body;
+    const cte = header("content-transfer-encoding").toLowerCase();
+    try {
+      if (cte.includes("base64")) text = new TextDecoder().decode(Uint8Array.from(atob(body.replace(/\s+/g, "")), (c) => c.charCodeAt(0)));
+      else if (cte.includes("quoted-printable")) text = new TextDecoder().decode(Uint8Array.from(body.replace(/=\r?\n/g, "").replace(/=([0-9A-F]{2})/gi, (x, h) => String.fromCharCode(parseInt(h, 16))), (c) => c.charCodeAt(0)));
+    } catch (e) { text = body; }
+    const subject = words(header("subject"));
+    return (subject ? `Subject: ${subject}\n\n` : "") + text;
+  }
+  async function useComplaintFile(file) {
+    if (!file) return;
+    if (file.size > 200000) { $("#new-err").textContent = "That file is larger than 200 KB. Paste the email text instead."; return; }
+    let text = await file.text();
+    if (/\.eml$/i.test(file.name) || /^(from|received|mime-version):/im.test(text.slice(0, 400))) text = emlText(text);
+    $("#f-complaint").value = text.trim().slice(0, 4000);
+    $("#new-err").textContent = "";
+    readFacts(text);
+  }
+  $("#f-cfile").addEventListener("change", (e) => useComplaintFile(e.target.files[0]));
+  $("#f-complaint").addEventListener("paste", () => setTimeout(() => readFacts($("#f-complaint").value), 0));
+  $("#f-complaint").addEventListener("blur", () => { if (!$("#f-found").textContent) readFacts($("#f-complaint").value); });
+  const dropZone = (el, onFile) => {
+    ["dragenter", "dragover"].forEach((t) => el.addEventListener(t, (e) => { e.preventDefault(); el.classList.add("over"); }));
+    ["dragleave", "drop"].forEach((t) => el.addEventListener(t, () => el.classList.remove("over")));
+    el.addEventListener("drop", (e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) onFile(f); });
+  };
+  dropZone($("#f-cdrop"), useComplaintFile);
+  // the photo: preview it, check the type and size before the server does
+  function setPhoto(file) {
+    const ok = file && /^image\/(jpeg|png|webp)$/.test(file.type) && file.size <= 8 * 1024 * 1024;
+    $("#new-err").textContent = !file || ok ? "" : (file.size > 8 * 1024 * 1024 ? "That photo is larger than 8 MB." : "The photo must be a JPEG, PNG or WebP file.");
+    const img = $("#f-prev");
+    if (ok) {
+      const dt = new DataTransfer(); dt.items.add(file);
+      if ($("#f-photo").files[0] !== file) $("#f-photo").files = dt.files;
+      img.src = URL.createObjectURL(file); img.hidden = false;
+      $("#f-ph-t").innerHTML = `<b>${esc(file.name)}</b>${Math.round(file.size / 1024)} KB. Click or drop to change it.`;
+    } else { img.hidden = true; $("#f-ph-t").innerHTML = "<b>Drop a photo or click to choose</b>JPEG, PNG or WebP, up to 8 MB"; if (file) $("#f-photo").value = ""; }
+  }
+  $("#f-photo").addEventListener("change", (e) => setPhoto(e.target.files[0]));
+  document.querySelectorAll("[data-sample]").forEach((b) => b.addEventListener("click", async () => {
+    try {
+      const blob = await (await fetch(`/static/photos/${encodeURIComponent(b.dataset.sample)}`)).blob();
+      setPhoto(new File([blob], b.dataset.sample, { type: blob.type || "image/jpeg" }));
+    } catch (err) { $("#new-err").textContent = "Couldn't load the sample photo. Choose one of your own."; }
+  }));
   $("#new-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const fd = new FormData($("#new-form"));
@@ -499,6 +581,8 @@
       const r = await api("/api/cases", { method: "POST", body: fd });
       $("#new-dlg").close();
       await loadCases(r.case_id);
+      setView("bench");
+      try { history.pushState(null, "", "#" + r.case_id); } catch (err) {}
       runLive(r.case_id);
     } catch (err) { $("#new-err").textContent = err.message; }
     finally { $("#new-submit").disabled = false; }
@@ -675,7 +759,7 @@
   });
 
   // ------------------------------------------------------------------------------------------ views
-  // Three views share one page: the story of case 118 (no hash, or #story), the tests (#test) and the workbench (#<case id>).
+  // Four views share one page: the overview (no hash), the story of case 118 (#story), the tests (#test) and the workbench (#<case id>).
   function view() { return document.documentElement.dataset.view; }
   function setView(v) {
     if (view() !== v) { document.documentElement.dataset.view = v; window.scrollTo(0, 0); }
@@ -684,7 +768,9 @@
   }
   function route() {
     const id = decodeURIComponent(location.hash.slice(1));
-    if (!id || id === "story") return setView("story");
+    if (!id) { setView("home"); if (RAE.homeShow) RAE.homeShow(); return; }
+    if (id === "upload" || id.startsWith("h-")) { setView("home"); if (RAE.homeShow) RAE.homeShow(); const t = document.getElementById(id); if (t) t.scrollIntoView(); return; }
+    if (id === "story") return setView("story");
     if (id === "test") { setView("lab"); if (RAE.labShow) RAE.labShow(); return; }
     if (id.startsWith("c-")) return;  // an anchor inside the board
     setView("bench");
@@ -706,6 +792,12 @@
     setView("lab");
     if (RAE.labShow) RAE.labShow();
   }
+  function showHome() {
+    document.querySelectorAll("dialog[open]").forEach((d) => d.close());
+    try { history.pushState(null, "", location.pathname + location.search); } catch (e) {}
+    setView("home");
+    if (RAE.homeShow) RAE.homeShow();
+  }
   function showStory(step) {
     try { history.pushState(null, "", "#story"); } catch (e) {}
     setView("story");
@@ -717,12 +809,13 @@
     const b = e.target.closest("[data-bench]");
     if (b) { e.preventDefault(); openCase(b.dataset.bench, { run: b.dataset.run === "1" }); return; }
     const n = e.target.closest("[data-nav]");
-    if (n) { e.preventDefault(); if (n.dataset.nav === "bench") openCase(state.current || "118"); else if (n.dataset.nav === "lab") showLab(); else showStory(); return; }
-    if (e.target.closest(".brand")) { e.preventDefault(); showStory(0); }
+    if (n) { e.preventDefault(); const v = n.dataset.nav; if (v === "bench") openCase(state.current || "118"); else if (v === "lab") showLab(); else if (v === "home") showHome(); else showStory(0); return; }
+    const up = e.target.closest("[data-upload]");
+    if (up) { e.preventDefault(); openUpload(); return; }
   });
 
   const RAE = window.RAE = { api, esc, ruleName, term, openCase, showStory, API, visitor,
-    onResult: null, storyGo: null, labShow: null };  // story.js and lab.js set the last three
+    onResult: null, storyGo: null, labShow: null, homeShow: null };  // story.js, lab.js and home.js set the last four
   setView(view());
   loadMeta();
   loadCases();

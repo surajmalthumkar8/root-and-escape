@@ -1,0 +1,9 @@
+Subject: Burrs on the snap edge of CL-204 clips
+
+Hello,
+
+Several CL-204 clips in the last deliveries have sharp burrs on the snap edge. Our operators cut a glove on one.
+We found 31 of 2,000 pieces with burrs. Date codes 2026-09-29 to 2026-10-09.
+Please contain and send an 8D with the root cause.
+
+Supplier Quality, OEM-J
