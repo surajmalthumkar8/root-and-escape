@@ -24,20 +24,29 @@
     const step = (t) => { const k = Math.min(1, (t - t0) / dur); put(Math.round(to * (1 - Math.pow(1 - k, 3)))); if (k < 1) requestAnimationFrame(step); };
     requestAnimationFrame(step);
   }
-  ROOT.querySelectorAll("[data-count], .h-flow").forEach((el) => seen.observe(el));
+  ROOT.querySelectorAll(".h-flow").forEach((el) => seen.observe(el));
 
-  // the tour video: if it can't load, show a still of the app instead
-  const vid = $("#h-tour");
-  if (vid) vid.addEventListener("error", () => { vid.replaceWith(Object.assign(document.createElement("img"), { src: "/static/media/try-story.jpg", alt: "The app's front page" })); }, true);
+  // the tour opens in its own window, big enough to read
+  const dlg = document.getElementById("tour-dlg"), vid = document.getElementById("tour-vid");
+  if (dlg && vid) {
+    document.getElementById("tour-open").addEventListener("click", () => { dlg.showModal(); vid.currentTime = 0; vid.play().catch(() => {}); });
+    document.getElementById("tour-close").addEventListener("click", () => dlg.close());
+    dlg.addEventListener("close", () => vid.pause());
+  }
 
   // ------------------------------------------------------------------ the example explorer
   const TOOL = {
-    is_is_not: "Where do the defects concentrate? BigQuery ML contribution analysis",
-    stratify: "Split a suspect by press, to see if the gap survives",
-    param_excursions: "Machine logs out of their normal range",
-    inspection_changes: "Changes to the inspection plan",
-    containment: "Which lots to hold, and where they are",
-    past_8d: "Similar 8Ds from the past",
+    is_is_not: "Found where the defects concentrate",
+    stratify: "Split a suspect by press to test it",
+    param_excursions: "Read the machine logs",
+    inspection_changes: "Checked the inspection plan",
+    containment: "Worked out which lots to hold",
+    past_8d: "Looked up similar past 8Ds",
+  };
+  const ANSWER = {
+    "118": "Not the crew. Press P4's resin dryer ran wet.",
+    "124": "One cavity of press P2: its mould ran past the maintenance limit.",
+    "121": "Nothing stands out, so no cause is claimed.",
   };
   const GUESS = {
     "118": { q: "37 clips cracked. Who or what would you blame?", opts: ["Crew B, the new night crew", "Press P4's resin dryer", "A bad batch of resin", "A worn mould"], a: 1 },
@@ -71,8 +80,9 @@
     const r = d.result || {}, tr = (r.trace || []).filter((t) => t.tool);
     const calls = tr.length ? tr : ["is_is_not", "stratify", "param_excursions", "inspection_changes", "containment", "past_8d"].map((tool) => ({ tool }));
     const arg = (a) => Object.entries(a || {}).map(([k, v]) => `${k}=${Array.isArray(v) ? v.join("|") : v}`).join(", ");
-    $("#ex-did").innerHTML = `<ol class="ex-calls">${calls.slice(0, 8).map((t, i) => `<li style="--i:${i}"><b>${esc(t.tool)}</b><span>${esc(TOOL[t.tool] || "")}</span>${t.args ? `<code>${esc(arg(t.args))}</code>` : ""}</li>`).join("")}</ol>
-      <p class="ex-by">${r.modes && r.modes.investigation === "gemini" ? `Gemini chose these ${calls.length} steps through ADK` : "The scripted engine's fixed plan (Gemini off)"}</p>`;
+    const by = (t) => (t.args && (t.args.by || t.args.press) ? ` (${[t.args.by && "by " + t.args.by, t.args.press].filter(Boolean).join(", ")})` : "");
+    $("#ex-did").innerHTML = `<ol class="ex-calls">${calls.slice(0, 8).map((t, i) => `<li style="--i:${i}" title="${esc(t.tool + (t.args ? "(" + arg(t.args) + ")" : ""))}"><b>${esc((TOOL[t.tool] || t.tool) + by(t))}</b><code>${esc(t.tool)}</code></li>`).join("")}</ol>
+      <p class="ex-by">${r.modes && r.modes.investigation === "gemini" ? `Gemini chose these ${calls.length} steps itself, through ADK` : "The fixed plan the app uses when Gemini is off"}</p>`;
   }
   function paintFound(d, id, guessed) {
     const r = d.result || {}, dr = r.draft || {}, g = GUESS[id];
@@ -83,14 +93,13 @@
       return;
     }
     const right = guessed === g.a;
-    const verdict = guessed < 0 ? "" : `<p class="ex-res ${right ? "ok" : "no"}">${right ? "Right." : `Not quite. You picked "${esc(g.opts[guessed])}".`} The data says:</p>`;
+    const verdict = `${guessed < 0 ? "" : `<p class="ex-res ${right ? "ok" : "no"}">${right ? "You got it." : `You picked "${esc(g.opts[guessed])}".`}</p>`}<p class="ex-big">${esc(ANSWER[id] || "")}</p>`;
     const ruled = (r.hypotheses || []).filter((h) => h.ruling === "REJECTED").map((h) => h.hypothesis);
     if (dr.insufficient_evidence) {
-      $("#ex-found").innerHTML = `${verdict}<p class="ex-big">No cause claimed</p><p>${esc(short(dr.summary || "No segment of the plant stands out.", 160))}</p>
+      $("#ex-found").innerHTML = `${verdict}<p>${esc(short(dr.summary || "No segment of the plant stands out.", 110))}</p>
         <p class="ex-k">Data to collect next</p><ul class="ex-list">${(dr.next_data || []).slice(0, 3).map((x) => `<li>${esc(short(x, 90))}</li>`).join("")}</ul>`;
     } else {
-      $("#ex-found").innerHTML = `${verdict}<p class="ex-k">Why it happened</p><p>${esc(short((dr.occurrence || {}).statement, 150))}</p>
-        <p class="ex-k">Why it got out</p><p>${esc(short((dr.escape || {}).statement, 130))}</p>
+      $("#ex-found").innerHTML = `${verdict}<p class="ex-k">Why it got out</p><p>${esc(short((dr.escape || {}).statement, 100))}</p>
         ${ruled.length ? `<p class="ex-k">Looked guilty, ruled out</p><ul class="ex-chips no">${ruled.slice(0, 4).map((h) => `<li>${esc(h)}</li>`).join("")}</ul>` : ""}`;
     }
     $("#ex-found").classList.add("reveal");

@@ -482,7 +482,7 @@
   }
 
   // new case: the upload form
-  const openUpload = () => { $("#new-err").textContent = ""; $("#new-dlg").showModal(); };
+  const openUpload = () => { $("#new-err").textContent = ""; $("#new-dlg").showModal(); if (typeof showRange === "function") showRange(); };
   $("#new-btn").addEventListener("click", openUpload);
   $("#new-cancel").addEventListener("click", () => $("#new-dlg").close());
   $("#f-example").addEventListener("click", () => {
@@ -514,6 +514,7 @@
     const subj = text.match(/^\s*(?:subject|件名|제목|เรื่อง|विषय|perihal)\s*[:：]\s*(.+)$/im);
     if (subj && !$("#f-title").value) $("#f-title").value = subj[1].trim().slice(0, 120);
     $("#f-found").textContent = found.length ? `Read from the text: ${found.join(" and ")}. Check them in step 3.` : "";
+    showRange();
   }
   // a .eml file: keep the subject and the plain-text body
   function emlText(raw) {
@@ -545,6 +546,9 @@
     readFacts(text);
   }
   $("#f-cfile").addEventListener("change", (e) => useComplaintFile(e.target.files[0]));
+  const showRange = () => { const a = $("#f-start").value, b = $("#f-end").value; $("#f-range").textContent = a && b ? `Date codes ${fmtDay(a)} to ${fmtDay(b)} 2026` : ""; };
+  ["#f-start", "#f-end"].forEach((s) => $(s).addEventListener("input", showRange));
+  $("#new-btn").addEventListener("click", showRange);
   $("#f-complaint").addEventListener("paste", () => setTimeout(() => readFacts($("#f-complaint").value), 0));
   $("#f-complaint").addEventListener("blur", () => { if (!$("#f-found").textContent) readFacts($("#f-complaint").value); });
   const dropZone = (el, onFile) => {

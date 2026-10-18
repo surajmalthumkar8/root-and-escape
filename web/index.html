@@ -45,19 +45,19 @@
         <p class="h-note">No sign-in. Running live on Google Cloud with Gemini. The plant data is synthetic.</p>
       </div>
       <figure class="h-video">
-        <div class="h-frame"><span class="h-dots" aria-hidden="true"><i></i><i></i><i></i></span>
-          <video id="h-tour" src="/static/media/tour.mp4" poster="/static/media/tour.jpg" autoplay muted loop playsinline preload="metadata" aria-label="A silent tour of the app"></video></div>
-        <figcaption>A 50-second tour of the app, without sound.</figcaption>
+        <img src="/static/media/hero-still.jpg" alt="A car body line, the customer's photo of a cracked clip, and a HOLD tag on press P4's lots" class="h-still">
+        <button class="h-play" type="button" id="tour-open"><span aria-hidden="true"></span>Watch the 50-second tour</button>
+        <figcaption>Car body line: photo by Lilian Do Khac on Unsplash. The clip photo is synthetic, like all the plant data.</figcaption>
       </figure>
     </div>
   </div>
 
   <div class="h-proof">
     <div class="h-wrap h-proof-in">
-      <div><b data-count="24">24</b><span>lots held instead of 216 in the demo case</span></div>
-      <div><b data-count="54" data-unit=" s">54 s</b><span>from email to a drafted 8D on Gemini</span></div>
-      <div><b data-count="12" data-of="12">12 / 12</b><span>planted causes found in the benchmark</span></div>
-      <div><b data-count="0">0</b><span>people blamed without proof</span></div>
+      <div><b>24 of 216</b><span>lots held in the example case, instead of a blanket hold</span></div>
+      <div><b>54 s</b><span>from the customer's email to a drafted 8D, on Gemini</span></div>
+      <div><b>23 of 24</b><span>planted causes found on test plants it had never seen</span></div>
+      <div><b>13</b><span>checks you can run yourself on the Test it page</span></div>
     </div>
   </div>
 
@@ -96,7 +96,7 @@
         <li class="k-in"><img src="/static/media/f-mail.jpg" alt="" loading="lazy"><b>Complaint</b><small>email, photo, date codes</small><span>Any language. Paste it or drop a file.</span></li>
         <li class="k-ai"><img src="/static/media/f-photo.jpg" alt="" loading="lazy"><b>Intake</b><small>Gemini</small><span>Translates the email and boxes the defect next to a good part.</span></li>
         <li class="k-data"><img src="/static/media/f-split.jpg" alt="" loading="lazy"><b>Investigator</b><small>ADK agent and BigQuery ML</small><span>Tests press, cavity, shift, crew and resin lot, one tool at a time.</span></li>
-        <li class="k-code"><img src="/static/media/f-stamp.jpg" alt="" loading="lazy"><b>Challenger</b><small>10 rules in code</small><span>Sends back blame without proof, made-up numbers and the wrong machine.</span></li>
+        <li class="k-code"><img src="/static/media/f-rule.jpg" alt="" loading="lazy"><b>Challenger</b><small>10 rules in code</small><span>Sends back blame without proof, made-up numbers and the wrong machine.</span></li>
         <li class="k-ai"><img src="/static/media/f-ja.jpg" alt="" loading="lazy"><b>Writer</b><small>Gemini</small><span>Writes the 8D in English and Japanese, each claim linked to evidence.</span></li>
         <li class="k-you"><img src="/static/media/f-sign.jpg" alt="" loading="lazy"><b>Engineer</b><small>a person</small><span>Signs D2 to D5. Nothing leaves before that.</span></li>
       </ol>
@@ -113,7 +113,7 @@
         <button role="tab" type="button" data-ex="118" aria-selected="true"><b>Cracked clips</b><span>A crew looks guilty</span></button>
         <button role="tab" type="button" data-ex="124" aria-selected="false"><b>Burrs</b><span>Two causes at once</span></button>
         <button role="tab" type="button" data-ex="121" aria-selected="false"><b>Scratches</b><span>No pattern in the data</span></button>
-        <button type="button" class="ex-own" data-upload><b>Your own</b><span>Upload a complaint</span></button>
+        <button type="button" class="ex-own" data-upload><b>Your own</b><span>Opens the upload form</span></button>
       </div>
       <div class="ex-board" id="ex-board" aria-live="polite">
         <div class="ex-col k-in"><p class="ex-h"><span>1</span>What came in</p><div class="ex-body" id="ex-in"></div></div>
@@ -128,7 +128,7 @@
   <section class="h-band h-feat" id="h-feat" aria-labelledby="h-feat-h">
     <div class="h-wrap">
       <p class="h-eyebrow"><span class="h-n c-amber">4</span>What you get</p>
-      <h2 id="h-feat-h">Each feature answers part of the problem</h2>
+      <h2 id="h-feat-h">What you get for each complaint</h2>
       <div class="h-bento">
         <figure class="bf wide"><img src="/static/media/feat-split.jpg" alt="Crack rate by crew inside each press: every crew is high on press P4 only" loading="lazy">
           <figcaption><b>It catches the confounder</b>Crew B cracks almost seven times more clips than crew C. Split by press, the gap disappears: crew B runs the faulty press most.</figcaption></figure>
@@ -137,10 +137,10 @@
         <figure class="bf bf-hold"><img src="/static/media/real-forklift.jpg" alt="A forklift moving a wrapped pallet between warehouse racks" loading="lazy"><span class="bf-tag">HOLD<small>24 lots, press P4</small></span>
           <figcaption><b>Hold only what's suspect</b>24 lots instead of 216, and where each one is now: 21 at the customer, 3 in transit. <span class="bf-cr">Photo: <a href="https://unsplash.com/photos/F2C_mSrb6iM" target="_blank" rel="noopener">Bernd Dittrich</a>, Unsplash</span></figcaption></figure>
         <figure class="bf"><img src="/static/media/feat-reject.jpg" alt="An operator-error claim stamped rejected, with the crack rate for each crew" loading="lazy">
-          <figcaption><b>It refuses weak answers</b>Ten rules in code reject blame without proof, invented numbers and the wrong machine.</figcaption></figure>
+          <figcaption><b>It sends weak answers back</b>Ten rules in code catch blame without proof, invented numbers and the wrong machine, and say which rule failed.</figcaption></figure>
         <figure class="bf"><img src="/static/media/feat-intake.jpg" alt="The Japanese complaint with Gemini's box on the crack and the four facts it read" loading="lazy">
           <figcaption><b>Any language in</b>Gemini reads Japanese, Korean, Thai, Hindi, Indonesian or English, and the photo.</figcaption></figure>
-        <figure class="bf wide"><img src="/static/media/feat-ja.jpg" alt="The 8D report in Japanese, section by section" loading="lazy">
+        <figure class="bf full"><img src="/static/media/feat-ja.jpg" alt="The 8D report in Japanese, section by section" loading="lazy">
           <figcaption><b>An 8D the customer can read</b>Drafted in English and Japanese, every claim linked to its evidence, locked until a person signs.</figcaption></figure>
       </div>
     </div>
@@ -196,7 +196,7 @@
   <section class="h-band h-try" id="upload" aria-labelledby="h-try-h">
     <div class="h-wrap">
       <p class="h-eyebrow"><span class="h-n c-blue">6</span>Try it</p>
-      <h2 id="h-try-h">Three ways in, from two minutes to five</h2>
+      <h2 id="h-try-h">Try it</h2>
       <div class="h-ways">
         <a class="way" href="#story" data-nav="story"><img src="/static/media/try-story.jpg" alt="" loading="lazy"><b>Follow one case</b><span>Six steps, about two minutes. Guess who's to blame, then see what the data says.</span><em>Start the case</em></a>
         <a class="way" href="#test" data-nav="lab"><img src="/static/media/try-test.jpg" alt="" loading="lazy"><b>Run the tests</b><span>13 checks with expected answers. One button runs the nine quick ones.</span><em>Open Test it</em></a>
@@ -234,25 +234,35 @@
     <div class="h-wrap h-two">
       <div>
         <p class="h-eyebrow"><span class="h-n c-green">7</span>Does it work?</p>
-        <h2 id="h-next-h">Tested like a quality auditor would</h2>
+        <h2 id="h-next-h">Benchmark results</h2>
         <div class="h-nums">
           <div><b>23 / 24</b><span>planted causes found on plants it had never seen</span></div>
           <div><b>31 / 31</b><span>end-to-end 8Ds pass seven checks</span></div>
           <div><b>89%</b><span>of never-seen red-team claims ruled correctly</span></div>
           <div><b>451</b><span>tricky claims kept as regression tests</span></div>
         </div>
-        <p class="small muted">Synthetic plants with known causes. Real plants are noisier. <a href="#test" data-nav="lab">Run 13 of the checks yourself.</a></p>
+        <p class="small muted">Synthetic plants with known causes; real plants are noisier.</p>
+        <a class="btn" href="#test" data-nav="lab">Run 13 checks yourself</a>
       </div>
+      <figure class="h-photo"><img src="/static/media/real-team.jpg" alt="Two engineers working through a diagram at a whiteboard" loading="lazy"><figcaption>Photo: <a href="https://unsplash.com/photos/uOhBxB23Wao" target="_blank" rel="noopener">ThisisEngineering</a>, Unsplash</figcaption></figure>
+    </div>
+  </section>
+
+  <section class="h-band h-pilot" aria-labelledby="h-pilot-h">
+    <div class="h-wrap h-two">
       <div>
-        <figure class="h-photo"><img src="/static/media/real-team.jpg" alt="Two engineers working through a diagram at a whiteboard" loading="lazy"><figcaption>Photo: <a href="https://unsplash.com/photos/uOhBxB23Wao" target="_blank" rel="noopener">ThisisEngineering</a>, Unsplash</figcaption></figure>
         <p class="h-eyebrow"><span class="h-n c-amber">8</span>What next</p>
-        <h2>For a plant that wants to try it</h2>
+        <h2 id="h-pilot-h">For a plant that wants to try it</h2>
         <ol class="h-steps">
           <li><b>One plant, one part family, four weeks.</b> Read-only access to the five tables.</li>
           <li><b>Replay the last closed 8Ds</b> and compare the drafts with what the team concluded.</li>
           <li><b>Run new complaints alongside the current process</b> before anyone relies on it.</li>
         </ol>
-        <p class="small muted">Known limits: the plant data here is synthetic, photo checks are qualitative, and the Challenger checks evidence, not engineering judgement. That's why a person signs.</p>
+      </div>
+      <div class="h-pilot-go">
+        <p>Known limits: the plant data here is synthetic, photo checks are qualitative, and the Challenger checks evidence rather than engineering judgement, which is why a person signs.</p>
+        <div class="h-cta"><button class="btn big amber" type="button" data-upload>Upload your own complaint</button>
+          <a class="btn big ghost" href="https://github.com/surajmalthumkar8/root-and-escape" target="_blank" rel="noopener">Read the code on GitHub</a></div>
       </div>
     </div>
   </section>
@@ -411,7 +421,7 @@
 
 <footer class="foot">
   <span>Root &amp; Escape, built for the Google Cloud AI Builder Cup 2026. The plant data and defect photos are synthetic.</span>
-  <span>Built with Gemini on Agent Platform, ADK, BigQuery ML, Cloud Run, Firestore and Firebase Hosting. <a href="https://github.com/surajmalthumkar8/root-and-escape" target="_blank" rel="noopener">Source on GitHub</a></span>
+  <span><a href="https://github.com/surajmalthumkar8/root-and-escape" target="_blank" rel="noopener">Source on GitHub</a></span>
 </footer>
 
 <div class="coach" id="coach" hidden role="dialog" aria-modal="false" aria-labelledby="coach-h">
@@ -423,6 +433,10 @@
 
 <div class="gloss" id="gloss" role="tooltip" hidden></div>
 
+<dialog id="tour-dlg" class="tour-dlg" aria-label="A silent tour of the app">
+  <video id="tour-vid" src="/static/media/tour.mp4" poster="/static/media/tour.jpg" controls muted playsinline preload="none"></video>
+  <div class="btn-row"><span class="small muted">50 seconds, no sound: the overview, case 118, the tests and the upload form.</span><button class="btn ghost small" type="button" id="tour-close">Close</button></div>
+</dialog>
 <dialog id="new-dlg" class="wide up-dlg" aria-labelledby="new-h">
   <form id="new-form" method="dialog">
     <div class="up-head">
@@ -459,6 +473,7 @@
           <div><label for="f-start">Date codes from</label><input id="f-start" name="date_code_start" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-01" required></div>
           <div><label for="f-end">to</label><input id="f-end" name="date_code_end" type="date" min="2026-08-30" max="2026-10-16" value="2026-10-08" required></div>
         </div>
+        <p class="up-range" id="f-range" aria-live="polite"></p>
         <p class="small muted">The demo plant's records run from 30 Aug to 16 Oct 2026, so the date codes have to fall inside that window. The statistics use these dates and the defect type; Gemini reads your text and photo.</p>
       </section>
     </div>
