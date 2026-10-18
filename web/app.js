@@ -494,7 +494,7 @@
 
   // The date codes and the defect type are usually written in the email itself, so the form fills them in.
   const DEFECT_WORDS = [
-    ["short_shot", /short[ -]?shots?|ショートショット|未充填|미성형/i],
+    ["short_shot", /short[ -]?shots?|incomplete (?:fill|walls?)|not fully (?:formed|filled)|unfilled|ショートショット|未充填|미성형/i],
     ["burr", /\bburrs?\b|\bflash\b|バリ|bavure|gerinda/i],
     ["scratch", /scratch|傷|キズ|스크래치|긁힘|รอยขีดข่วน|खरोंच|goresan|xước/i],
     ["crack", /crack|割れ|クラック|균열|รอยแตก|दरार|retak|nứt/i],

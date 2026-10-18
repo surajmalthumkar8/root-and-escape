@@ -95,7 +95,9 @@ echo "$META" | python3 -c "import sys,json; m=json.load(sys.stdin); sys.exit(0 i
   warn "Gemini is off: $(echo "$META" | python3 -c "import sys,json; print(json.load(sys.stdin).get('gemini_error'))")"
 
 step "9/9 Warm the six seed cases with a real Gemini run, all at once (uses 6 of today's 30 Gemini runs)"
+# SKIP_WARMUP=1 bash deploy/deploy.sh redeploys without spending Gemini runs (the stored runs stay as they are)
 SEEDS="118 124 121 131 142 153"
+[ "${SKIP_WARMUP:-0}" = "1" ] && { echo "Skipped (SKIP_WARMUP=1)."; SEEDS=""; }
 WARM=$(mktemp -d)
 for CASE in $SEEDS; do
   curl -sN --max-time 290 "$URL/api/cases/$CASE/live?v=deploy-warmup-$CASE-$(date +%s)" > "$WARM/$CASE.log" 2>&1 &

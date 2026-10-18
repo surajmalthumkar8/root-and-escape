@@ -1,8 +1,8 @@
-Subject: HX-310 housings with incomplete walls
+Subject: Short shots on HX-310 housings
 
 Hello,
 
-Our harness line rejected HX-310 connector housings this week. On some of them the latch wall is not fully formed
+Our harness line rejected HX-310 connector housings this week for short shots: the latch wall is not fully formed
 and the terminal pulls out. 9 of 600 housings checked. Date codes 2026-10-05 to 2026-10-10.
 
 Please contain the stock in your plant and in transit and send us an 8D.
